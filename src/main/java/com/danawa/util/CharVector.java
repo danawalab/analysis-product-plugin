@@ -1,6 +1,8 @@
 package com.danawa.util;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CharVector implements CharSequence, Comparable<CharSequence>, Serializable {
     private static final long serialVersionUID = 1L;
@@ -14,10 +16,16 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 
     public CharVector() { }
 
-    public CharVector(String str) {
-        array = str.toCharArray();
-        offset = 0;
-        length = array.length;
+    public CharVector(CharSequence str) {
+        if (str != null) {
+            array = String.valueOf(str).toCharArray();
+            offset = 0;
+            length = array.length;
+        } else {
+            array = new char[0];
+            offset = 0;
+            length = 0;
+        }
     }
 
     public CharVector(char[] array) {
@@ -242,27 +250,27 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
     //     hash = 0;
     // }
 
-    // // 내부 공백을 삭제해준다.
-    // public CharVector removeWhitespaces() {
-    //     int len = 0;
-    //     for (int i = 0; i < length; i++) {
-    //         if (array[offset + i] != ' ') {
-    //             array[offset + len++] = array[offset + i];
-    //         }
-    //     }
-    //     length = len;
-    //     hash = 0;
-    //     return this;
-    // }
+    // 내부 공백을 삭제해준다.
+    public CharVector removeWhitespaces() {
+        int len = 0;
+        for (int i = 0; i < length; i++) {
+            if (array[offset + i] != ' ') {
+                array[offset + len++] = array[offset + i];
+            }
+        }
+        length = len;
+        hash = 0;
+        return this;
+    }
 
-    // public boolean hasWhitespaces() {
-    //     for (int i = 0; i < length; i++) {
-    //         if (array[offset + i] == ' ') {
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
+    public boolean hasWhitespaces() {
+        for (int i = 0; i < length; i++) {
+            if (array[offset + i] == ' ') {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public char[] array() {
         return array;
@@ -284,6 +292,40 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
         cv.offset = this.offset + startIndex;
         cv.length = endIndex - startIndex + 1;
         return cv;
+    }
+
+    public static CharVector valueOf(Object o) {
+        CharVector ret;
+        if (o == null) {
+            ret = null;
+        } else if (o instanceof CharVector) {
+            ret = (CharVector) o;
+        } else {
+            ret = new CharVector(String.valueOf(o));
+        }
+        return ret;
+    }
+
+    public static List<CharVector> splitByWhitespace(CharVector term) {
+        int start = 0;
+        boolean isPrevWhitespace = true;
+        List<CharVector> list = new ArrayList<>();
+        for (int i = 0; i < term.length(); i++) {
+            char ch = term.charAt(i);
+            if (ch == ' ') {
+                if (!isPrevWhitespace) {
+                    list.add(new CharVector(term.array(), start + term.offset(), i - start, term.isIgnoreCase()));
+                }
+                start = i + 1;
+                isPrevWhitespace = true;
+            } else {
+                isPrevWhitespace = false;
+            }
+        }
+        if (!isPrevWhitespace) {
+            list.add(new CharVector(term.array(), start + term.offset(), term.length() - start, term.isIgnoreCase()));
+        }
+        return list;
     }
 
     // public Reader getReader() {
