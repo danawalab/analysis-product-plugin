@@ -33,7 +33,7 @@ public class CommonDictionary<T, P> {
         return systemDictionary.find(token);
     }
 
-    public P findP(CharSequence token) {
+    public P findPreResult(CharSequence token) {
         return systemDictionary.findP(token);
     }
 

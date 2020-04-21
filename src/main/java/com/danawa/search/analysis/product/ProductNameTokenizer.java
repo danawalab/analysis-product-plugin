@@ -1,6 +1,7 @@
 package com.danawa.search.analysis.product;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import com.danawa.search.analysis.dict.SynonymDictionary;
@@ -139,7 +140,9 @@ public class ProductNameTokenizer extends Tokenizer {
 	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
 		CharVector token = new CharVector();
-
+////////////////////////////////////////////////////////////////////////////////
+if (!ret) { return hasToken(); }
+////////////////////////////////////////////////////////////////////////////////
 		// 전체동의어는 전체 단어중 동의어가 존재하는것만 체크해야 하므로 먼저 체크한다.
 		if (readLength == -1 && readLengthPrev > 0 && readLengthPrev >= position) {
 			if (stringbuffer != null) {
@@ -174,7 +177,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		// logger.trace("hasToken:{} / radLength:{}", ret, readLength);
 
 		if (tokenAttribute.charVector() != null && tokenAttribute.charVector().offset() == 0
-				&& tokenAttribute.charVector().length() == 0) {
+			&& tokenAttribute.charVector().length() == 0) {
 			return true;
 		}
 
@@ -393,23 +396,23 @@ public class ProductNameTokenizer extends Tokenizer {
 		return null;
 	}
 
-// 	public static String getUniType(CharSequence cv) {
-// 		String ret = null;
-// 		String prevType = null;
-// 		String type = null;
-// 		for (int inx = 0; inx < cv.length(); inx++) {
-// 			prevType = type;
-// 			type = getType(cv.charAt(inx));
-// 			if (prevType != null && type != prevType) {
-// 				if (prevType != type) {
-// 					type = TypeTokenizer.UNCATEGORIZED;
-// 					break;
-// 				}
-// 			}
-// 		}
-// 		ret = type;
-// 		return ret;
-// 	}
+	public static String getUniType(CharSequence cv) {
+		String ret = null;
+		String prevType = null;
+		String type = null;
+		for (int inx = 0; inx < cv.length(); inx++) {
+			prevType = type;
+			type = getType(cv.charAt(inx));
+			if (prevType != null && type != prevType) {
+				if (prevType != type) {
+					type = UNCATEGORIZED;
+					break;
+				}
+			}
+		}
+		ret = type;
+		return ret;
+	}
 
 // 	public static boolean isASCII(CharSequence cv) {
 // 		boolean ret = true;
@@ -423,35 +426,35 @@ public class ProductNameTokenizer extends Tokenizer {
 // 		return ret;
 // 	}
 
-// 	public static String getTermType(CharSequence cv) {
-// 		String ret = null;
-// 		String prevType = null;
-// 		String type = null;
-// 		for (int inx = 0; inx < cv.length(); inx++) {
-// 			prevType = type;
-// 			type = getType(cv.charAt(inx));
-// 			logger.trace("TYPE:{} / {}", type, cv);
-// 			if (prevType != null && type != prevType) {
-// 				if ((prevType == ALPHA && type == NUMBER) || (prevType == NUMBER && type == ALPHA)) {
-// 					type = ALPHANUM;
-// 				} else if (prevType == ALPHANUM && (type == ALPHA || type == NUMBER)) {
-// 					type = ALPHANUM;
-// 				} else if ((prevType == ALPHA && type == SYMBOL) || (prevType == NUMBER && type == SYMBOL)
-// 						|| (prevType == ALPHANUM && type == SYMBOL)) {
-// 					type = ASCII;
-// 				} else if (prevType == ASCII && (type == ALPHA || type == NUMBER || type == SYMBOL)) {
-// 					type = ASCII;
-// 				} else {
-// 					type = UNCATEGORIZED;
-// 				}
-// 			} else {
+	public static String getTermType(CharSequence cv) {
+		String ret = null;
+		String prevType = null;
+		String type = null;
+		for (int inx = 0; inx < cv.length(); inx++) {
+			prevType = type;
+			type = getType(cv.charAt(inx));
+			logger.trace("TYPE:{} / {}", type, cv);
+			if (prevType != null && type != prevType) {
+				if ((prevType == ALPHA && type == NUMBER) || (prevType == NUMBER && type == ALPHA)) {
+					type = ALPHANUM;
+				} else if (prevType == ALPHANUM && (type == ALPHA || type == NUMBER)) {
+					type = ALPHANUM;
+				} else if ((prevType == ALPHA && type == SYMBOL) || (prevType == NUMBER && type == SYMBOL)
+						|| (prevType == ALPHANUM && type == SYMBOL)) {
+					type = ASCII;
+				} else if (prevType == ASCII && (type == ALPHA || type == NUMBER || type == SYMBOL)) {
+					type = ASCII;
+				} else {
+					type = UNCATEGORIZED;
+				}
+			} else {
 
-// 			}
-// 			logger.trace("TYPE:{} / PREV:{}", type, prevType);
-// 		}
-// 		ret = type;
-// 		return ret;
-// 	}
+			}
+			logger.trace("TYPE:{} / PREV:{}", type, prevType);
+		}
+		ret = type;
+		return ret;
+	}
 
 	public static String getType(int ch) {
 		if(Character.isWhitespace(ch)){
@@ -497,6 +500,18 @@ public class ProductNameTokenizer extends Tokenizer {
 		}
 		
 		return UNCATEGORIZED;
+	}
+
+	@Override
+	public void reset() throws IOException {
+		super.reset();
+		Arrays.fill(buffer, (char)0);
+		if(stringbuffer == null) {
+			stringbuffer = new char[MAX_STRING_LENGTH];
+		}
+		position = positionPrev = readLength = readLengthPrev = 0;
+		baseOffset = 0;
+		this.clearAttributes();
 	}
 
 	@Override
