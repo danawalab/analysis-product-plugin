@@ -5,5 +5,6 @@ import org.apache.lucene.util.Attribute;
 
 public interface PosTagAttribute extends Attribute {
 	public void setPosTag(PosTag posTag);
+
 	public PosTag posTag();
 }

@@ -26,8 +26,8 @@ public class CompoundDictionary extends MapDictionary {
 		this(false);
 	}
 
-	public CompoundDictionary(boolean isIgnoreCase) {
-		super(isIgnoreCase);
+	public CompoundDictionary(boolean ignoreCase) {
+		super(ignoreCase);
 		if (mainWordSet == null) {
 			mainWordSet = new HashSet<>();
 		}
@@ -36,8 +36,8 @@ public class CompoundDictionary extends MapDictionary {
 		}
 	}
 
-	public CompoundDictionary(File file, boolean isIgnoreCase) {
-		super(file, isIgnoreCase);
+	public CompoundDictionary(File file, boolean ignoreCase) {
+		super(file, ignoreCase);
 		if (mainWordSet == null) {
 			mainWordSet = new HashSet<>();
 		}
@@ -46,8 +46,8 @@ public class CompoundDictionary extends MapDictionary {
 		}
 	}
 
-	public CompoundDictionary(InputStream is, boolean isIgnoreCase) {
-		super(is, isIgnoreCase);
+	public CompoundDictionary(InputStream is, boolean ignoreCase) {
+		super(is, ignoreCase);
 		if (mainWordSet == null) {
 			mainWordSet = new HashSet<>();
 		}

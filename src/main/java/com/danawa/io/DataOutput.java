@@ -173,14 +173,16 @@ public abstract class DataOutput extends OutputStream {
 	public void copyBytes(DataInput input, long numBytes) throws IOException {
 		assert numBytes >= 0 : "numBytes=" + numBytes;
 		long left = numBytes;
-		if (copyBuffer == null)
+		if (copyBuffer == null) {
 			copyBuffer = new byte[COPY_BUFFER_SIZE];
+		}
 		while (left > 0) {
 			final int toCopy;
-			if (left > COPY_BUFFER_SIZE)
+			if (left > COPY_BUFFER_SIZE) {
 				toCopy = COPY_BUFFER_SIZE;
-			else
+			} else {
 				toCopy = (int) left;
+			}
 			input.readBytes(copyBuffer, 0, toCopy);
 			writeBytes(copyBuffer, 0, toCopy);
 			left -= toCopy;

@@ -132,26 +132,21 @@ public abstract class DataInput extends InputStream implements Cloneable {
 		 * 7) { b = readByte(); i |= (b & 0x7F) << shift; } return i;
 		 */
 		byte b = readByte();
-		if (b >= 0)
-			return b;
+		if (b >= 0) { return b; }
 		int i = b & 0x7F;
 		b = readByte();
 		i |= (b & 0x7F) << 7;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7F) << 14;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7F) << 21;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		// Warning: the next ands use 0x0F / 0xF0 - beware copy/paste errors:
 		i |= (b & 0x0F) << 28;
-		if ((b & 0xF0) == 0)
-			return i;
+		if ((b & 0xF0) == 0) { return i; }
 		throw new IOException("Invalid vInt detected (too many bits)");
 	}
 
@@ -179,41 +174,32 @@ public abstract class DataInput extends InputStream implements Cloneable {
 		 * += 7) { b = readByte(); i |= (b & 0x7FL) << shift; } return i;
 		 */
 		byte b = readByte();
-		if (b >= 0)
-			return b;
+		if (b >= 0) { return b; }
 		long i = b & 0x7FL;
 		b = readByte();
 		i |= (b & 0x7FL) << 7;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7FL) << 14;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7FL) << 21;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7FL) << 28;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7FL) << 35;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7FL) << 42;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7FL) << 49;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		b = readByte();
 		i |= (b & 0x7FL) << 56;
-		if (b >= 0)
-			return i;
+		if (b >= 0) { return i; }
 		throw new IOException("Invalid vLong detected (negative values disallowed)");
 	}
 
@@ -234,7 +220,6 @@ public abstract class DataInput extends InputStream implements Cloneable {
 
 	public String readUTF8String() throws IOException {
 		int charCount = readVInt();
-		// logger.debug("readString size >> {}", charCount);
 		char[] chars = CachedCharArray.getCharArray(charCount);
 		int c, charIndex = 0;
 		while (charIndex < charCount) {
@@ -267,16 +252,6 @@ public abstract class DataInput extends InputStream implements Cloneable {
 		return new String(readUString());
 	}
 
-	// /** Reads a string.
-	// * @see IndexOutput#writeString(String)
-	// */
-	// public String readString() throws IOException {
-	// int length = readVInt();
-	// final byte[] bytes = new byte[length];
-	// readBytes(bytes, 0, length);
-	// return new String(bytes, 0, length, IOUtils.CHARSET_UTF_8);
-	// }
-
 	/**
 	 * Returns a clone of this stream.
 	 * 
@@ -307,7 +282,6 @@ public abstract class DataInput extends InputStream implements Cloneable {
 			final String val = readString();
 			map.put(key, val);
 		}
-
 		return map;
 	}
 
@@ -320,7 +294,6 @@ public abstract class DataInput extends InputStream implements Cloneable {
 		for (int i = 0; i < count; i++) {
 			set.add(readString());
 		}
-
 		return set;
 	}
 
@@ -395,8 +368,8 @@ public abstract class DataInput extends InputStream implements Cloneable {
 		}
 	}
 
-	//읽어서 버린다.
 	public void skipVIntData() throws IOException{
+		//읽어서 버린다.
 		int len = readVInt();
 		for (int i = 0; i < len; i++){
 			readByte();
@@ -406,46 +379,29 @@ public abstract class DataInput extends InputStream implements Cloneable {
     public String readAStrings() throws IOException {
         int len = readVInt();
         char[] cs = new char[len];
-
-        for (int i = 0; i < len; i++)
-            cs[i] = (char) readByte();
-
+        for (int i = 0; i < len; i++) {
+			cs[i] = (char) readByte();
+		}
         return new String(cs);
     }
 
 	public char[] readAString() throws IOException {
 		int len = readVInt();
 		char[] cs = new char[len];
-
-		for (int i = 0; i < len; i++)
+		for (int i = 0; i < len; i++) {
 			cs[i] = (char) readByte();
-
+		}
 		return cs;
 	}
 
 	public char[] readUString() throws IOException {
 		int byteSize = readVInt();
 		char[] cs = new char[byteSize / 2];
-
 		for (int i = 0; i < cs.length; i++) {
 			cs[i] = (char) readShort();
 		}
 		return cs;
 	}
-
-//	public int readUString(char[] cs, int maxLength) throws IOException {
-//		int len = readVInt();
-//		if (maxLength < len)
-//			return len;
-//
-//		for (int i = 0; i < len; i++) {
-//			if (i < maxLength) {
-//				cs[i] = (char) readShort();
-//			}
-//		}
-//
-//		return len;
-//	}
 
 	public char readAChar() throws IOException {
 		return (char) readByte();
@@ -454,27 +410,4 @@ public abstract class DataInput extends InputStream implements Cloneable {
 	public char readUChar() throws IOException {
 		return (char) readShort();
 	}
-
-//	public char[] readAChars(int len) throws IOException {
-//		char[] cs = new char[len];
-//
-//		for (int i = 0; i < len; i++)
-//			cs[i] = (char) readByte();
-//
-//		return cs;
-//	}
-//
-//	public char[] readUChars(int len) throws IOException {
-//		char[] cs = new char[len];
-//
-//		for (int i = 0; i < len; i++)
-//			cs[i] = (char) readShort();
-//
-//		return cs;
-//	}
-
-//	public void readUChars(char[] cs, int len) throws IOException {
-//		for (int i = 0; i < len; i++)
-//			cs[i] = (char) readShort();
-//	}
 }

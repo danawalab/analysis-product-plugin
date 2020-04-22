@@ -10,28 +10,29 @@ import com.danawa.util.CharVector;
  */
 public class InvertMapDictionary extends MapDictionary {
 
-    public InvertMapDictionary() { }
+	public InvertMapDictionary() {
+	}
 
-    public InvertMapDictionary(boolean ignoreCase) {
-        super(ignoreCase);
-    }
+	public InvertMapDictionary(boolean ignoreCase) {
+		super(ignoreCase);
+	}
 
-    public InvertMapDictionary(File file, boolean ignoreCase) {
-        super(file, ignoreCase);
-    }
+	public InvertMapDictionary(File file, boolean ignoreCase) {
+		super(file, ignoreCase);
+	}
 
-    @Override
-    public void addEntry(String keyword, Object[] values, List<Object> columnList) {
-        if (keyword == null) {
-            return;
-        }
-        keyword = keyword.trim();
-        if (keyword.length() == 0) {
-            return;
-        }
-        CharSequence[] value = new CharSequence[] { new CharVector(keyword) };
-        for (int i = 0; i < values.length; i++) {
-            map.put(new CharVector((String) values[i]), value);
-        }
-    }
+	@Override
+	public void addEntry(String keyword, Object[] values, List<Object> columnList) {
+		if (keyword == null) {
+			return;
+		}
+		keyword = keyword.trim();
+		if (keyword.length() == 0) {
+			return;
+		}
+		CharSequence[] value = new CharSequence[] { new CharVector(keyword) };
+		for (int i = 0; i < values.length; i++) {
+			map.put(new CharVector((String) values[i]), value);
+		}
+	}
 }

@@ -26,22 +26,22 @@ public class SynonymDictionary extends MapDictionary {
 		this(false);
 	}
 
-	public SynonymDictionary(boolean isIgnoreCase) {
-		super(isIgnoreCase);
+	public SynonymDictionary(boolean ignoreCase) {
+		super(ignoreCase);
 		if (wordSet == null) {
 			wordSet = new HashSet<>();
 		}
 	}
 
-	public SynonymDictionary(File file, boolean isIgnoreCase) {
-		super(file, isIgnoreCase);
+	public SynonymDictionary(File file, boolean ignoreCase) {
+		super(file, ignoreCase);
 		if (wordSet == null) {
 			wordSet = new HashSet<>();
 		}
 	}
 
-	public SynonymDictionary(InputStream is, boolean isIgnoreCase) {
-		super(is, isIgnoreCase);
+	public SynonymDictionary(InputStream is, boolean ignoreCase) {
+		super(is, ignoreCase);
 		if (wordSet == null) {
 			wordSet = new HashSet<>();
 		}

@@ -166,6 +166,7 @@ public class CustomDictionary extends SourceDictionary<Object> {
 		Object[] list = new Object[values.length];
 		for (int i = 0; i < values.length; i++) {
 			String value = values[i].toString();
+			// FIXME:ElasticSearch 셋팅에 맞도록 재설계 필요
 			// ColumnSetting columnSetting = columnSettingList.get(i);
 			// String separator = columnSetting.getSeparator();
 			// // separator가 존재하면 쪼개서 CharSequence[] 로 넣고 아니면 그냥 CharSequence 로 넣는다.

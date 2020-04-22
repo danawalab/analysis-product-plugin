@@ -53,7 +53,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private Entry entry;
 	private KoreanWordExtractor extractor;
 	private int baseOffset;
-	private int termIncrementCount; // 한글분석시 여러개의 텀으로 나누어지기 때문에, 증가된 텀갯수만큼 뒤의 텀 position에 더해주어야한다.
+	//private int termIncrementCount; // 한글분석시 여러개의 텀으로 나누어지기 때문에, 증가된 텀갯수만큼 뒤의 텀 position에 더해주어야한다.
 	
 	private SynonymDictionary synonymDictionary;
 	private SpaceDictionary spaceDictionary;
@@ -177,10 +177,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						// 단 단위명은 더 분석하지 않는다.
 						//
 						if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
-
-                            List synonymsExt = parsingRule.synonymExtract(synonyms);
+                            List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
                             if(synonymsExt != null) {
-                                synonyms = synonymsExt;
+                                synonyms = (List<Object>) synonymsExt;
                             }
 						}
 						synonymAttribute.setSynonyms(synonyms);
@@ -241,7 +240,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	
 						// 전체단어, 사용자 단어는 분해하지 않는다.
 						if (typeAttribute.type() == ProductNameTokenizer.FULL_STRING) {
-							@SuppressWarnings("unchecked")
 							List<?> synonyms = tokenSynonymAttribute.getSynonyms();
 							synonymAttribute.setSynonyms(synonyms);
 							return true;
@@ -256,7 +254,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							extractRemnant = extractor.hasRemnant();
 							entry = extractor.extract();
 							baseOffset = offsetAttribute.startOffset();
-							termIncrementCount = -1;
+							//termIncrementCount = -1;
 							extractOffset = localLength;
 							extractFinal = length;
 							finalOffset = offset + length;
@@ -300,14 +298,14 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					}
 				}
 				
-				termIncrementCount++;
+				//termIncrementCount++;
 				// logger.trace("term:{} / next entry:{}", termAttribute,
 				// entry);
 				return true;
 			} else {
 				// logger.trace("not extracted.");
 				posTagAttribute.setPosTag(PosTag.UNK);
-				termIncrementCount = -1;
+				//termIncrementCount = -1;
 				continue;
 			}
 		}
@@ -316,7 +314,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	@Override
 	public void reset() throws IOException {
 		super.reset();
-		termIncrementCount = 0;
+		//termIncrementCount = 0;
 		additionalTermAttribute.init(this);
 		entry = null;
 		offset = 0;
