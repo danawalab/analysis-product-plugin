@@ -15,11 +15,11 @@ public class CommonDictionary<T, P> {
 
 	private Dictionary<T, P> systemDictionary;
 
-	private Map<String, Object> dictionaryMap;
+	private Map<String, SourceDictionary<?>> dictionaryMap;
 
 	public CommonDictionary(Dictionary<T, P> systemDictionary) {
 		this.systemDictionary = systemDictionary;
-		dictionaryMap = new HashMap<String, Object>();
+		dictionaryMap = new HashMap<>();
 		createTime = new Date();
 	}
 
@@ -45,15 +45,15 @@ public class CommonDictionary<T, P> {
 		return systemDictionary.size();
 	}
 
-	public Object getDictionary(String dictionaryId) {
+	public SourceDictionary<?> getDictionary(String dictionaryId) {
 		return dictionaryMap.get(dictionaryId);
 	}
 
-	public Map<String, Object> getDictionaryMap() {
+	public Map<String, SourceDictionary<?>> getDictionaryMap() {
 		return dictionaryMap;
 	}
 
-	public Object addDictionary(String dictionaryId, Object dictionary) {
+	public Object addDictionary(String dictionaryId, SourceDictionary<?> dictionary) {
 		logger.debug("addDictionary {} : {}", dictionaryId, dictionary);
 		return dictionaryMap.put(dictionaryId, dictionary);
 	}

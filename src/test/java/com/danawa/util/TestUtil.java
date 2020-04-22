@@ -1,7 +1,10 @@
 package com.danawa.util;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.Reader;
 import java.net.URL;
+import java.util.Properties;
 
 public final class TestUtil {
 	public static final String SYSPROP_MASSIVE_TEST_ENABLED = "SYSPROP_MASSIVE_TEST_ENABLED";
@@ -11,6 +14,10 @@ public final class TestUtil {
 	public static final String Y = "Y";
 
 	public static final String CLASS_SUFFIX = ".class";
+
+	public static boolean isMassiveTestEnabled() {
+		return T.equals(getSystemProperty(SYSPROP_MASSIVE_TEST_ENABLED));
+	}
 
 	public static final String getSystemProperty(String key) {
 		return getSystemProperty(key, null);
@@ -26,19 +33,20 @@ public final class TestUtil {
 		File ret = null;
 		String path = getSystemProperty(key);
 		if (path != null) { ret = new File(path); }
+		if (!ret.exists()) {ret = null; }
 		return ret;
 	}
 
 	public static final File getFileByClass(Class<?> cls, String fileName) {
-		File file = null;
+		File ret = null;
 		try {
 			String className = cls.getSimpleName();
 			URL url = cls.getResource(className + CLASS_SUFFIX);
-			file = new File(url.getFile());
-			file = new File(file.getParentFile(), fileName);
-		} catch (Exception ignore) {
-		}
-		return file;
+			ret = new File(url.getFile());
+			ret = new File(ret.getParentFile(), fileName);
+		} catch (Exception ignore) { }
+		if (!ret.exists()) {ret = null; }
+		return ret;
 	}
 
 	public static final File getFileByRoot(Class<?> cls, String path) {
@@ -54,6 +62,20 @@ public final class TestUtil {
 			}
 			ret = new File(file, path);
 		} catch (Exception ignore) { }
+		if (!ret.exists()) {ret = null; }
+		return ret;
+	}
+
+	public static final Properties readProperties(File file) {
+		Properties ret = new Properties();
+		Reader reader = null;
+		try {
+			reader = new FileReader(file);
+			ret.load(reader);
+		} catch (Exception ignore) {
+		} finally {
+			try { reader.close(); } catch (Exception ignore) { }
+		}
 		return ret;
 	}
 }

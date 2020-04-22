@@ -201,7 +201,6 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 			if (type == Type.SYSTEM) {
 				dictionary = loadSystemDictionary(dictProp, env, dictionaryId);
 				commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(dictionary);
-				break;
 			} else if (type == Type.SET) {
 				SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase);
 				if (tokenType != null) {
@@ -272,10 +271,10 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		// 1. commonDictionary에 systemdictinary셋팅.
 		commonDictionary.reset(newCommonDictionary);
 		// 2. dictionaryMap 에 셋팅.
-		Map<String, Object> dictionaryMap = commonDictionary.getDictionaryMap();
-		for (Entry<String, Object> entry : dictionaryMap.entrySet()) {
+		Map<String, SourceDictionary<?>> dictionaryMap = commonDictionary.getDictionaryMap();
+		for (Entry<String, SourceDictionary<?>> entry : dictionaryMap.entrySet()) {
 			String dictionaryId = entry.getKey();
-			Object dictionary = entry.getValue();
+			SourceDictionary<?> dictionary = entry.getValue();
 			// dictionary 객체 자체는 유지하고, 내부 실데이터(map,set등)만 업데이트해준다.
 			// 상속시 instanceof로는 정확한 클래스가 판별이 불가능하므로 isAssignableFrom 로 판별한다.
 			if (dictionary.getClass().isAssignableFrom(SetDictionary.class)) {
