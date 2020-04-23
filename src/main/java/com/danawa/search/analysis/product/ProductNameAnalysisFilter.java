@@ -7,9 +7,11 @@ import java.util.List;
 
 import com.danawa.search.analysis.dict.CommonDictionary;
 import com.danawa.search.analysis.dict.PosTag;
+import com.danawa.search.analysis.dict.PreResult;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
+import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.util.CharVector;
 
@@ -70,21 +72,22 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		}
 	}
 	
-	protected ProductNameAnalysisFilter(TokenStream input) {
-		super(input);
-		// TODO Auto-generated constructor stub
-	}
-
-	// protected StandardProductFilter(TokenStream input, KoreanWordExtractor extractor, CommonDictionary dictionary) {
-	// 	//super(input);
-	// 	this.extractor = extractor;
-	// 	this.dictionary = dictionary;
-	// 	this.synonymDictionary = (SynonymDictionary) dictionary.getDictionary(DICT_SYNONYM);
-	// 	this.spaceDictionary = (SpaceDictionary) dictionary.getDictionary(DICT_SPACE);
-	// 	this.stopDictionary = (SetDictionary) dictionary.getDictionary(DICT_STOP);
-	// 	this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
-	// 	additionalTermAttribute.init(this);
+	// protected ProductNameAnalysisFilter(TokenStream input) {
+	// 	super(input);
+	// 	// TODO Auto-generated constructor stub
 	// }
+
+	protected ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, CommonDictionary<TagProb, PreResult<CharSequence>> dictionary) {
+		super(input);
+		this.extractor = extractor;
+		this.dictionary = dictionary;
+		this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
+		this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
+		this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
+		this.analyzerOption = new AnalyzerOption();
+		additionalTermAttribute.init(this);
+	}
 	
 	char[] buffer;
 	int offset;
@@ -102,7 +105,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public boolean incrementToken() throws IOException {
+	public final boolean incrementToken() throws IOException {
 		if (analysisKoreanOnly != null) { return hasToken(); }
 		while(true) {
 			if (parsingRule == null) {
@@ -196,10 +199,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			return false;
 		}
 	}
-	
 
 	public boolean hasToken() throws IOException {
-
 		while (true) {
 			if (entry == null) {
 				//한글분석되지 않은 버퍼는 이어서 수행한다.

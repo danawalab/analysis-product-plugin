@@ -45,15 +45,20 @@ public class CommonDictionary<T, P> {
 		return systemDictionary.size();
 	}
 
-	public SourceDictionary<?> getDictionary(String dictionaryId) {
-		return dictionaryMap.get(dictionaryId);
+	public <D extends SourceDictionary<?>> D  getDictionary(String dictionaryId, Class<D> cls) {
+		try {
+			@SuppressWarnings("unchecked")
+			D ret = (D) dictionaryMap.get(dictionaryId);
+			return ret;
+		} catch (Exception ignore) { }
+		return null;
 	}
 
 	public Map<String, SourceDictionary<?>> getDictionaryMap() {
 		return dictionaryMap;
 	}
 
-	public Object addDictionary(String dictionaryId, SourceDictionary<?> dictionary) {
+	public SourceDictionary<?> addDictionary(String dictionaryId, SourceDictionary<?> dictionary) {
 		logger.debug("addDictionary {} : {}", dictionaryId, dictionary);
 		return dictionaryMap.put(dictionaryId, dictionary);
 	}

@@ -154,18 +154,13 @@ public class CustomDictionary extends SourceDictionary<Object> {
 	}
 
 	@Override
-	public void addEntry(String keyword, Object[] values, List<Object> columnSettingList) {
-		if (keyword == null) {
-			return;
-		}
-		keyword = keyword.trim();
-		if (keyword.length() == 0) {
-			return;
-		}
-		CharSequence cv = new CharVector(keyword).removeWhitespaces();
+	public void addEntry(CharSequence keyword, Object[] values, List<Object> columnSettingList) {
+		if (keyword == null) { return; }
+		CharVector cv = CharVector.valueOf(keyword).trim();
+		if (cv.length() == 0) { return; }
 		Object[] list = new Object[values.length];
 		for (int i = 0; i < values.length; i++) {
-			String value = values[i].toString();
+			CharSequence value = CharVector.valueOf(values[i]);
 			// FIXME:ElasticSearch 셋팅에 맞도록 재설계 필요
 			// ColumnSetting columnSetting = columnSettingList.get(i);
 			// String separator = columnSetting.getSeparator();
@@ -180,17 +175,16 @@ public class CustomDictionary extends SourceDictionary<Object> {
 			// 	}
 			// 	list[i] = el;
 			// } else {
-				CharSequence val = new CharVector(value);
-				list[i] = val;
-				wordSet.add(val);
+				list[i] = value;
+				wordSet.add(value);
 			// }
 		}
-		map.put(cv, list);
+		map.put(cv.removeWhitespaces(), list);
 	}
 	
 	@Override
-	public void addSourceLineEntry(String line) {
-		String[] kv = line.split("\t");
+	public void addSourceLineEntry(CharSequence line) {
+		String[] kv = String.valueOf(line).split("\t");
 		if (kv.length == 1) {
 			String value = kv[0].trim();
 			addEntry(null, new Object[] { value }, null);

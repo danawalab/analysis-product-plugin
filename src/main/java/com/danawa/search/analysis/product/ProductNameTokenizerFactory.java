@@ -54,6 +54,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	private static final String ATTR_DICTIONARY_ID_LIST = "analysis.product.dictionary.list";
 	private static final String ATTR_DICTIONARY_TYPE = "analysis.product.dictionary.type";
 	private static final String ATTR_DICTIONARY_TOKEN_TYPE = "analysis.product.dictionary.tokenType";
+	private static final String ATTR_DICTIONARY_IGNORECASE = "analysis.product.dictionary.ignoreCase";
 	private static final String ATTR_DICTIONARY_FILE_PATH = "analysis.product.dictionary.filePath";
 
 	// // private final Dictionary userDictionary;
@@ -61,9 +62,14 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	// private final boolean discardPunctuation;
 	CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = null;
 
-	public ProductNameTokenizerFactory(IndexSettings indexSettings, Settings settings, String name) {
+    public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 		super(indexSettings, settings, name);
+		commonDictionary = loadDictionary(env);
 	}
+
+	// public ProductNameTokenizerFactory(IndexSettings indexSettings, Settings settings, String name) {
+	// 	super(indexSettings, settings, name);
+	// }
 
 	// public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 	//     super(indexSettings, settings, name);
@@ -72,39 +78,9 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	//     // discardPunctuation = settings.getAsBoolean("discard_punctuation", true);
 	// }
 
-	// // public static Dictionary getUserDictionary(Environment env, Settings settings) {
-	// //     if (settings.get(USER_DICT_PATH_OPTION) != null && settings.get(USER_DICT_RULES_OPTION) != null) {
-	// //         throw new IllegalArgumentException("It is not allowed to use [" + USER_DICT_PATH_OPTION + "] in conjunction"
-	// //                 + " with [" + USER_DICT_RULES_OPTION + "]");
-	// //     }
-	// //     List<String> ruleList = Analysis.getWordList(env, settings, USER_DICT_PATH_OPTION, USER_DICT_RULES_OPTION,
-	// //             true);
-	// //     StringBuilder sb = new StringBuilder();
-	// //     if (ruleList == null || ruleList.isEmpty()) {
-	// //         return null;
-	// //     }
-	// //     for (String line : ruleList) {
-	// //         sb.append(line).append(System.lineSeparator());
-	// //     }
-	// //     try (Reader rulesReader = new StringReader(sb.toString())) {
-	// //         return UserDictionary.open(rulesReader);
-	// //     } catch (IOException e) {
-	// //         throw new ElasticsearchException("failed to load product-name user dictionary", e);
-	// //     }
-	// // }
-
-	// // public static KoreanTokenizer.DecompoundMode getMode(Settings settings) {
-	// //     KoreanTokenizer.DecompoundMode mode = KoreanTokenizer.DEFAULT_DECOMPOUND;
-	// //     String modeSetting = settings.get("decompound_mode", null);
-	// //     if (modeSetting != null) {
-	// //         mode = KoreanTokenizer.DecompoundMode.valueOf(modeSetting.toUpperCase(Locale.ENGLISH));
-	// //     }
-	// //     return mode;
-	// // }
-
 	@Override
 	public Tokenizer create() {
-		return new ProductNameTokenizer();
+		return new ProductNameTokenizer(commonDictionary);
 	}
 
 	private static File getDictionaryFile(Properties prop, Environment env, String dictionaryId) {
@@ -128,6 +104,18 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 					ret = type;
 					break;
 				}
+			}
+		}
+		return ret;
+	}
+
+	private static boolean getIgnoreCase(Properties prop, String dictionaryId) {
+		boolean ret = false;
+		String attribute = prop.getProperty(ATTR_DICTIONARY_IGNORECASE + "." + dictionaryId);
+		if (attribute != null) {
+			attribute = attribute.trim();
+			if ("true".equalsIgnoreCase(attribute)) {
+				ret = true;
 			}
 		}
 		return ret;
@@ -172,11 +160,6 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		 * 커스터마이징 하도록 한다.
 		 * 우선은 JAXB 마샬링 구조를 사용하지 않고 Properties 를 사용하도록 한다.
 		 **/
-		// TagProbDictionary dictionary = new TagProbDictionary(builder.map(), true);
-		// dictionary.appendAdditionalNounEntry(userDictionary.getUnmodifiableSet(), "HIGH");
-		// dictionary.appendAdditionalNounEntry(stopDictionary.getUnmodifiableSet(), "HIGH");
-		// dictionary.appendAdditionalNounEntry(synonymDictionary.getWordSet(), "HIGH");
-
 		Dictionary<TagProb, PreResult<CharSequence>> dictionary = null;
 		CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = null;
 		List<String> idList = new ArrayList<>();
@@ -190,18 +173,22 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 
 		// dictionary = new SystemDictionary();
 		commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(dictionary);
-
+		// 시스템사전을 먼저 읽어오도록 한다. 
+		for (String dictionaryId : idList) {
+			if (getType(dictProp, dictionaryId) == Type.SYSTEM) {
+				commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(
+					loadSystemDictionary(dictProp, env, dictionaryId));
+				break;
+			}
+		}
 		for (String dictionaryId : idList) {
 			Type type = getType(dictProp, dictionaryId);
 			String tokenType = getTokenType(dictProp, dictionaryId);
 			File dictFile = getDictionaryFile(dictProp, env, dictionaryId);
+			boolean ignoreCase = getIgnoreCase(dictProp, dictionaryId);
 			SourceDictionary<?> sourceDictionary = null;
-			boolean ignoreCase = false;// dictionarySetting.ignoreCase();
 
-			if (type == Type.SYSTEM) {
-				dictionary = loadSystemDictionary(dictProp, env, dictionaryId);
-				commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(dictionary);
-			} else if (type == Type.SET) {
+			if (type == Type.SET) {
 				SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase);
 				if (tokenType != null) {
 					commonDictionary.appendAdditionalNounEntry(setDictionary.set(), tokenType);
@@ -279,38 +266,36 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 			// 상속시 instanceof로는 정확한 클래스가 판별이 불가능하므로 isAssignableFrom 로 판별한다.
 			if (dictionary.getClass().isAssignableFrom(SetDictionary.class)) {
 				SetDictionary setDictionary = (SetDictionary) dictionary;
-				SetDictionary newDictionary = (SetDictionary) newCommonDictionary.getDictionary(dictionaryId);
+				SetDictionary newDictionary = newCommonDictionary.getDictionary(dictionaryId, SetDictionary.class);
 				setDictionary.setSet(newDictionary.set());
 			} else if (dictionary.getClass().isAssignableFrom(MapDictionary.class)) {
 				MapDictionary mapDictionary = (MapDictionary) dictionary;
-				MapDictionary newDictionary = (MapDictionary) newCommonDictionary.getDictionary(dictionaryId);
+				MapDictionary newDictionary = newCommonDictionary.getDictionary(dictionaryId, MapDictionary.class);
 				mapDictionary.setMap(newDictionary.map());
 			} else if (dictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
 				SynonymDictionary synonymDictionary = (SynonymDictionary) dictionary;
-				SynonymDictionary newDictionary = (SynonymDictionary) newCommonDictionary.getDictionary(dictionaryId);
+				SynonymDictionary newDictionary = newCommonDictionary.getDictionary(dictionaryId, SynonymDictionary.class);
 				synonymDictionary.setMap(newDictionary.map());
 				synonymDictionary.setWordSet(newDictionary.getWordSet());
 			} else if (dictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
 				SpaceDictionary spaceDictionary = (SpaceDictionary) dictionary;
-				SpaceDictionary newDictionary = (SpaceDictionary) newCommonDictionary.getDictionary(dictionaryId);
+				SpaceDictionary newDictionary = newCommonDictionary.getDictionary(dictionaryId, SpaceDictionary.class);
 				spaceDictionary.setMap(newDictionary.map());
 				spaceDictionary.setWordSet(newDictionary.getWordSet());
 			} else if (dictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
 				CustomDictionary customDictionary = (CustomDictionary) dictionary;
-				CustomDictionary newDictionary = (CustomDictionary) newCommonDictionary.getDictionary(dictionaryId);
+				CustomDictionary newDictionary = newCommonDictionary.getDictionary(dictionaryId, CustomDictionary.class);
 				customDictionary.setMap(newDictionary.map());
 				customDictionary.setWordSet(newDictionary.getWordSet());
 			} else if (dictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
 				CompoundDictionary compoundDictionary = (CompoundDictionary) dictionary;
-				CompoundDictionary newDictionary = (CompoundDictionary) newCommonDictionary.getDictionary(dictionaryId);
+				CompoundDictionary newDictionary = newCommonDictionary.getDictionary(dictionaryId, CompoundDictionary.class);
 				compoundDictionary.setMap(newDictionary.map());
 			}
 			logger.info("Dictionary {} is updated!", dictionaryId);
 
 		}
 		newCommonDictionary = null;
-		// logger.debug("{} Dictionary Reload Done. {}ms", pluginId, (System.nanoTime()
-		// - st) / 1000000);
 	}
 
 	protected static Dictionary<TagProb, PreResult<CharSequence>> loadSystemDictionary(Properties prop, Environment env, String dictionaryId) {

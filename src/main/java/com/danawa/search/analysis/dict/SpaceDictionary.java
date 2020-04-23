@@ -55,16 +55,17 @@ public class SpaceDictionary extends MapDictionary {
 	}
 
 	@Override
-	public void addEntry(String word, Object[] values, List<Object> columnList) {
-		String keyword = word.replaceAll(DELIMITER, "");
-		wordSet.add(new CharVector(keyword));
-		String[] list = word.split(DELIMITER);
+	public void addEntry(CharSequence word, Object[] values, List<Object> columnList) {
+		if (word == null) { return; }
+		String keyword = String.valueOf(word).replaceAll(DELIMITER, "");
+		wordSet.add(CharVector.valueOf(keyword));
+		String[] list = String.valueOf(word).split(DELIMITER);
 		super.addEntry(keyword, list, columnList);
 		for (int i = 0; i < list.length; i++) {
 			String str = list[i].trim();
 			// ASCII 골라내기
 			if (!ptn.matcher(str).find()) {
-				wordSet.add(new CharVector(list[i].trim()));
+				wordSet.add(CharVector.valueOf(list[i].trim()));
 			}
 		}
 	}

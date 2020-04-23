@@ -14,10 +14,11 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 
 	private boolean ignoreCase;
 
-	public CharVector() {
-	}
+	public CharVector() { }
 
-	public CharVector(CharSequence str) {
+	public CharVector(CharSequence str) { this(str, false); }
+
+	public CharVector(CharSequence str, boolean ignoreCase) {
 		if (str != null) {
 			array = String.valueOf(str).toCharArray();
 			offset = 0;
@@ -27,6 +28,7 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 			offset = 0;
 			length = 0;
 		}
+		this.ignoreCase = ignoreCase;
 	}
 
 	public CharVector(char[] array) {
@@ -105,6 +107,31 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 		hash = h;
 		return h;
 	}
+	//     public static int hashCode(byte[] value) {
+    //     int h = 0;
+    //     for (byte v : value) {
+    //         h = 31 * h + (v & 0xff);
+    //     }
+    //     return h;
+	// }
+	//     public static int hashCode(byte[] value) {
+    //     int h = 0;
+    //     int length = value.length >> 1;
+    //     for (int i = 0; i < length; i++) {
+    //         h = 31 * h + getChar(value, i);
+    //     }
+    //     return h;
+	// }
+	//     static char getChar(byte[] val, int index) {
+    //     assert index >= 0 && index < length(val) : "Trusted caller missed bounds check";
+    //     index <<= 1;
+    //     return (char)(((val[index++] & 0xff) << HI_BYTE_SHIFT) |
+    //                   ((val[index]   & 0xff) << LO_BYTE_SHIFT));
+	// }
+	//     static final int hash(Object key) {
+    //     int h;
+    //     return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+    // }
 
 	public CharVector trim() {
 		while (length > 0 && array[offset] == ' ') {
@@ -152,6 +179,8 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 				}
 				return true;
 			}
+		} else if (anObject instanceof CharSequence) {
+
 		}
 		return false;
 	}

@@ -4,14 +4,16 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
+import com.danawa.search.analysis.dict.CommonDictionary;
+import com.danawa.search.analysis.dict.PreResult;
 import com.danawa.search.analysis.dict.SynonymDictionary;
+import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.util.CharVector;
 
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
-import org.apache.lucene.util.AttributeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,22 +116,22 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private SynonymDictionary synonymDictionary;
 
-	public ProductNameTokenizer() {
-		init();
-	}
-
-	public ProductNameTokenizer(AttributeFactory factory) {
-		super(factory);
-		init();
-	}
-
-	// protected ProductNameTokenizer(CommonDictionary<TagProb, PreResult<CharSequence>> dictionary) {
-	// 	super(input);
-	// 	this.synonymDictionary = (SynonymDictionary) dictionary.getDictionary(StandardProductFilter.DICT_SYNONYM);
-	// 	// try { reset(); } catch (IOException ignore) { }
-	// 	buffer = new char[IO_BUFFER_SIZE];
-	// 	stringbuffer = new char[MAX_STRING_LENGTH];
+	// public ProductNameTokenizer() {
+	// 	init();
 	// }
+
+	// public ProductNameTokenizer(AttributeFactory factory) {
+	// 	super(factory);
+	// 	init();
+	// }
+
+	protected ProductNameTokenizer(CommonDictionary<TagProb, PreResult<CharSequence>> dictionary) {
+		if (dictionary != null) {
+			synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
+		}
+		// try { reset(); } catch (IOException ignore) { }
+		init();
+	}
 
 	private void init() {
 		buffer = new char[IO_BUFFER_SIZE];
@@ -140,9 +142,6 @@ public class ProductNameTokenizer extends Tokenizer {
 	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
 		CharVector token = new CharVector();
-////////////////////////////////////////////////////////////////////////////////
-if (!ret) { return hasToken(); }
-////////////////////////////////////////////////////////////////////////////////
 		// 전체동의어는 전체 단어중 동의어가 존재하는것만 체크해야 하므로 먼저 체크한다.
 		if (readLength == -1 && readLengthPrev > 0 && readLengthPrev >= position) {
 			if (stringbuffer != null) {
@@ -207,7 +206,6 @@ if (!ret) { return hasToken(); }
 		// logger.trace("position:{} / positionPrev:{} / readLength:{}", position,
 		// positionPrev, readLength);
 		while (true) {
-
 			if (position == -1) {
 				position = 0;
 				tokenAttribute.setCharVector(buffer, 0, 0);

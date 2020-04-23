@@ -69,13 +69,12 @@ public class SynonymDictionary extends MapDictionary {
 	}
 	// key가 null일수 있다. 양방향의 경우.
 	@Override
-	public void addEntry(String keyword, Object[] values, List<Object> columnSettingList) {
+	public void addEntry(CharSequence keyword, Object[] values, List<Object> columnSettingList) {
 		List<CharSequence> list = new ArrayList<>(4);
 		CharVector mainWord = null;
 		if (keyword != null) {
-			keyword = keyword.trim();
-			if (keyword.length() > 0) {
-				mainWord = new CharVector(keyword);
+			mainWord = CharVector.valueOf(keyword).trim();
+			if (mainWord.length() > 0) {
 				wordSet.add(mainWord);
 				if (mainWord.hasWhitespaces()) {
 					for (CharSequence w : CharVector.splitByWhitespace(mainWord)) {
@@ -85,9 +84,7 @@ public class SynonymDictionary extends MapDictionary {
 			}
 		}
 
-		if (values == null || values.length == 0) {
-			return;
-		}
+		if (values == null || values.length == 0) { return; }
 		// 0번째에 유사어들이 컴마 단위로 모두 입력되어 있으므로 [0]만 확인하면 된다.
 		String valueString = values[0].toString();
 		// 중복제거.
@@ -96,7 +93,7 @@ public class SynonymDictionary extends MapDictionary {
 		for (int k = 0; k < synonyms.length; k++) {
 			String synonym = synonyms[k].trim();
 			if (synonym.length() > 0) {
-				CharVector word = new CharVector(synonym);
+				CharVector word = CharVector.valueOf(synonym);
 				list.add(word);
 				wordSet.add(word);
 				if (word.hasWhitespaces()) {

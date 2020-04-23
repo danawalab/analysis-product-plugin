@@ -81,30 +81,14 @@ public class CompoundDictionary extends MapDictionary {
 	}
 
 	@Override
-	public void addEntry(String keyword, Object[] values, List<Object> columnSettingList) {
-
-		List<CharSequence> list = new ArrayList<>(4);
-
-		CharSequence mainWord = null;
-		if (keyword == null) {
-			logger.error("Compound main keyword is null.");
-			return;
-		}
-		if (values == null) {
-			logger.error("Compound dictionary value is null.");
-			return;
-		}
-		if (values.length == 0) {
-			logger.error("Compound dictionary value is empty.");
-			return;
-		}
-		keyword = keyword.trim();
-		if (keyword.length() == 0) {
-			logger.error("Compound main keyword is empty.");
-			return;
-		}
-		mainWord = new CharVector(keyword);
+	public void addEntry(CharSequence keyword, Object[] values, List<Object> columnSettingList) {
+		if (keyword == null) { return; }
+		if (values == null) { return; }
+		if (values.length == 0) { return; }
+		CharVector mainWord = CharVector.valueOf(keyword).trim();
+		if (mainWord.length() == 0) { return; }
 		mainWordSet.add(mainWord);
+		List<CharSequence> list = new ArrayList<>(4);
 
 		// 0번째에 복합명사들이 컴마 단위로 모두 입력되어 있으므로 [0]만 확인하면 된다.
 		String valueString = values[0].toString();
@@ -112,7 +96,7 @@ public class CompoundDictionary extends MapDictionary {
 		for (int k = 0; k < nouns.length; k++) {
 			String noun = nouns[k].trim();
 			if (noun.length() > 0) {
-				CharSequence word = new CharVector(noun);
+				CharSequence word = CharVector.valueOf(noun);
 				list.add(word);
 				wordSet.add(word);
 			}

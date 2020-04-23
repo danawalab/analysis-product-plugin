@@ -49,11 +49,11 @@ public abstract class SourceDictionary<E> implements ReloadableDictionary, Writa
 		}
 	}
 
-	public void addEntry(String keyword, Object[] values) {
+	public void addEntry(CharSequence keyword, Object[] values) {
 		addEntry(keyword, values, null);
 	}
 
-	public abstract void addEntry(String keyword, Object[] values, List<E> columnSettingList);
+	public abstract void addEntry(CharSequence keyword, Object[] values, List<E> columnSettingList);
 
-	public abstract void addSourceLineEntry(String line);
+	public abstract void addSourceLineEntry(CharSequence line);
 }

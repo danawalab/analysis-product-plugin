@@ -26,8 +26,8 @@ public class KoreanWordExtractorTest {
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
 		if (propFile == null) { return; }
 		Properties prop = TestUtil.readProperties(propFile);
-		CommonDictionary<TagProb, PreResult<CharSequence>> koreanDict = ProductNameTokenizerFactory.loadDictionary(null, prop);
-		SetDictionary userDictionary = (SetDictionary) koreanDict.getDictionary("user");
+		CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
+		SetDictionary userDictionary = commonDictionary.getDictionary("user", SetDictionary.class);
 		CharSequence word = new CharVector("JY모터스");
 		logger.debug("DICT:{}", userDictionary.set());
 		logger.debug("CONTAINS {} = {}", word, userDictionary.contains(word));
@@ -40,8 +40,8 @@ public class KoreanWordExtractorTest {
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
 		if (propFile == null) { return; }
 		Properties prop = TestUtil.readProperties(propFile);
-		CommonDictionary<TagProb, PreResult<CharSequence>> koreanDict = ProductNameTokenizerFactory.loadDictionary(null, prop);
-		KoreanWordExtractor extractor = new KoreanWordExtractor(koreanDict);
+		CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
+		KoreanWordExtractor extractor = new KoreanWordExtractor(commonDictionary);
 		String str = "한글분석기테스트중입니다";
 		char[] buf = str.toCharArray();
 		if (extractor.setInput(buf, 0, buf.length) != -1) {

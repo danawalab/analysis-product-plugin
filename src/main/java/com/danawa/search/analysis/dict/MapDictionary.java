@@ -66,21 +66,16 @@ public class MapDictionary extends SourceDictionary<Object> {
 	}
 
 	@Override
-	public void addEntry(String keyword, Object[] values, List<Object> columnList) {
-		if (keyword == null) {
-			return;
-		}
-		keyword = keyword.trim();
-		if (keyword.length() == 0) {
-			return;
-		}
+	public void addEntry(CharSequence keyword, Object[] values, List<Object> columnList) {
+		if (keyword == null) { return; }
+		if (values == null) { return; }
+		CharVector cv = CharVector.valueOf(keyword).trim();
+		if (cv.length() == 0) { return; }
 		CharSequence[] list = new CharSequence[values.length];
-		for (int i = 0; i < values.length; i++) {
-			String value = values[i].toString();
-			list[i] = CharVector.valueOf(value);
+		for (int inx = 0; inx < values.length; inx++) {
+			list[inx] = CharVector.valueOf(values[inx]);
 		}
-		CharSequence cv = CharVector.valueOf(keyword).removeWhitespaces();
-		map.put(cv, list);
+		map.put(cv.removeWhitespaces(), list);
 	}
 
 	public Map<CharSequence, CharSequence[]> getUnmodifiableMap() {
@@ -146,8 +141,9 @@ public class MapDictionary extends SourceDictionary<Object> {
 	}
 
 	@Override
-	public void addSourceLineEntry(String line) {
-		String[] kv = line.split("\t");
+	public void addSourceLineEntry(CharSequence line) {
+		if (line == null) { return; }
+		String[] kv = String.valueOf(line).split("\t");
 		if (kv.length == 1) {
 			String value = kv[0].trim();
 			addEntry(null, new String[] { value }, null);

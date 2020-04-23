@@ -22,17 +22,13 @@ public class InvertMapDictionary extends MapDictionary {
 	}
 
 	@Override
-	public void addEntry(String keyword, Object[] values, List<Object> columnList) {
-		if (keyword == null) {
-			return;
-		}
-		keyword = keyword.trim();
-		if (keyword.length() == 0) {
-			return;
-		}
-		CharSequence[] value = new CharSequence[] { new CharVector(keyword) };
+	public void addEntry(CharSequence keyword, Object[] values, List<Object> columnList) {
+		if (keyword == null) { return; }
+		CharVector cv = CharVector.valueOf(keyword).trim();
+		if (cv.length() == 0) { return; }
+		CharVector[] value = new CharVector[] { cv };
 		for (int i = 0; i < values.length; i++) {
-			map.put(new CharVector((String) values[i]), value);
+			map.put(CharVector.valueOf(values[i]), value);
 		}
 	}
 }

@@ -64,7 +64,7 @@ public class ProductNameTokenizerTest {
 		Tokenizer tokenizer = null;
 		try {
 			reader = new StringReader(TEXT_STR);
-			tokenizer = new ProductNameTokenizer();
+			tokenizer = new ProductNameTokenizer(null);
 			tokenizer.setReader(reader);
 			TokenInfoAttribute tokenAttribute = tokenizer.addAttribute(TokenInfoAttribute.class);
 			OffsetAttribute offsetAttribute = tokenizer.addAttribute(OffsetAttribute.class);

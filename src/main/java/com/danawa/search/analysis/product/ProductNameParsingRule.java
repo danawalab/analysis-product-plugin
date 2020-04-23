@@ -70,37 +70,37 @@ public class ProductNameParsingRule {
 	private ProductNameParsingRule() { }
 
 	public ProductNameParsingRule(KoreanWordExtractor extractor,
-			CommonDictionary<TagProb, PreResult<CharVector>> dictionary,
-			AnalyzerOption option, OffsetAttribute offsetAttribute,
-			TypeAttribute typeAttribute, SynonymAttribute synonymAttribute,
-			AdditionalTermAttribute additionalTermAttribute) {
+		CommonDictionary<TagProb, PreResult<CharVector>> dictionary,
+		AnalyzerOption option, OffsetAttribute offsetAttribute,
+		TypeAttribute typeAttribute, SynonymAttribute synonymAttribute,
+		AdditionalTermAttribute additionalTermAttribute) {
 		this.extractor = extractor;
 		this.option = option;
 		this.typeAttribute = typeAttribute;
 		this.synonymAttribute = synonymAttribute;
 		this.offsetAttribute = offsetAttribute;
 		this.additionalTermAttribute = additionalTermAttribute;
-		unitDictionary = (SetDictionary) dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT);
-		synonymDictionary = (SynonymDictionary) dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM);
-		unitSynonymDictionary = (SynonymDictionary) dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT_SYNONYM);
-		spaceDictionary = (SpaceDictionary) dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SPACE);
-		userDictionary = (SetDictionary) dictionary.getDictionary(ProductNameAnalysisFilter.DICT_USER);
-		compoundDictionary = (CompoundDictionary) dictionary.getDictionary(ProductNameAnalysisFilter.DICT_COMPOUND);
-		stopDictionary = (SetDictionary) dictionary.getDictionary(ProductNameAnalysisFilter.DICT_STOP);
+		unitDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT, SetDictionary.class);
+		synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
+		unitSynonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT_SYNONYM, SynonymDictionary.class);
+		spaceDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SPACE, SpaceDictionary.class);
+		userDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_USER, SetDictionary.class);
+		compoundDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_COMPOUND, CompoundDictionary.class);
+		stopDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_STOP, SetDictionary.class);
 		{
-			Object obj = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_BRAND);
-			if (obj != null) { brandDictionary = ((CustomDictionary) obj).getWordSet(); }
+			CustomDictionary obj = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_BRAND, CustomDictionary.class);
+			if (obj != null) { brandDictionary = obj.getWordSet(); }
 		}
 		{
-			Object obj = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_MAKER);
-			if (obj != null) { makerDictionary = ((CustomDictionary) obj).getWordSet(); }
+			CustomDictionary obj = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_MAKER, CustomDictionary.class);
+			if (obj != null) { makerDictionary = obj.getWordSet(); }
 		}
 		queue = new ArrayList<RuleEntry>();
 	}
 	
 	public ProductNameParsingRule clone(TypeAttribute typeAttribute,
-			SynonymAttribute synonymAttribute, OffsetAttribute offsetAttribute,
-			AdditionalTermAttribute additionalTermAttribute) {
+		SynonymAttribute synonymAttribute, OffsetAttribute offsetAttribute,
+		AdditionalTermAttribute additionalTermAttribute) {
 		ProductNameParsingRule clone = new ProductNameParsingRule();
 		clone.extractor = this.extractor;
 		clone.option = this.option;
