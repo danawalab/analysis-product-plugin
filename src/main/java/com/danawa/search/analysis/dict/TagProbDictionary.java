@@ -48,9 +48,10 @@ public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequ
 		try {
 			is = new FileInputStream(file);
 			readFrom(is);
-			is.close();
 		} catch (IOException e) {
 			logger.error("", e);
+		} finally {
+			try { is.close(); } catch (Exception ignore) { }
 		}
 	}
 

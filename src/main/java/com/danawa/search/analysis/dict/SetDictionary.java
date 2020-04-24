@@ -42,13 +42,14 @@ public class SetDictionary extends SourceDictionary<Object> {
 			logger.error("사전파일이 존재하지 않습니다. file={}", file.getAbsolutePath());
 			return;
 		}
-		InputStream is;
+		InputStream is = null;
 		try {
 			is = new FileInputStream(file);
 			readFrom(is);
-			is.close();
 		} catch (IOException e) {
 			logger.error("", e);
+		} finally {
+			try { is.close(); } catch (Exception ignore) { }
 		}
 	}
 
