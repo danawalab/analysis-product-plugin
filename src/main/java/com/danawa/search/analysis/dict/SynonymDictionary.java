@@ -73,7 +73,7 @@ public class SynonymDictionary extends MapDictionary {
 		List<CharSequence> list = new ArrayList<>(4);
 		CharVector mainWord = null;
 		if (keyword != null) {
-			mainWord = CharVector.valueOf(keyword).trim();
+			mainWord = new CharVector(String.valueOf(keyword).trim(), ignoreCase);
 			if (mainWord.length() > 0) {
 				wordSet.add(mainWord);
 				if (mainWord.hasWhitespaces()) {
@@ -93,7 +93,7 @@ public class SynonymDictionary extends MapDictionary {
 		for (int k = 0; k < synonyms.length; k++) {
 			String synonym = synonyms[k].trim();
 			if (synonym.length() > 0) {
-				CharVector word = CharVector.valueOf(synonym);
+				CharVector word = new CharVector(synonym, ignoreCase);
 				list.add(word);
 				wordSet.add(word);
 				if (word.hasWhitespaces()) {
@@ -133,7 +133,7 @@ public class SynonymDictionary extends MapDictionary {
 					map.put(key, value);
 					// 공백을 제거한 key도 하나더 만든다.
 					if (key.hasWhitespaces()) {
-						key = new CharVector(String.valueOf(key)).removeWhitespaces();
+						key = new CharVector(String.valueOf(key), ignoreCase).removeWhitespaces();
 						value2 = map.get(key);
 						if (value2 != null) {
 							// 이전값과 머징.
@@ -172,7 +172,7 @@ public class SynonymDictionary extends MapDictionary {
 				map.put(mainWord, value);
 				// 공백이 포함되어 있다면, 제거한 단어도 함께 넣어준다.
 				if (mainWord.hasWhitespaces()) {
-					map.put(new CharVector(String.valueOf(mainWord)).removeWhitespaces(), value);
+					map.put(new CharVector(String.valueOf(mainWord), ignoreCase).removeWhitespaces(), value);
 				}
 				// logger.debug("유사어 단방향 {} >> {}", mainWord, join(value));
 			}
@@ -243,7 +243,7 @@ public class SynonymDictionary extends MapDictionary {
 		wordSet = new HashSet<>();
 		int size = input.readVInt();
 		for (int entryInx = 0; entryInx < size; entryInx++) {
-			wordSet.add(new CharVector(input.readUString()));
+			wordSet.add(new CharVector(input.readUString(), ignoreCase));
 		}
 	}
 	

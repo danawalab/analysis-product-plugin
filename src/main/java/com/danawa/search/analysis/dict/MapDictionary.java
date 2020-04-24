@@ -69,11 +69,11 @@ public class MapDictionary extends SourceDictionary<Object> {
 	public void addEntry(CharSequence keyword, Object[] values, List<Object> columnList) {
 		if (keyword == null) { return; }
 		if (values == null) { return; }
-		CharVector cv = CharVector.valueOf(keyword).trim();
+		CharVector cv = new CharVector(String.valueOf(keyword).trim(), ignoreCase);
 		if (cv.length() == 0) { return; }
 		CharSequence[] list = new CharSequence[values.length];
 		for (int inx = 0; inx < values.length; inx++) {
-			list[inx] = CharVector.valueOf(values[inx]);
+			list[inx] = new CharVector(String.valueOf(values[inx]), ignoreCase);
 		}
 		map.put(cv.removeWhitespaces(), list);
 	}
@@ -127,14 +127,14 @@ public class MapDictionary extends SourceDictionary<Object> {
 		map = new HashMap<>();
 		int size = input.readVInt();
 		for (int entryInx = 0; entryInx < size; entryInx++) {
-			CharSequence key = CharVector.valueOf(input.readUString());
+			CharSequence key = new CharVector(input.readUString(), ignoreCase);
 
 			int valueLength = input.readVInt();
 
 			CharSequence[] values = new CharSequence[valueLength];
 
 			for (int valueInx = 0; valueInx < valueLength; valueInx++) {
-				values[valueInx] = CharVector.valueOf(input.readUString());
+				values[valueInx] = new CharVector(input.readUString(), ignoreCase);
 			}
 			map.put(key, values);
 		}

@@ -64,7 +64,7 @@ public class SetDictionary extends SourceDictionary<Object> {
 	@Override
 	public void addEntry(CharSequence keyword, Object[] value, List<Object> columnList) {
 		if (keyword == null) { return; }
-		CharVector cv = CharVector.valueOf(keyword).trim();
+		CharVector cv = new CharVector(String.valueOf(keyword).trim(), ignoreCase);
 		if (cv.length() > 0) {
 			set.add(cv.removeWhitespaces());
 		}
@@ -107,7 +107,7 @@ public class SetDictionary extends SourceDictionary<Object> {
 		set = new HashSet<>();
 		int size = input.readInt();
 		for (int entryInx = 0; entryInx < size; entryInx++) {
-			set.add(new CharVector(input.readString()));
+			set.add(new CharVector(input.readString(), ignoreCase));
 		}
 	}
 

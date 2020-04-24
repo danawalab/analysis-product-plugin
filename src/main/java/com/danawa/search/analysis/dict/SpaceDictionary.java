@@ -58,14 +58,14 @@ public class SpaceDictionary extends MapDictionary {
 	public void addEntry(CharSequence word, Object[] values, List<Object> columnList) {
 		if (word == null) { return; }
 		String keyword = String.valueOf(word).replaceAll(DELIMITER, "");
-		wordSet.add(CharVector.valueOf(keyword));
+		wordSet.add(new CharVector(String.valueOf(keyword), ignoreCase));
 		String[] list = String.valueOf(word).split(DELIMITER);
 		super.addEntry(keyword, list, columnList);
 		for (int i = 0; i < list.length; i++) {
 			String str = list[i].trim();
 			// ASCII 골라내기
 			if (!ptn.matcher(str).find()) {
-				wordSet.add(CharVector.valueOf(list[i].trim()));
+				wordSet.add(new CharVector(String.valueOf(list[i]).trim(), ignoreCase));
 			}
 		}
 	}
@@ -94,7 +94,7 @@ public class SpaceDictionary extends MapDictionary {
 		wordSet = new HashSet<>();
 		int size = input.readVInt();
 		for (int entryInx = 0; entryInx < size; entryInx++) {
-			wordSet.add(new CharVector(input.readUString()));
+			wordSet.add(new CharVector(input.readUString(), ignoreCase));
 		}
 	}
 

@@ -85,7 +85,7 @@ public class CompoundDictionary extends MapDictionary {
 		if (keyword == null) { return; }
 		if (values == null) { return; }
 		if (values.length == 0) { return; }
-		CharVector mainWord = CharVector.valueOf(keyword).trim();
+		CharVector mainWord = new CharVector(String.valueOf(keyword).trim(), ignoreCase);
 		if (mainWord.length() == 0) { return; }
 		mainWordSet.add(mainWord);
 		List<CharSequence> list = new ArrayList<>(4);
@@ -96,7 +96,7 @@ public class CompoundDictionary extends MapDictionary {
 		for (int k = 0; k < nouns.length; k++) {
 			String noun = nouns[k].trim();
 			if (noun.length() > 0) {
-				CharSequence word = CharVector.valueOf(noun);
+				CharSequence word = new CharVector(noun, ignoreCase);
 				list.add(word);
 				wordSet.add(word);
 			}
@@ -143,12 +143,12 @@ public class CompoundDictionary extends MapDictionary {
 		mainWordSet = new HashSet<>();
 		int mainWordSize = input.readVInt();
 		for (int entryInx = 0; entryInx < mainWordSize; entryInx++) {
-			mainWordSet.add(new CharVector(input.readUString()));
+			mainWordSet.add(new CharVector(input.readUString(), ignoreCase));
 		}
 		wordSet = new HashSet<>();
 		int size = input.readVInt();
 		for (int entryInx = 0; entryInx < size; entryInx++) {
-			wordSet.add(new CharVector(input.readUString()));
+			wordSet.add(new CharVector(input.readUString(), ignoreCase));
 		}
 	}
 	

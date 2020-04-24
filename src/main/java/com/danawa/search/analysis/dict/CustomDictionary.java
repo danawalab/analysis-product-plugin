@@ -129,18 +129,18 @@ public class CustomDictionary extends SourceDictionary<Object> {
 		map = new HashMap<CharSequence, Object[]>();
 		int size = input.readVInt();
 		for (int entryInx = 0; entryInx < size; entryInx++) {
-			CharSequence key = new CharVector(input.readUString());
+			CharSequence key = new CharVector(input.readUString(), ignoreCase);
 			int valueLength = input.readVInt();
 			Object[] values = new Object[valueLength];
 			for (int valueInx = 0; valueInx < valueLength; valueInx++) {
 				int type = input.readByte();
 				if (type == 1) {
-					values[valueInx] = new CharVector(input.readUString());
+					values[valueInx] = new CharVector(input.readUString(), ignoreCase);
 				} else if (type == 2) {
 					int len = input.readVInt();
 					CharSequence[] list = new CharSequence[len];
 					for (int j = 0; j < len; j++) {
-						list[j] = new CharVector(input.readUString());
+						list[j] = new CharVector(input.readUString(), ignoreCase);
 					}
 				}
 			}
@@ -149,7 +149,7 @@ public class CustomDictionary extends SourceDictionary<Object> {
 		wordSet = new HashSet<>();
 		size = input.readVInt();
 		for (int entryInx = 0; entryInx < size; entryInx++) {
-			wordSet.add(new CharVector(input.readUString()));
+			wordSet.add(new CharVector(input.readUString(), ignoreCase));
 		}
 	}
 
@@ -160,7 +160,8 @@ public class CustomDictionary extends SourceDictionary<Object> {
 		if (cv.length() == 0) { return; }
 		Object[] list = new Object[values.length];
 		for (int i = 0; i < values.length; i++) {
-			CharSequence value = CharVector.valueOf(values[i]);
+			if (values[i] == null) { continue; }
+			CharSequence value = new CharVector(String.valueOf(values[i]), ignoreCase);
 			// FIXME:ElasticSearch 셋팅에 맞도록 재설계 필요
 			// ColumnSetting columnSetting = columnSettingList.get(i);
 			// String separator = columnSetting.getSeparator();
