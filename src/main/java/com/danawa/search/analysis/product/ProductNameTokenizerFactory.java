@@ -60,11 +60,16 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	// // private final Dictionary userDictionary;
 	// // private final KoreanTokenizer.DecompoundMode decompoundMode;
 	// private final boolean discardPunctuation;
-	CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = null;
+	private static CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary;
 
-    public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, Settings settings) {
+    public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, final Settings settings) {
 		super(indexSettings, settings, name);
-		commonDictionary = loadDictionary(env);
+		getDictionary(env);
+		// synchronized(ProductNameTokenizerFactory.class) {
+		// 	if (commonDictionary == null) {
+		// 		commonDictionary = loadDictionary(env);
+		// 	}
+		// }
 	}
 
 	// public ProductNameTokenizerFactory(IndexSettings indexSettings, Settings settings, String name) {
@@ -81,6 +86,13 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	@Override
 	public Tokenizer create() {
 		return new ProductNameTokenizer(commonDictionary);
+	}
+
+	public static CommonDictionary<TagProb, PreResult<CharSequence>> getDictionary(Environment env) {
+		if (commonDictionary == null) {
+			commonDictionary = loadDictionary(env);
+		}
+		return commonDictionary;
 	}
 
 	private static File getDictionaryFile(Properties prop, Environment env, String dictionaryId) {
@@ -172,12 +184,12 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		}
 
 		// dictionary = new SystemDictionary();
-		commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(dictionary);
+		// commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(dictionary);
 		// 시스템사전을 먼저 읽어오도록 한다. 
 		for (String dictionaryId : idList) {
 			if (getType(dictProp, dictionaryId) == Type.SYSTEM) {
-				commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(
-					loadSystemDictionary(dictProp, env, dictionaryId));
+				dictionary = loadSystemDictionary(dictProp, env, dictionaryId);
+				commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(dictionary);
 				break;
 			}
 		}

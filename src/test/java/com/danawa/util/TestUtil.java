@@ -1,8 +1,6 @@
 package com.danawa.util;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.Reader;
 import java.net.URL;
 import java.util.Properties;
 
@@ -50,32 +48,12 @@ public final class TestUtil {
 	}
 
 	public static final File getFileByRoot(Class<?> cls, String path) {
-		File ret = null;
-		try {
-			String className = cls.getSimpleName();
-			URL url = cls.getResource(className + CLASS_SUFFIX);
-			File file = new File(url.getFile());
-			String[] split = cls.getPackageName().split("[.]");
-			file = file.getParentFile();
-			for (int inx = 0; inx < split.length; inx++) {
-				file = file.getParentFile();
-			}
-			ret = new File(file, path);
-		} catch (Exception ignore) { }
+		File ret = new File(ResourceResolver.getResourceRoot(cls), path);
 		if (!ret.exists()) {ret = null; }
 		return ret;
 	}
 
 	public static final Properties readProperties(File file) {
-		Properties ret = new Properties();
-		Reader reader = null;
-		try {
-			reader = new FileReader(file);
-			ret.load(reader);
-		} catch (Exception ignore) {
-		} finally {
-			try { reader.close(); } catch (Exception ignore) { }
-		}
-		return ret;
+		return ResourceResolver.readProperties(file);
 	}
 }

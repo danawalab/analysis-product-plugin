@@ -62,15 +62,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private SetDictionary stopDictionary;
 	@SuppressWarnings("rawtypes")
 	private CommonDictionary dictionary;
-	private static String analysisKoreanOnly;
-	static {
-		//NOTE: 평상시에 필요 없으므로 해당 부분은 삭제하도록 한다. (퍼포먼스 테스트 전용)
-		analysisKoreanOnly = System.getProperties().getProperty("PROP_ANALYSIS_KOREAN_ONLY");
-		logger.debug("KOREAN-ONLY:{}", analysisKoreanOnly);
-		if (!"Y".equals(analysisKoreanOnly)) {
-			analysisKoreanOnly = null;
-		}
-	}
 	
 	// protected ProductNameAnalysisFilter(TokenStream input) {
 	// 	super(input);
@@ -87,6 +78,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
 		this.analyzerOption = new AnalyzerOption();
 		additionalTermAttribute.init(this);
+		logger.trace("init");
 	}
 	
 	char[] buffer;
@@ -106,7 +98,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	@Override
 	@SuppressWarnings("unchecked")
 	public final boolean incrementToken() throws IOException {
-		if (analysisKoreanOnly != null) { return hasToken(); }
 		while(true) {
 			if (parsingRule == null) {
 				parsingRule = new ProductNameParsingRule(extractor, dictionary, analyzerOption, offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);

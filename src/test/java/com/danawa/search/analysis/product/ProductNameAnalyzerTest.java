@@ -27,7 +27,8 @@ public class ProductNameAnalyzerTest {
     @Test public void testAnalyzerSimple() {
 		if (!TestUtil.isMassiveTestEnabled()) { return; }
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (propFile == null) { return; }
+        if (propFile == null) { return; }
+
 		Properties prop = TestUtil.readProperties(propFile);
         CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
         ProductNameAnalyzer analyzer = null;
@@ -54,5 +55,4 @@ public class ProductNameAnalyzerTest {
         }
         assertTrue(true);
     }
-
 }

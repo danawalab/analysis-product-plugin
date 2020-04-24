@@ -14,7 +14,7 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<P
 
 	public ProductNameAnalyzerProvider(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 		super(indexSettings, name, settings);
-		CommonDictionary<TagProb, PreResult<CharSequence>> commonDict = ProductNameTokenizerFactory.loadDictionary(env);
+		CommonDictionary<TagProb, PreResult<CharSequence>> commonDict = ProductNameTokenizerFactory.getDictionary(env);
 		// final KoreanTokenizer.DecompoundMode mode = ProductNameTokenizerFactory.getMode(settings);
 		// final Dictionary userDictionary = ProductNameTokenizerFactory.getUserDictionary(env, settings);
 		// final List<String> tagList = Analysis.getWordList(env, settings, "stoptags");
