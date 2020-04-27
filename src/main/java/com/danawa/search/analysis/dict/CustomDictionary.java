@@ -19,11 +19,11 @@ import com.danawa.io.InputStreamDataInput;
 import com.danawa.io.OutputStreamDataOutput;
 import com.danawa.util.CharVector;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.logging.Loggers;
 
 public class CustomDictionary extends SourceDictionary<Object> {
-	private static Logger logger = LoggerFactory.getLogger(MapDictionary.class);
+	private static Logger logger = Loggers.getLogger(MapDictionary.class, "");
 	private Set<CharSequence> wordSet;
 	private Map<CharSequence, Object[]> map;
 	

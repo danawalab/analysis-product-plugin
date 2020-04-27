@@ -4,15 +4,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.util.AttributeImpl;
 import org.apache.lucene.util.AttributeReflector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.elasticsearch.common.logging.Loggers;
 
 public class AdditionalTermAttributeImpl extends AttributeImpl implements AdditionalTermAttribute {
 
-	private static final Logger logger = LoggerFactory.getLogger(AdditionalTermAttributeImpl.class);
+	private static final Logger logger = Loggers.getLogger(AdditionalTermAttributeImpl.class, "");
 
 	private List<String> additionalTerms = new ArrayList<String>();
 	private List<String> types = new ArrayList<String>();

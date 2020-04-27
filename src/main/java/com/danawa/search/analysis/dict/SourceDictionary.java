@@ -9,11 +9,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.logging.Loggers;
 
 public abstract class SourceDictionary<E> implements ReloadableDictionary, WritableDictionary, ReadableDictionary {
-	protected static Logger logger = LoggerFactory.getLogger(SourceDictionary.class);
+
+	protected static Logger logger = Loggers.getLogger(SourceDictionary.class, "");
 
 	protected boolean ignoreCase;
 

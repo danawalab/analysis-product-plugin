@@ -14,6 +14,7 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<P
 
 	public ProductNameAnalyzerProvider(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 		super(indexSettings, name, settings);
+		logger.debug("ProductNameAnalyzerProvider::self {}", this);
 		CommonDictionary<TagProb, PreResult<CharSequence>> commonDict = ProductNameTokenizerFactory.getDictionary(env);
 		// final KoreanTokenizer.DecompoundMode mode = ProductNameTokenizerFactory.getMode(settings);
 		// final Dictionary userDictionary = ProductNameTokenizerFactory.getUserDictionary(env, settings);
@@ -25,6 +26,7 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<P
 
 	@Override
 	public ProductNameAnalyzer get() {
+		logger.debug("ProductNameAnalyzerProvider::get {}", analyzer);
 		return analyzer;
 	}
 }

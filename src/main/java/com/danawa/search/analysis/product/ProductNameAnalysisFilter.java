@@ -15,6 +15,7 @@ import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.util.CharVector;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
@@ -25,12 +26,11 @@ import org.apache.lucene.analysis.tokenattributes.StopwordAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.elasticsearch.common.logging.Loggers;
 
 public class ProductNameAnalysisFilter extends TokenFilter {
 
-	private static final Logger logger = LoggerFactory.getLogger(ProductNameAnalysisFilter.class);
+	private static final Logger logger = Loggers.getLogger(ProductNameAnalysisFilter.class, "");
 	
 	public static final String DICT_UNIT_SYNONYM = "unit_synonym";
 	public static final String DICT_UNIT = "unit";

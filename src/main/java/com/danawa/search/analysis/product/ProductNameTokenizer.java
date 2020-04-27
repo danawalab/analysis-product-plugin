@@ -10,16 +10,16 @@ import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.util.CharVector;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.elasticsearch.common.logging.Loggers;
 
 public class ProductNameTokenizer extends Tokenizer {
 
-	private static Logger logger = LoggerFactory.getLogger(ProductNameTokenizer.class);
+	private static Logger logger = Loggers.getLogger(ProductNameTokenizer.class, "");
 
 	public static final int IO_BUFFER_SIZE = 4096;
 	public static final int MAX_STRING_LENGTH = 64;

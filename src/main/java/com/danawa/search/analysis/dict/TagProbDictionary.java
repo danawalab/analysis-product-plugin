@@ -17,11 +17,11 @@ import com.danawa.io.InputStreamDataInput;
 import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.util.CharVector;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.logging.Loggers;
 
 public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequence>>, ReadableDictionary {
-	private static Logger logger = LoggerFactory.getLogger(TagProbDictionary.class);
+    private static Logger logger = Loggers.getLogger(TagProbDictionary.class, "");
 
 	// private boolean ignoreCase;
 	private Map<CharSequence, List<TagProb>> probMap;

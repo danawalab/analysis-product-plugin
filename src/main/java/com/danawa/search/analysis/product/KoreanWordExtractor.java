@@ -15,11 +15,11 @@ import com.danawa.search.analysis.dict.PreResult;
 import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.util.CharVector;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.logging.Loggers;
 
 public class KoreanWordExtractor {
-	private static Logger logger = LoggerFactory.getLogger(KoreanWordExtractor.class);
+	private static Logger logger = Loggers.getLogger(KoreanWordExtractor.class, "");
 
 	private CommonDictionary<TagProb, PreResult<CharSequence>> koreanDict;
 
@@ -718,7 +718,6 @@ public class KoreanWordExtractor {
 	}
 
 	static class Entry implements Cloneable {
-		private static Logger logger = LoggerFactory.getLogger(Entry.class);
 		private int row;
 		private int column;
 		private TagProb tagProb;

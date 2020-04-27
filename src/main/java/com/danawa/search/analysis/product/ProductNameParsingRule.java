@@ -18,14 +18,14 @@ import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.util.CharVector;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PosTagAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttributeImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.elasticsearch.common.logging.Loggers;
 
 import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
 
@@ -41,7 +41,7 @@ import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
  */
 public class ProductNameParsingRule {
 	
-	private static final Logger logger = LoggerFactory.getLogger(ProductNameParsingRule.class);
+	private static final Logger logger = Loggers.getLogger(ProductNameParsingRule.class, "");
 	
 	private KoreanWordExtractor extractor;
 	private AnalyzerOption option;

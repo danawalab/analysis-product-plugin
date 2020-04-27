@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.logging.Loggers;
 
 public class CommonDictionary<T, P> {
-	private static Logger logger = LoggerFactory.getLogger(CommonDictionary.class);
+    private static Logger logger = Loggers.getLogger(CommonDictionary.class, "");
 	private Date createTime;
 
 	private Dictionary<T, P> systemDictionary;

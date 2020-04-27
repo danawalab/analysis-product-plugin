@@ -7,18 +7,18 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.regex.Matcher;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.elasticsearch.common.logging.Loggers;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ProductNameTokenizerTest {
 
-	private static Logger logger = LoggerFactory.getLogger(ProductNameTokenizerTest.class);
+	private static Logger logger = Loggers.getLogger(ProductNameTokenizerTest.class, "");
 
 	private static final String TEXT_STR = "상품명분석기ProductNameTokenizer테스트중입니다1234상품명ABCD";
 
@@ -38,9 +38,13 @@ public class ProductNameTokenizerTest {
 		{ "1,234:5,678", T } 
 	};
 
-	@Before
-	public void init() {
-
+	@Before public void init() {
+		// String LOG_LEVEL = System.getProperty("LOG_LEVEL");
+		// if (LOG_LEVEL == null || "".equals(LOG_LEVEL)) { LOG_LEVEL = "DEBUG"; }
+		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME)).setLevel(Level.toLevel(LOG_LEVEL));
+		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameTokenizer.class)).setLevel(Level.toLevel(LOG_LEVEL));
+		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameParsingRule.class)).setLevel(Level.toLevel(LOG_LEVEL));
+		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameAnalysisFilter.class)).setLevel(Level.toLevel(LOG_LEVEL));
 	}
 
 	@Test

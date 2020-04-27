@@ -25,17 +25,17 @@ import com.danawa.search.analysis.dict.TagProbDictionary;
 import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.util.ResourceResolver;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.analysis.AbstractTokenizerFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 
-	private static Logger logger = LoggerFactory.getLogger(ProductNameTokenizerFactory.class);
+    protected static Logger logger = Loggers.getLogger(ProductNameTokenizerFactory.class, "");
 
 	public static enum TokenType {
 		MAX, HIGH, MID, MIN
@@ -63,11 +63,13 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 
     public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, final Settings settings) {
 		super(indexSettings, settings, name);
+		logger.info("ProductNameTokenizerFactory::self {}", this);
 		getDictionary(env);
 	}
 
 	@Override
 	public Tokenizer create() {
+		logger.info("ProductNameTokenizer::create {}", this);
 		return new ProductNameTokenizer(commonDictionary);
 	}
 
@@ -78,7 +80,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return commonDictionary;
 	}
 
-	private static File getDictionaryFile(Environment env, File envBase, Properties prop, String dictionaryId) {
+	private static File getDictionaryFile(File envBase, Properties prop, String dictionaryId) {
 		File ret = null;
 		// 속성에서 발견되면 속성내부 경로를 사용해 파일을 얻어오며, 그렇지 않은경우 지정된 경로에서 사전파일을 얻어온다
 		File baseFile = null;
@@ -186,10 +188,10 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		} finally {
 			try { reader.close(); } catch (Exception ignore) { }
 		}
-		return loadDictionary(env, baseFile, dictProp);
+		return loadDictionary(baseFile, dictProp);
 	}
 
-	public static CommonDictionary<TagProb, PreResult<CharSequence>> loadDictionary(Environment env, File baseFile, Properties dictProp) {
+	public static CommonDictionary<TagProb, PreResult<CharSequence>> loadDictionary(File baseFile, Properties dictProp) {
 		/**
 		 * 기본셋팅. 
 		 * ${ELASTICSEARCH}/config/product_name_analysis.prop 파일을 사용하도록 한다
@@ -210,7 +212,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		// 시스템사전을 먼저 읽어오도록 한다. 
 		for (String dictionaryId : idList) {
 			if (getType(dictProp, dictionaryId) == Type.SYSTEM) {
-				dictionary = loadSystemDictionary(env, baseFile, dictProp, dictionaryId);
+				dictionary = loadSystemDictionary(baseFile, dictProp, dictionaryId);
 				commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(dictionary);
 				break;
 			}
@@ -218,7 +220,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		for (String dictionaryId : idList) {
 			Type type = getType(dictProp, dictionaryId);
 			String tokenType = getTokenType(dictProp, dictionaryId);
-			File dictFile = getDictionaryFile(env, baseFile, dictProp, dictionaryId);
+			File dictFile = getDictionaryFile(baseFile, dictProp, dictionaryId);
 			boolean ignoreCase = getIgnoreCase(dictProp, dictionaryId);
 			SourceDictionary<?> sourceDictionary = null;
 
@@ -274,9 +276,10 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 			} else if (type == Type.SYSTEM) {
 				// ignore
 			} else {
+				// logger.error();
 				logger.error("Unknown Dictionary type > {}", type);
 			}
-			logger.info("Dictionary {} is loaded. tokenType[{}] ", dictionaryId, tokenType);
+			// logger.info("Dictionary {} is loaded. tokenType[{}] ", dictionaryId, tokenType);
 			// add dictionary
 			if (sourceDictionary != null) {
 				commonDictionary.addDictionary(dictionaryId, sourceDictionary);
@@ -285,7 +288,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return commonDictionary;
 	}
 
-	public void reloadDictionary(Environment env, Properties dictProp) {
+	public void reloadDictionary(Environment env) {
 		// long st = System.nanoTime();
 		CommonDictionary<TagProb, PreResult<CharSequence>> newCommonDictionary = loadDictionary(env);
 
@@ -332,13 +335,13 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		newCommonDictionary = null;
 	}
 
-	protected static Dictionary<TagProb, PreResult<CharSequence>> loadSystemDictionary(Environment env, File baseFile, Properties prop, String dictionaryId) {
-		File systemDictFile = getDictionaryFile(env, baseFile, prop, dictionaryId);
+	protected static Dictionary<TagProb, PreResult<CharSequence>> loadSystemDictionary(File baseFile, Properties prop, String dictionaryId) {
+		File systemDictFile = getDictionaryFile(baseFile, prop, dictionaryId);
 		long st = System.nanoTime();
 		boolean ignoreCase = false;
 		TagProbDictionary tagProbDictionary = new TagProbDictionary(systemDictFile, ignoreCase);
 		logger.debug("Product Dictionary Load {}ms >> {}", (System.nanoTime() - st) / 1000000,
-				systemDictFile.getName());
+			systemDictFile.getName());
 		return tagProbDictionary;
 	}
 }

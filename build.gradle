@@ -1,5 +1,5 @@
 plugins {
-    id 'java-library'
+	id 'java-library'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_9
@@ -8,31 +8,30 @@ compileJava.options.encoding = 'UTF-8'
 compileTestJava.options.encoding = 'UTF-8'
 
 repositories {
-    jcenter()
-    mavenCentral()
-    mavenLocal()
+	jcenter()
+	mavenCentral()
+	mavenLocal()
 }
 
 dependencies {
-    testImplementation 'junit:junit:4.13'
-    compile (
-        [group: 'commons-io', name: 'commons-io', version: '1.3.2'],
-        [group: 'commons-io', name: 'commons-io', version: '1.3.2'],
-        [group: 'org.elasticsearch', name: 'elasticsearch', version: '7.6.2'],
-        [group: 'org.slf4j', name: 'slf4j-api', version: '1.7.7'],
-        [group: 'ch.qos.logback', name: 'logback-classic', version: '1.1.3'],
-        [group: 'junit', name: 'junit', version: '4.13'],
-    )
+	testImplementation 'junit:junit:4.13'
+	compile (
+		[group: 'commons-io', name: 'commons-io', version: '1.3.2'],
+		[group: 'commons-io', name: 'commons-io', version: '1.3.2'],
+		[group: 'org.elasticsearch', name: 'elasticsearch', version: '7.6.2'],
+		[group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.1'],
+		[group: 'junit', name: 'junit', version: '4.13'],
+	)
 }
 
 task copyToDependencies(type: Copy) {
-    from (configurations.runtime) {
-        include "logback*", "slf4j-api*"
-    }
-    from ("src/main/resources") {
-        include "*.properties"
-    }
-    into "$buildDir/libs"
+	from (configurations.runtime) {
+	    include "logback*", "slf4j-api*"
+	}
+	from ("src/main/resources") {
+		include "*.properties"
+	}
+	into "$buildDir/libs"
 }
 
 build.dependsOn(copyToDependencies)
