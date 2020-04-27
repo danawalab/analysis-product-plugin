@@ -1,20 +1,25 @@
 package com.danawa.search.analysis.product;
 
-import static org.junit.Assert.*;
-import static com.danawa.util.TestUtil.*;
-
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.regex.Matcher;
 
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.analysis.Tokenizer;
+import org.apache.logging.log4j.LogManager;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.analysis.Tokenizer;
 import org.elasticsearch.common.logging.Loggers;
 import org.junit.Before;
 import org.junit.Test;
+
+import static com.danawa.util.TestUtil.*;
+import static org.junit.Assert.*;
 
 public class ProductNameTokenizerTest {
 
@@ -39,12 +44,15 @@ public class ProductNameTokenizerTest {
 	};
 
 	@Before public void init() {
-		// String LOG_LEVEL = System.getProperty("LOG_LEVEL");
-		// if (LOG_LEVEL == null || "".equals(LOG_LEVEL)) { LOG_LEVEL = "DEBUG"; }
-		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME)).setLevel(Level.toLevel(LOG_LEVEL));
-		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameTokenizer.class)).setLevel(Level.toLevel(LOG_LEVEL));
-		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameParsingRule.class)).setLevel(Level.toLevel(LOG_LEVEL));
-		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameAnalysisFilter.class)).setLevel(Level.toLevel(LOG_LEVEL));
+		Level level = Level.toLevel(System.getProperty("LOG_LEVEL"), Level.DEBUG);
+		LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+		Configuration config = ctx.getConfiguration();
+		LoggerConfig loggerConfig = config.getLoggerConfig(LogManager.ROOT_LOGGER_NAME);
+		loggerConfig.setLevel(level);
+		Loggers.setLevel(Loggers.getLogger(ProductNameTokenizer.class, ""), level);
+		Loggers.setLevel(Loggers.getLogger(ProductNameParsingRule.class, ""), level);
+		Loggers.setLevel(Loggers.getLogger(ProductNameAnalysisFilter.class, ""), level);
+		ctx.updateLoggers();
 	}
 
 	@Test
@@ -67,6 +75,14 @@ public class ProductNameTokenizerTest {
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		try {
+
+			/**
+			 * FIXME : IO_BUFFER_SIZE / MAX_STRING_LENGTH 는 차후 final 지정하여 상수화 한다. 개발중에는
+			 * 테스트케이스에서 사용하기 위해 final 을 붙이지 않는다.
+			 **/
+			ProductNameTokenizer.IO_BUFFER_SIZE = 10;
+			ProductNameTokenizer.MAX_STRING_LENGTH = 10;
+
 			reader = new StringReader(TEXT_STR);
 			tokenizer = new ProductNameTokenizer(null);
 			tokenizer.setReader(reader);

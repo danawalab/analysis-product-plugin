@@ -5,19 +5,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.danawa.search.analysis.dict.CommonDictionary;
 import com.danawa.search.analysis.dict.PosTag;
-import com.danawa.search.analysis.dict.PreResult;
+import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.analysis.TokenFilter;
-import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
@@ -26,6 +22,8 @@ import org.apache.lucene.analysis.tokenattributes.StopwordAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.analysis.TokenFilter;
+import org.apache.lucene.analysis.TokenStream;
 import org.elasticsearch.common.logging.Loggers;
 
 public class ProductNameAnalysisFilter extends TokenFilter {
@@ -61,15 +59,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private SynonymDictionary synonymDictionary;
 	private SpaceDictionary spaceDictionary;
 	private SetDictionary stopDictionary;
-	@SuppressWarnings("rawtypes")
-	private CommonDictionary dictionary;
+	private ProductNameDictionary dictionary;
 	
-	// protected ProductNameAnalysisFilter(TokenStream input) {
-	// 	super(input);
-	// 	// TODO Auto-generated constructor stub
-	// }
-
-	protected ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, CommonDictionary<TagProb, PreResult<CharSequence>> dictionary) {
+	protected ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary) {
 		super(input);
 		this.extractor = extractor;
 		this.dictionary = dictionary;

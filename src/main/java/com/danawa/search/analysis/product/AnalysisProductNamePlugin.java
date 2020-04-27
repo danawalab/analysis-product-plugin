@@ -1,9 +1,11 @@
 package com.danawa.search.analysis.product;
 
+import java.util.function.Supplier;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
+
+import com.danawa.util.ContextStore;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
@@ -24,23 +26,32 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 
-import static java.util.Collections.singletonMap;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 
 public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin, ActionPlugin {
 
 	private static Logger logger = Loggers.getLogger(AnalysisProductNamePlugin.class, "");
 
+	public static final String PRODUCT_NAME_DICTIONARY = "PRODUCT_NAME_DICTIONARY";
+
+	private static ContextStore store;
+
 	public AnalysisProductNamePlugin() {
 		logger.trace("init");
+	}
+
+	public static ContextStore getContextStore() {
+		if (store == null) {
+			store = new ContextStore();
+		}
+		return store;
 	}
 
 	@Override
 	public Map<String, AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
 		Map<String, AnalysisProvider<TokenFilterFactory>> extra = new HashMap<>();
-		// extra.put("product-name_part_of_speech", ProductNamePartOfSpeechStopFilterFactory::new);
-		// extra.put("product-name_readingform", ProductNameReadingFormFilterFactory::new);
-		// extra.put("product-name_number", ProductNameFilterFactory::new);
+		// extra.put("product-name_analysis_filter", ProductNameAnalysisFilterFactory::new);
 		return extra;
 	}
 

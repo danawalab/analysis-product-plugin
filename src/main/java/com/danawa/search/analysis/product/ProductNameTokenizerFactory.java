@@ -6,23 +6,24 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Map.Entry;
 
-import com.danawa.search.analysis.dict.CommonDictionary;
 import com.danawa.search.analysis.dict.CompoundDictionary;
 import com.danawa.search.analysis.dict.CustomDictionary;
 import com.danawa.search.analysis.dict.Dictionary;
 import com.danawa.search.analysis.dict.InvertMapDictionary;
 import com.danawa.search.analysis.dict.MapDictionary;
+import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.dict.PreResult;
+import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SourceDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
+import com.danawa.util.ContextStore;
 import com.danawa.util.ResourceResolver;
 
 import org.apache.logging.log4j.Logger;
@@ -30,8 +31,8 @@ import org.apache.lucene.analysis.Tokenizer;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.analysis.AbstractTokenizerFactory;
+import org.elasticsearch.index.IndexSettings;
 
 public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 
@@ -59,25 +60,24 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	private static final String ATTR_DICTIONARY_IGNORECASE = "analysis.product.dictionary.ignoreCase";
 	private static final String ATTR_DICTIONARY_FILE_PATH = "analysis.product.dictionary.filePath";
 
-	private static CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary;
+	private ProductNameDictionary commonDictionary;
 
     public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, final Settings settings) {
 		super(indexSettings, settings, name);
-		logger.info("ProductNameTokenizerFactory::self {}", this);
-		getDictionary(env);
+		logger.debug("ProductNameTokenizerFactory::self {}", this);
+		ContextStore store = AnalysisProductNamePlugin.getContextStore();
+		if (store.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
+			commonDictionary = store.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+		} else {
+			commonDictionary = loadDictionary(env);
+			store.put(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, commonDictionary);
+		}
 	}
 
 	@Override
 	public Tokenizer create() {
-		logger.info("ProductNameTokenizer::create {}", this);
+		logger.debug("ProductNameTokenizer::create {}", this);
 		return new ProductNameTokenizer(commonDictionary);
-	}
-
-	public static CommonDictionary<TagProb, PreResult<CharSequence>> getDictionary(Environment env) {
-		if (commonDictionary == null) {
-			commonDictionary = loadDictionary(env);
-		}
-		return commonDictionary;
 	}
 
 	private static File getDictionaryFile(File envBase, Properties prop, String dictionaryId) {
@@ -146,7 +146,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return ret;
 	}
 
-	public static CommonDictionary<TagProb, PreResult<CharSequence>> loadDictionary(Environment env) {
+	public static ProductNameDictionary loadDictionary(Environment env) {
 		Properties dictProp = new Properties();
 		Reader reader = null;
 		File baseFile = null;
@@ -155,9 +155,8 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 			// 플러그인 디렉토리 에서 설정파일을 찾도록 한다.
 			for (int tries = 0; tries < 2; tries++) {
 				try {
-					//baseFile = new File(ResourceResolver.getResourceRoot(CommonDictionary.class), ANALYSIS_PROP);
 					if (tries == 0) {
-						baseFile = ResourceResolver.getResourceRoot(CommonDictionary.class);
+						baseFile = ResourceResolver.getResourceRoot(ProductNameDictionary.class);
 					} else {
 						// 설정파일이 플러그인 디렉토리에 존재하지 않는다면 검색엔진 conf 디렉토리에서 설정파일을 찾는다.
 						// 추후 불필요시 삭제한다. (설정파일 혼란이 있을수 있음)
@@ -191,7 +190,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return loadDictionary(baseFile, dictProp);
 	}
 
-	public static CommonDictionary<TagProb, PreResult<CharSequence>> loadDictionary(File baseFile, Properties dictProp) {
+	public static ProductNameDictionary loadDictionary(File baseFile, Properties dictProp) {
 		/**
 		 * 기본셋팅. 
 		 * ${ELASTICSEARCH}/config/product_name_analysis.prop 파일을 사용하도록 한다
@@ -200,7 +199,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		 * 우선은 JAXB 마샬링 구조를 사용하지 않고 Properties 를 사용하도록 한다.
 		 **/
 		Dictionary<TagProb, PreResult<CharSequence>> dictionary = null;
-		CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = null;
+		ProductNameDictionary commonDictionary = null;
 		List<String> idList = new ArrayList<>();
 		String idStr = dictProp.getProperty(ATTR_DICTIONARY_ID_LIST);
 		if (idStr != null) {
@@ -213,7 +212,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		for (String dictionaryId : idList) {
 			if (getType(dictProp, dictionaryId) == Type.SYSTEM) {
 				dictionary = loadSystemDictionary(baseFile, dictProp, dictionaryId);
-				commonDictionary = new CommonDictionary<TagProb, PreResult<CharSequence>>(dictionary);
+				commonDictionary = new ProductNameDictionary(dictionary);
 				break;
 			}
 		}
@@ -290,7 +289,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 
 	public void reloadDictionary(Environment env) {
 		// long st = System.nanoTime();
-		CommonDictionary<TagProb, PreResult<CharSequence>> newCommonDictionary = loadDictionary(env);
+		ProductNameDictionary newCommonDictionary = loadDictionary(env);
 
 		// 1. commonDictionary에 systemdictinary셋팅.
 		commonDictionary.reset(newCommonDictionary);

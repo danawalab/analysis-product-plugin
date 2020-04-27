@@ -1,22 +1,20 @@
 package com.danawa.search.analysis.product;
 
-import com.danawa.search.analysis.dict.CommonDictionary;
-import com.danawa.search.analysis.dict.PreResult;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
+import com.danawa.search.analysis.dict.ProductNameDictionary;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.TokenStream;
 
 public class ProductNameAnalyzer extends Analyzer {
-	private CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary;
+	private ProductNameDictionary commonDictionary;
 	// private final Dictionary userDict;
 	// private final KoreanTokenizer.DecompoundMode mode;
 	// private final Set<POS.Tag> stopTags;
 	// private final boolean outputUnknownUnigrams;
 	// private final boolean discardPunctuation;
 
-	public ProductNameAnalyzer(CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary) {
+	public ProductNameAnalyzer(ProductNameDictionary commonDictionary) {
 		super();
 		this.commonDictionary = commonDictionary;
 		//this(null, KoreanTokenizer.DEFAULT_DECOMPOUND, KoreanPartOfSpeechStopFilter.DEFAULT_STOP_TAGS, false, true);

@@ -1,34 +1,40 @@
 package com.danawa.search.analysis.product;
 
-import static org.junit.Assert.*;
-
 import java.io.File;
 import java.util.Properties;
 
-import com.danawa.search.analysis.dict.CommonDictionary;
-import com.danawa.search.analysis.dict.PreResult;
+import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.util.CharVector;
 import com.danawa.util.TestUtil;
 
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.logging.Loggers;
 import org.junit.Before;
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 public class KoreanWordExtractorTest {
 
 	private static Logger logger = Loggers.getLogger(KoreanWordExtractorTest.class, "");
 
 	@Before public void init() {
-		String LOG_LEVEL = System.getProperty("LOG_LEVEL");
-		if (LOG_LEVEL == null || "".equals(LOG_LEVEL)) { LOG_LEVEL = "DEBUG"; }
-		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME)).setLevel(Level.toLevel(LOG_LEVEL));
-		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameTokenizer.class)).setLevel(Level.toLevel(LOG_LEVEL));
-		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameParsingRule.class)).setLevel(Level.toLevel(LOG_LEVEL));
-		// ((ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ProductNameAnalysisFilter.class)).setLevel(Level.toLevel(LOG_LEVEL));
+		Level level = Level.toLevel(System.getProperty("LOG_LEVEL"), Level.DEBUG);
+		LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+		Configuration config = ctx.getConfiguration();
+		LoggerConfig loggerConfig = config.getLoggerConfig(LogManager.ROOT_LOGGER_NAME);
+		loggerConfig.setLevel(level);
+		Loggers.setLevel(Loggers.getLogger(ProductNameTokenizer.class, ""), level);
+		Loggers.setLevel(Loggers.getLogger(ProductNameParsingRule.class, ""), level);
+		Loggers.setLevel(Loggers.getLogger(ProductNameAnalysisFilter.class, ""), level);
+		ctx.updateLoggers();
 	}
 
 	@Test public void testUserDictionary() {
@@ -36,7 +42,7 @@ public class KoreanWordExtractorTest {
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
 		if (propFile == null) { return; }
 		Properties prop = TestUtil.readProperties(propFile);
-		CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
+		ProductNameDictionary commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
 		SetDictionary userDictionary = commonDictionary.getDictionary("user", SetDictionary.class);
 		CharSequence word = new CharVector("JY모터스");
 		logger.debug("DICT:{}", userDictionary.set());
@@ -50,7 +56,7 @@ public class KoreanWordExtractorTest {
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
 		if (propFile == null) { return; }
 		Properties prop = TestUtil.readProperties(propFile);
-		CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
+		ProductNameDictionary commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
 		KoreanWordExtractor extractor = new KoreanWordExtractor(commonDictionary);
 		String str = "한글분석기테스트중입니다";
 		char[] buf = str.toCharArray();

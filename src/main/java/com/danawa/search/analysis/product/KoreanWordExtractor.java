@@ -8,11 +8,11 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 
-import com.danawa.search.analysis.dict.CommonDictionary;
 import com.danawa.search.analysis.dict.PosTag;
+import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.dict.PosTagProbEntry;
 import com.danawa.search.analysis.dict.PreResult;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
+import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
@@ -21,7 +21,7 @@ import org.elasticsearch.common.logging.Loggers;
 public class KoreanWordExtractor {
 	private static Logger logger = Loggers.getLogger(KoreanWordExtractor.class, "");
 
-	private CommonDictionary<TagProb, PreResult<CharSequence>> koreanDict;
+	private ProductNameDictionary koreanDict;
 
 	private PosTagProbEntry[][] tabular;
 	private int[] status;
@@ -51,11 +51,11 @@ public class KoreanWordExtractor {
 	protected int offset;
 	protected int length;
 
-	public KoreanWordExtractor(CommonDictionary<TagProb, PreResult<CharSequence>> koreanDict) {
+	public KoreanWordExtractor(ProductNameDictionary koreanDict) {
 		this(koreanDict, 12);
 	}
 
-	public KoreanWordExtractor(CommonDictionary<TagProb, PreResult<CharSequence>> koreanDict, int tabularSize) {
+	public KoreanWordExtractor(ProductNameDictionary koreanDict, int tabularSize) {
 		tabular = new PosTagProbEntry[tabularSize][];
 		// tabular 파싱 초기화.
 		for (int row = 0; row < tabular.length; row++) {
@@ -71,11 +71,11 @@ public class KoreanWordExtractor {
 		}
 	}
 
-	public CommonDictionary<TagProb, PreResult<CharSequence>> dictionary() {
+	public ProductNameDictionary dictionary() {
 		return koreanDict;
 	}
 
-	public void setKoreanDic(CommonDictionary<TagProb, PreResult<CharSequence>> koreanDict) {
+	public void setKoreanDic(ProductNameDictionary koreanDict) {
 		this.koreanDict = koreanDict;
 	}
 

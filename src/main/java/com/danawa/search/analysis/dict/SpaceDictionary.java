@@ -1,15 +1,15 @@
 package com.danawa.search.analysis.dict;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.Set;
 
 import com.danawa.io.DataInput;
 import com.danawa.io.DataOutput;

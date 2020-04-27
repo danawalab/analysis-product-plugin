@@ -4,36 +4,34 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
-import com.danawa.search.analysis.dict.CommonDictionary;
-import com.danawa.search.analysis.dict.PreResult;
+import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.analysis.Tokenizer;
 import org.elasticsearch.common.logging.Loggers;
 
 public class ProductNameTokenizer extends Tokenizer {
 
 	private static Logger logger = Loggers.getLogger(ProductNameTokenizer.class, "");
 
-	public static final int IO_BUFFER_SIZE = 4096;
-	public static final int MAX_STRING_LENGTH = 64;
+	public static int IO_BUFFER_SIZE = 4096;
+	public static int MAX_STRING_LENGTH = 64;
 
 	public static final String WHITESPACE = "<WHITESPACE>";
 	public static final String SYMBOL = "<SYMBOL>";
-	public final static String ALPHA = "<ALPHA>";
-	public final static String NUMBER = "<NUMBER>";
-	public final static String HANGUL = "<HANGUL>";
-	public final static String HANGUL_JAMO = "<HANGUL_JAMO>";
-	public final static String JAPANESE = "<JAPANESE>";
-	public final static String CHINESE = "<CHINESE>";
-	public final static String OTHER_LANGUAGE = "<OTHER_LANGUAGE>";
-	public final static String UNCATEGORIZED = "<UNCATEGORIZED>"; // 글자에대한 분류없음.
+	public static final String ALPHA = "<ALPHA>";
+	public static final String NUMBER = "<NUMBER>";
+	public static final String HANGUL = "<HANGUL>";
+	public static final String HANGUL_JAMO = "<HANGUL_JAMO>";
+	public static final String JAPANESE = "<JAPANESE>";
+	public static final String CHINESE = "<CHINESE>";
+	public static final String OTHER_LANGUAGE = "<OTHER_LANGUAGE>";
+	public static final String UNCATEGORIZED = "<UNCATEGORIZED>"; // 글자에대한 분류없음.
 
 	public static final String NUMBER_TRANS = "<NUMBER_TRANS>";
 	public static final String MODEL_NAME = "<MODEL_NAME>";
@@ -116,7 +114,7 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private SynonymDictionary synonymDictionary;
 
-	protected ProductNameTokenizer(CommonDictionary<TagProb, PreResult<CharSequence>> dictionary) {
+	protected ProductNameTokenizer(ProductNameDictionary dictionary) {
 		if (dictionary != null) {
 			synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
 		}
@@ -346,22 +344,6 @@ public class ProductNameTokenizer extends Tokenizer {
 		return false;
 	}
 
-// 	protected static boolean matchedNChar(char[] array, char[] buf, int start, int length) {
-// 		// 다수의 같은문자가 오는지 확인
-// 		for (char ch : array) {
-// 			boolean flg = true;
-// 			for (int inx = 0; inx < length; inx++) {
-// 				if (ch != buf[start + inx]) {
-// 					flg = false;
-// 				}
-// 			}
-// 			if (flg) {
-// 				return true;
-// 			}
-// 		}
-// 		return false;
-// 	}
-
 	protected static boolean containsChar(char[] array, char[] buf, int length) {
 		// 여러개 문자중 하나라도 소지하고 있는지 확인
 		for (char ch : array) {
@@ -400,18 +382,6 @@ public class ProductNameTokenizer extends Tokenizer {
 		ret = type;
 		return ret;
 	}
-
-// 	public static boolean isASCII(CharSequence cv) {
-// 		boolean ret = true;
-// 		for (int inx = 0; inx < cv.length(); inx++) {
-// 			char c = cv.charAt(inx);
-// 			if (c >= 127) {
-// 				ret = false;
-// 				break;
-// 			}
-// 		}
-// 		return ret;
-// 	}
 
 	public static String getTermType(CharSequence cv) {
 		String ret = null;

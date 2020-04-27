@@ -6,15 +6,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.danawa.search.analysis.dict.CommonDictionary;
 import com.danawa.search.analysis.dict.CompoundDictionary;
 import com.danawa.search.analysis.dict.CustomDictionary;
 import com.danawa.search.analysis.dict.PosTag;
-import com.danawa.search.analysis.dict.PreResult;
+import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.util.CharVector;
 
@@ -70,7 +68,7 @@ public class ProductNameParsingRule {
 	private ProductNameParsingRule() { }
 
 	public ProductNameParsingRule(KoreanWordExtractor extractor,
-		CommonDictionary<TagProb, PreResult<CharVector>> dictionary,
+		ProductNameDictionary dictionary,
 		AnalyzerOption option, OffsetAttribute offsetAttribute,
 		TypeAttribute typeAttribute, SynonymAttribute synonymAttribute,
 		AdditionalTermAttribute additionalTermAttribute) {
