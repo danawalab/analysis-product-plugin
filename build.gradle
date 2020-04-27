@@ -27,7 +27,7 @@ dependencies {
 
 task copyToDependencies(type: Copy) {
     from (configurations.runtime) {
-        //include "logback*", "slf4j-api*"
+        include "logback*", "slf4j-api*"
     }
     from ("src/main/resources") {
         include "*.properties"

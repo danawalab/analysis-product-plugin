@@ -116,20 +116,10 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private SynonymDictionary synonymDictionary;
 
-	// public ProductNameTokenizer() {
-	// 	init();
-	// }
-
-	// public ProductNameTokenizer(AttributeFactory factory) {
-	// 	super(factory);
-	// 	init();
-	// }
-
 	protected ProductNameTokenizer(CommonDictionary<TagProb, PreResult<CharSequence>> dictionary) {
 		if (dictionary != null) {
 			synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
 		}
-		// try { reset(); } catch (IOException ignore) { }
 		init();
 	}
 
@@ -173,7 +163,6 @@ public class ProductNameTokenizer extends Tokenizer {
 		}
 
 		ret = hasToken();
-		// logger.trace("hasToken:{} / radLength:{}", ret, readLength);
 
 		if (tokenAttribute.charVector() != null && tokenAttribute.charVector().offset() == 0
 			&& tokenAttribute.charVector().length() == 0) {

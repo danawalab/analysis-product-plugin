@@ -13,6 +13,7 @@ import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.util.TestUtil;
 
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
@@ -30,7 +31,7 @@ public class ProductNameAnalyzerTest {
         if (propFile == null) { return; }
 
 		Properties prop = TestUtil.readProperties(propFile);
-        CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
+        CommonDictionary<TagProb, PreResult<CharSequence>> commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, null, prop);
         ProductNameAnalyzer analyzer = null;
         String str = "한글분석기테스트중입니다";
         Reader reader = null;
@@ -39,13 +40,14 @@ public class ProductNameAnalyzerTest {
             analyzer = new ProductNameAnalyzer(commonDictionary);
             reader = new StringReader(str);
             stream = analyzer.tokenStream("", reader);
-			TokenInfoAttribute tokenAttribute = stream.addAttribute(TokenInfoAttribute.class);
+            TokenInfoAttribute tokenAttribute = stream.addAttribute(TokenInfoAttribute.class);
+            CharTermAttribute termAttribute = stream.addAttribute(CharTermAttribute.class);
 			OffsetAttribute offsetAttribute = stream.addAttribute(OffsetAttribute.class);
 			TypeAttribute typeAttribute = stream.addAttribute(TypeAttribute.class);
 			stream.reset();
 			for (; stream.incrementToken();) {
-				logger.debug("TOKEN:{} / {}~{} / {}", tokenAttribute.charVector(), offsetAttribute.startOffset(),
-					offsetAttribute.endOffset(), typeAttribute.type());
+				logger.debug("TOKEN:{} / {}~{} / {} / {}", termAttribute, offsetAttribute.startOffset(),
+					offsetAttribute.endOffset(), tokenAttribute.charVector().length(), typeAttribute.type());
             }
         } catch (Exception e) {
             logger.error("", e);
