@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.util.AttributeFactory;
 import org.apache.lucene.analysis.Tokenizer;
 import org.elasticsearch.common.logging.Loggers;
 
@@ -121,6 +122,11 @@ public class ProductNameTokenizer extends Tokenizer {
 		init();
 	}
 
+	public ProductNameTokenizer(AttributeFactory factory) {
+		super(factory);
+		init();
+	}
+
 	private void init() {
 		buffer = new char[IO_BUFFER_SIZE];
 		stringbuffer = new char[MAX_STRING_LENGTH];
@@ -162,10 +168,10 @@ public class ProductNameTokenizer extends Tokenizer {
 
 		ret = hasToken();
 
-		if (tokenAttribute.charVector() != null && tokenAttribute.charVector().offset() == 0
-			&& tokenAttribute.charVector().length() == 0) {
-			return true;
-		}
+//		if (tokenAttribute.charVector() != null && tokenAttribute.charVector().offset() == 0
+//			&& tokenAttribute.charVector().length() == 0) {
+//			return true;
+//		}
 
 		if (ret) {
 			token = tokenAttribute.charVector();

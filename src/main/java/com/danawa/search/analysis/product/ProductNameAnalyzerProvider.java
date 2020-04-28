@@ -3,13 +3,14 @@ package com.danawa.search.analysis.product;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.util.ContextStore;
 
+import org.apache.lucene.analysis.Analyzer;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.analysis.AbstractIndexAnalyzerProvider;
 import org.elasticsearch.index.IndexSettings;
 
-public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<ProductNameAnalyzer> {
-	private ProductNameAnalyzer analyzer;
+public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<Analyzer> {
+	private Analyzer analyzer;
 
 	public ProductNameAnalyzerProvider(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 		super(indexSettings, name, settings);
@@ -26,7 +27,7 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<P
 	}
 
 	@Override
-	public ProductNameAnalyzer get() {
+	public Analyzer get() {
 		logger.debug("ProductNameAnalyzerProvider::get {}", analyzer);
 		return analyzer;
 	}

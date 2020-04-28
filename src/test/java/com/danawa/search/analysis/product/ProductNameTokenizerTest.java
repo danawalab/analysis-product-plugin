@@ -4,6 +4,8 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.regex.Matcher;
 
+import com.danawa.search.analysis.dict.ProductNameDictionary;
+
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -74,6 +76,7 @@ public class ProductNameTokenizerTest {
 	public void testTokenizer() throws Exception {
 		Reader reader = null;
 		Tokenizer tokenizer = null;
+		ProductNameDictionary dictionary = null;
 		try {
 
 			/**
@@ -84,7 +87,7 @@ public class ProductNameTokenizerTest {
 			ProductNameTokenizer.MAX_STRING_LENGTH = 10;
 
 			reader = new StringReader(TEXT_STR);
-			tokenizer = new ProductNameTokenizer(null);
+			tokenizer = new ProductNameTokenizer(dictionary);
 			tokenizer.setReader(reader);
 			TokenInfoAttribute tokenAttribute = tokenizer.addAttribute(TokenInfoAttribute.class);
 			OffsetAttribute offsetAttribute = tokenizer.addAttribute(OffsetAttribute.class);
