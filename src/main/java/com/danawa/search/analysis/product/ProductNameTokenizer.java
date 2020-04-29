@@ -20,8 +20,8 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private static Logger logger = Loggers.getLogger(ProductNameTokenizer.class, "");
 
-	public static int IO_BUFFER_SIZE = 4096;
-	public static int MAX_STRING_LENGTH = 64;
+	public static final int IO_BUFFER_SIZE = 100;
+	public static final int MAX_STRING_LENGTH = 64;
 
 	public static final String WHITESPACE = "<WHITESPACE>";
 	public static final String SYMBOL = "<SYMBOL>";
@@ -102,9 +102,9 @@ public class ProductNameTokenizer extends Tokenizer {
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
 
-	private char[] buffer;
-	private char[] buffer2;
-	private char[] stringbuffer;
+	private char[] workBuffer;
+	private char[] freshBuffer;
+	private char[] fullTermBuffer;
 	private int position;
 	private int positionPrev;
 	private int readLength;
@@ -128,8 +128,8 @@ public class ProductNameTokenizer extends Tokenizer {
 	}
 
 	private void init() {
-		buffer = new char[IO_BUFFER_SIZE];
-		stringbuffer = new char[MAX_STRING_LENGTH];
+		workBuffer = new char[IO_BUFFER_SIZE];
+		fullTermBuffer = new char[MAX_STRING_LENGTH];
 	}
 
 	@Override
@@ -138,12 +138,12 @@ public class ProductNameTokenizer extends Tokenizer {
 		CharVector token = new CharVector();
 		// 전체동의어는 전체 단어중 동의어가 존재하는것만 체크해야 하므로 먼저 체크한다.
 		if (readLength == -1 && readLengthPrev > 0 && readLengthPrev >= position) {
-			if (stringbuffer != null) {
-				CharSequence fullString = new CharVector(stringbuffer, 0, readLengthPrev);
+			if (fullTermBuffer != null) {
+				CharSequence fullString = new CharVector(fullTermBuffer, 0, readLengthPrev);
 				if (synonymDictionary != null && synonymDictionary.map().containsKey(fullString)) {
 					offsetAttribute.setOffset(0, readLengthPrev);
 					CharVector charsRef = tokenAttribute.charVector();
-					charsRef.init(stringbuffer, 0, readLengthPrev);
+					charsRef.init(fullTermBuffer, 0, readLengthPrev);
 					// 앞 뒤 공백을 제거한다.
 					for (int inx = charsRef.length() - 1; inx >= 0; inx--) {
 						if (getType(charsRef.array()[inx]) != WHITESPACE) {
@@ -159,7 +159,7 @@ public class ProductNameTokenizer extends Tokenizer {
 						charsRef.length(charsRef.length() - 1);
 					}
 					typeAttribute.setType(FULL_STRING);
-					stringbuffer = null;
+					fullTermBuffer = null;
 					return true;
 				}
 			}
@@ -168,16 +168,16 @@ public class ProductNameTokenizer extends Tokenizer {
 
 		ret = hasToken();
 
-//		if (tokenAttribute.charVector() != null && tokenAttribute.charVector().offset() == 0
-//			&& tokenAttribute.charVector().length() == 0) {
-//			return true;
-//		}
 
 		if (ret) {
 			token = tokenAttribute.charVector();
 			offsetAttribute.setOffset(baseOffset + token.offset(), baseOffset + token.offset() + token.length());
 			logger.trace("return \"{}\" {}~{}", tokenAttribute, offsetAttribute.startOffset(),
 				offsetAttribute.endOffset());
+			if (tokenAttribute.charVector() != null && tokenAttribute.charVector().offset() == 0
+				&& tokenAttribute.charVector().length() == 0) {
+				return true;
+			}
 		}
 
 		// 공백은 건너 뜀.
@@ -185,7 +185,7 @@ public class ProductNameTokenizer extends Tokenizer {
 			// if(logger.isTraceEnabled()) {
 			// logger.trace("char[{}]:{}", position,getType(buffer[position]));
 			// }
-			if (getType(buffer[position]) != WHITESPACE) {
+			if (getType(workBuffer[position]) != WHITESPACE) {
 				break;
 			}
 		}
@@ -201,30 +201,30 @@ public class ProductNameTokenizer extends Tokenizer {
 		while (true) {
 			if (position == -1) {
 				position = 0;
-				tokenAttribute.setCharVector(buffer, 0, 0);
+				tokenAttribute.setCharVector(workBuffer, 0, 0);
 				return true;
 			}
 
-			if (position == 0 && buffer2 != null) {
+			if (position == 0 && freshBuffer != null) {
 				// logger.trace("readPrev:{} / lastLength:{}", readLengthPrev, lastLength);
 				baseOffset += (readLengthPrev - lastLength);
 				// logger.trace("baseOffset : {}", baseOffset);
 				readLength += lastLength;
 				// 0번 주소로 밀어내고
 				logger.trace("move buffer offset {} => {} / {} chars", positionPrev, 0, lastLength);
-
-				System.arraycopy(buffer, positionPrev, buffer, 0, lastLength);
+				// CharVector 특성상 내보내지 않은 버퍼에 영향을 줄 수 있으므로 새로 버퍼를 잡아준다.
+				workBuffer = Arrays.copyOf(workBuffer, workBuffer.length);
+				System.arraycopy(workBuffer, positionPrev, workBuffer, 0, lastLength);
 				// 신규데이터를 뒤이어 입력한다.
-				System.arraycopy(buffer2, 0, buffer, lastLength, readLength - lastLength);
-				buffer2 = null;
-
-				tokenAttribute.setCharVector(buffer, 0, readLength);
+				System.arraycopy(freshBuffer, 0, workBuffer, lastLength, readLength - lastLength);
+				freshBuffer = null;
+				tokenAttribute.setCharVector(workBuffer, 0, readLength);
 				// if(logger.isTraceEnabled()) {
 				// logger.trace("readLength:{} / lastLength:{}", readLength, lastLength);
 				// logger.trace("buffer : {} / read : {} char : {}", termAttribute, readLength,
 				// new String(buffer, lastLength, readLength - lastLength));
 				// }
-				buffer2 = null;
+				freshBuffer = null;
 			}
 
 			if (readLength > position) {
@@ -233,15 +233,16 @@ public class ProductNameTokenizer extends Tokenizer {
 					position++;
 					return true;
 				}
+				// FIXME: 앞공백 제거는 읽어온 이후 최초 한번만 필요함.
 				// 앞 공백 제거
 				for (; position < readLength; position++) {
-					if (getType(buffer[position]) != WHITESPACE) {
+					if (getType(workBuffer[position]) != WHITESPACE) {
 						break;
 					}
 				}
 				positionPrev = position;
 
-				char c1 = buffer[positionPrev];
+				char c1 = workBuffer[positionPrev];
 				char c2 = 0;
 				char c0 = 0;
 				String t1 = getType(c1);
@@ -249,11 +250,11 @@ public class ProductNameTokenizer extends Tokenizer {
 				for (; position < readLength; position++) {
 					// 기본적으로는 공백단위로 토크닝 한다.
 					// 만약 한글과 특수문자가 섞여있다면 우선은 분리한다
-					c2 = buffer[position];
+					c2 = workBuffer[position];
 					c0 = 0;
 					t2 = getType(c2);
 					if (position > 0) {
-						c0 = buffer[position - 1];
+						c0 = workBuffer[position - 1];
 					}
 					// logger.trace("C1:{} [{}] / C2:{} [{}]", c1, t1, c2, t2);
 					if (t1 == WHITESPACE) {
@@ -264,7 +265,7 @@ public class ProductNameTokenizer extends Tokenizer {
 						tokenAttribute.setOffset(positionPrev, position - positionPrev);
 						position++;
 						return true;
-					} else if (position > 0 && getType(buffer[position - 1]) == NUMBER && c2 > 128) {
+					} else if (position > 0 && getType(workBuffer[position - 1]) == NUMBER && c2 > 128) {
 						/**
 						 * 숫자직후 유니코드는 단위명일 확률이 높으므로 연결하여 출력
 						 */
@@ -289,6 +290,12 @@ public class ProductNameTokenizer extends Tokenizer {
 			}
 
 			if (readLength == position) {
+				if (readLength != 0 && positionPrev == 0) {
+					// 한번도 플러시되지 않은 프로세스에서 버퍼를 다 읽은 경우라면 한번 플러시 해 준다
+					positionPrev = position;
+					return true;
+				}
+
 				lastLength = readLength - positionPrev;
 				// 버퍼를 다 읽었으므로, 이어서 읽을것이 있는지 먼저 확인 해야 한다.
 
@@ -301,27 +308,27 @@ public class ProductNameTokenizer extends Tokenizer {
 					// logger.trace("try read from {} length:{}", lastLength,
 					// buffer.length-lastLength);
 					// }
-					buffer2 = new char[IO_BUFFER_SIZE];
+					freshBuffer = new char[IO_BUFFER_SIZE];
 					readLengthPrev = readLength;
-					readLength = input.read(buffer2, 0, buffer.length - lastLength);
+					readLength = input.read(freshBuffer, 0, workBuffer.length - lastLength);
 					// 읽기에 성공한 경우
 					if (readLength > 0) {
 						// 전체문자열을 저장할 버퍼 전체문자열 제한 크기가 넘어가면 그냥 버린다.
-						if (stringbuffer != null && baseOffset + readLength < stringbuffer.length) {
-							System.arraycopy(buffer2, 0, stringbuffer, baseOffset + readLengthPrev, readLength);
+						if (fullTermBuffer != null && baseOffset + readLength < fullTermBuffer.length) {
+							System.arraycopy(freshBuffer, 0, fullTermBuffer, baseOffset + readLengthPrev, readLength);
 							// if(logger.isTraceEnabled()) {
 							// logger.trace("total string : \"{}\"",
 							// new String(stringbuffer,0,baseOffset + readLengthPrev + readLength));
 							// }
 						} else {
-							stringbuffer = null;
+							fullTermBuffer = null;
 						}
 						position = -1;
 					} else {
-						buffer2 = null;
+						freshBuffer = null;
 						// 이전버퍼의 남은부분을 리턴하고 끝.
 						if (lastLength > 0) {
-							tokenAttribute.setCharVector(buffer, positionPrev, lastLength);
+							tokenAttribute.setCharVector(workBuffer, positionPrev, lastLength);
 							// logger.trace("readLength:{} / positionPrev:{} / readLengthPrev:{} / last
 							// term:{}", lastLength, positionPrev, readLengthPrev, termAttribute);
 							// 딱 맞게 읽어 더이상 읽을것이 없는 경우.
@@ -468,9 +475,9 @@ public class ProductNameTokenizer extends Tokenizer {
 	@Override
 	public void reset() throws IOException {
 		super.reset();
-		Arrays.fill(buffer, (char)0);
-		if(stringbuffer == null) {
-			stringbuffer = new char[MAX_STRING_LENGTH];
+		Arrays.fill(workBuffer, (char)0);
+		if(fullTermBuffer == null) {
+			fullTermBuffer = new char[MAX_STRING_LENGTH];
 		}
 		position = positionPrev = readLength = readLengthPrev = 0;
 		baseOffset = 0;

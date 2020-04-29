@@ -78,14 +78,6 @@ public class ProductNameTokenizerTest {
 		Tokenizer tokenizer = null;
 		ProductNameDictionary dictionary = null;
 		try {
-
-			/**
-			 * FIXME : IO_BUFFER_SIZE / MAX_STRING_LENGTH 는 차후 final 지정하여 상수화 한다. 개발중에는
-			 * 테스트케이스에서 사용하기 위해 final 을 붙이지 않는다.
-			 **/
-			ProductNameTokenizer.IO_BUFFER_SIZE = 10;
-			ProductNameTokenizer.MAX_STRING_LENGTH = 10;
-
 			reader = new StringReader(TEXT_STR);
 			tokenizer = new ProductNameTokenizer(dictionary);
 			tokenizer.setReader(reader);
