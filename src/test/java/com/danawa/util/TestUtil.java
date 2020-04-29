@@ -31,7 +31,7 @@ public final class TestUtil {
 		File ret = null;
 		String path = getSystemProperty(key);
 		if (path != null) { ret = new File(path); }
-		if (!ret.exists()) {ret = null; }
+		if (ret != null && !ret.exists()) {ret = null; }
 		return ret;
 	}
 

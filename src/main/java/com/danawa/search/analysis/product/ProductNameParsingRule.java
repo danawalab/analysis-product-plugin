@@ -2,6 +2,7 @@ package com.danawa.search.analysis.product;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -257,6 +258,7 @@ public class ProductNameParsingRule {
 			
 			////////////////////////////////////////////////////////////////////////////////
 			//규칙분류 시작.
+Collections.sort(queue);
 			
 			for (int qinx = 0; qinx < queue.size(); qinx++) {
 				e0 = queue.get(qinx);
@@ -1749,6 +1751,8 @@ public class ProductNameParsingRule {
 				}
 			}
 		}
+		////////////////////////////////////////////////////////////////////////////////
+		Collections.sort(subQueue);
 		return settable;
 	}
 	
@@ -1998,7 +2002,7 @@ public class ProductNameParsingRule {
 		return false;
 	}
 	
-	private class RuleEntry {
+	private class RuleEntry implements Comparable<RuleEntry> {
 		char[] buf;
 		int start;
 		int length;
@@ -2049,6 +2053,10 @@ public class ProductNameParsingRule {
 			}
 			str +=" / "+type+" / "+modifiable + " ("+start+"~"+(start+length)+"/"+startOffset+"~"+endOffset+")";
 			return str;
+		}
+
+		@Override public int compareTo(RuleEntry entry) {
+			return this.startOffset - entry.startOffset;
 		}
 	}
 }
