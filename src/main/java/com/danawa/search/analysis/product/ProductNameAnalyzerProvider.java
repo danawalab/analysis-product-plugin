@@ -10,18 +10,18 @@ import org.elasticsearch.index.analysis.AbstractIndexAnalyzerProvider;
 import org.elasticsearch.index.IndexSettings;
 
 public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<Analyzer> {
+	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 	private Analyzer analyzer;
 
 	public ProductNameAnalyzerProvider(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 		super(indexSettings, name, settings);
 		logger.debug("ProductNameAnalyzerProvider::self {}", this);
-		ContextStore store = AnalysisProductNamePlugin.getContextStore();
 		ProductNameDictionary dictionary;
-		if (store.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
-			dictionary = store.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
+			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 		} else {
 			dictionary = ProductNameTokenizerFactory.loadDictionary(env);
-			store.put(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, dictionary);
+			contextStore.put(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, dictionary);
 		}
 		analyzer = new ProductNameAnalyzer(dictionary);
 	}

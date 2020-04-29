@@ -4,9 +4,24 @@ import java.util.HashMap;
 import java.util.Map;
 
 @SuppressWarnings("unchecked")
-public class ContextStore {
+public final class ContextStore {
+	private final static Map<Class<?>, ContextStore> STORE = new HashMap<>();
 	private Map<String, Object> map;
-	public ContextStore() { 
+
+	public final static ContextStore getStore(Class<?> cls) {
+		if (cls != null) {
+			if (STORE.containsKey(cls)) {
+				return STORE.get(cls);
+			} else {
+				ContextStore store = new ContextStore();
+				STORE.put(cls, store);
+				return store;
+			}
+		}
+		return null;
+	}
+
+	private ContextStore() { 
 		map = new HashMap<>();
 	};
 

@@ -1,9 +1,6 @@
 package com.danawa.search.analysis.product;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -60,17 +57,21 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	private static final String ATTR_DICTIONARY_IGNORECASE = "analysis.product.dictionary.ignoreCase";
 	private static final String ATTR_DICTIONARY_FILE_PATH = "analysis.product.dictionary.filePath";
 
+	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
+
 	private ProductNameDictionary commonDictionary;
+
+	private static File baseFile;
+	private static File configFile;
 
     public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, final Settings settings) {
 		super(indexSettings, settings, name);
 		logger.debug("ProductNameTokenizerFactory::self {}", this);
-		ContextStore store = AnalysisProductNamePlugin.getContextStore();
-		if (store.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
-			commonDictionary = store.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
+			commonDictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 		} else {
 			commonDictionary = loadDictionary(env);
-			store.put(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, commonDictionary);
+			contextStore.put(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, commonDictionary);
 		}
 	}
 
@@ -147,45 +148,37 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	}
 
 	public static ProductNameDictionary loadDictionary(Environment env) {
-		Properties dictProp = new Properties();
-		Reader reader = null;
-		File baseFile = null;
-		File configFile = null;
-		try {
-			// 플러그인 디렉토리 에서 설정파일을 찾도록 한다.
-			for (int tries = 0; tries < 2; tries++) {
-				try {
-					if (tries == 0) {
-						baseFile = ResourceResolver.getResourceRoot(ProductNameDictionary.class);
-					} else {
-						// 설정파일이 플러그인 디렉토리에 존재하지 않는다면 검색엔진 conf 디렉토리에서 설정파일을 찾는다.
-						// 추후 불필요시 삭제한다. (설정파일 혼란이 있을수 있음)
-						baseFile = env.configFile().toFile();
-					}
-					if (baseFile != null && baseFile.exists()) {
-						logger.debug("PRODUCT DICTIONARY BASE : {}", baseFile);
-					}
-				} catch (Exception e) { 
-					logger.error("", e);
-					baseFile = null; 
-					configFile = null;
-					continue;
-				}
-				configFile = new File(baseFile, ANALYSIS_PROP);
-				if (configFile.exists()) { 
-					logger.debug("DICTIONARY PROPERTIES : {}", configFile);
-					break;
+		// 플러그인 디렉토리 에서 설정파일을 찾도록 한다.
+		for (int tries = 0; tries < 2; tries++) {
+			try {
+				if (tries == 0) {
+					baseFile = ResourceResolver.getResourceRoot(ProductNameDictionary.class);
 				} else {
-					baseFile = null; 
-					configFile = null;
+					// 설정파일이 플러그인 디렉토리에 존재하지 않는다면 검색엔진 conf 디렉토리에서 설정파일을 찾는다.
+					// 추후 불필요시 삭제한다. (설정파일 혼란이 있을수 있음)
+					baseFile = env.configFile().toFile();
 				}
+				if (baseFile != null && baseFile.exists()) {
+					logger.debug("PRODUCT DICTIONARY BASE : {}", baseFile);
+				}
+			} catch (Exception e) { 
+				logger.error("", e);
+				baseFile = null; 
+				configFile = null;
+				continue;
 			}
-			reader = new FileReader(configFile);
-			dictProp.load(reader);
-		} catch (IOException e) {
-			logger.error("DICTIONARY PROPERTIES FILE NOT FOUND", e);
-		} finally {
-			try { reader.close(); } catch (Exception ignore) { }
+			configFile = new File(baseFile, ANALYSIS_PROP);
+			if (configFile.exists()) { 
+				logger.debug("DICTIONARY PROPERTIES : {}", configFile);
+				break;
+			} else {
+				baseFile = null; 
+				configFile = null;
+			}
+		}
+		Properties dictProp = ResourceResolver.readProperties(configFile);
+		if (dictProp == null) {
+			logger.error("DICTIONARY PROPERTIES FILE NOT FOUND {}", configFile);
 		}
 		return loadDictionary(baseFile, dictProp);
 	}
@@ -287,9 +280,16 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return commonDictionary;
 	}
 
-	public void reloadDictionary(Environment env) {
+	public static void reloadDictionary() {
+		if (baseFile == null || configFile == null) {
+			logger.error("DICTIONARY NOT LOADED!");
+			return;
+		}
+
+		ProductNameDictionary commonDictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+
 		// long st = System.nanoTime();
-		ProductNameDictionary newCommonDictionary = loadDictionary(env);
+		ProductNameDictionary newCommonDictionary = loadDictionary(baseFile, ResourceResolver.readProperties(configFile));
 
 		// 1. commonDictionary에 systemdictinary셋팅.
 		commonDictionary.reset(newCommonDictionary);

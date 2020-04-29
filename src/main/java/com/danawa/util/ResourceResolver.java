@@ -43,7 +43,8 @@ public class ResourceResolver {
 		try {
 			reader = new FileReader(file);
 			ret.load(reader);
-		} catch (Exception ignore) {
+		} catch (Exception e) {
+			ret = null;
 		} finally {
 			try { reader.close(); } catch (Exception ignore) { }
 		}
