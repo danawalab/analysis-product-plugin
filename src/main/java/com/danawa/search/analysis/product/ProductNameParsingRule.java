@@ -993,7 +993,7 @@ Collections.sort(queue);
 								if(subQueue.size() > 1) {
 									entry.subEntry = subQueue;
 								}
-								logger.trace("subQueue:{}", entry.subEntry);
+								logger.trace("entry:{} / subQueue:{}", entry, entry.subEntry);
 								logger.trace("## Q[{}] : {}", qinx, queue);
 							}
 						}
@@ -1028,7 +1028,7 @@ Collections.sort(queue);
 							if(subQueue.size() > 1) {
 								entry.subEntry = subQueue;
 							}
-							logger.trace("subQueue:{}", entry.subEntry);
+							logger.trace("entry:{} / subQueue:{}", entry, entry.subEntry);
 						}
 					}
 				}
@@ -1340,6 +1340,11 @@ Collections.sort(queue);
 				if(entryClone.type != ProductNameTokenizer.WHITESPACE) {
 					queue.add(baseInx + addInx, entryClone);
 					addInx++;
+				}
+				// 엔트리 클로닝시 서브엔트리가 복제되는 버그 수정
+				if (inx > 0) {
+					entryClone.subEntry = new ArrayList<>();
+					entryClone.synonym = null;
 				}
 				st = inx;
 			}
@@ -1775,6 +1780,7 @@ Collections.sort(queue);
 		logger.trace("queue[{}]={}", removeInx + typeContinuous -1, queue.get(removeInx + typeContinuous -1));
 		
 		RuleEntry entry = queue.get(removeInx).clone();
+		logger.trace("ENTRY-CLONE:{}", entry);
 		//클로닝 되기 때문에 동의어를 반드시 삭제 해 주어야 한다.
 		if(entry.type == UNIT_ALPHA) {
 			entry.synonym = null;
@@ -2046,12 +2052,15 @@ Collections.sort(queue);
 		@Override public String toString() {
 			String str = "";
 			try {
-				str = "\""+new String(buf, start, length)+"\"";
+				str = "\"" + new String(buf, start, length) + "\"";
 			} catch (Exception ex) {
-				str = "\""+new String(buf)+"\" ["+start+":"+length+"]";
+				str = "\"" + new String(buf) + "\" [" + start + ":" + length + "]";
 				logger.debug("EE:{}", ex.getMessage());
 			}
-			str +=" / "+type+" / "+modifiable + " ("+start+"~"+(start+length)+"/"+startOffset+"~"+endOffset+")";
+			str += " / " + type + " / " + modifiable + " (" + start + "~" + (start + length) + "/" + startOffset + "~" + endOffset + ")";
+			if (subEntry != null) {
+				str += "[" + subEntry.size() + "]";
+			}
 			return str;
 		}
 
