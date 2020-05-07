@@ -17,9 +17,6 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentParser.Token;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
@@ -28,6 +25,9 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.json.JSONObject;
+import org.json.JSONStringer;
+import org.json.JSONTokener;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
@@ -35,10 +35,12 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 	private static Logger logger = Loggers.getLogger(ProductNameAnalysisAction.class, "");
 
+	private static final String CONTENT_TYPE_JSON = "application/json;charset=UTF-8";
 	private static final String BASE_URI = "/_product-name-analysis";
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 	private static final String RELOAD_DICT = "reload-dict";
 	private static final Object ADD_DOCUMENT = "add-document";
+
 
 	@Inject
 	ProductNameAnalysisAction(Settings settings, RestController controller) {
@@ -64,12 +66,17 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		return channel -> {
-			XContentBuilder builder = channel.newBuilder();
-			builder.startObject()
-				.field("message", "OK")
-				.field("action", action)
-			.endObject();
-			channel.sendResponse(new BytesRestResponse(RestStatus.OK, builder));
+			// XContentBuilder builder = channel.newBuilder();
+			// builder.startObject()
+			// 	.field("message", "OK")
+			// 	.field("action", action)
+			// .endObject();
+			JSONStringer builder = new JSONStringer();
+			builder.object()
+				.key("message").value("OK")
+				.key("action").value(action)
+				.endObject();
+			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, String.valueOf(builder)));
 		};
 	}
 
@@ -83,19 +90,25 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		try {
 			logger.debug("PARSING REST-BODY...");
-			XContentParser parser = null;
-			Token token = null;
-			parser = request.contentParser();
-			// REST body (JSON) parse
-			while ((token = parser.nextToken()) != Token.END_OBJECT) {
-				if (token == XContentParser.Token.FIELD_NAME) {
-					String fieldName = parser.currentName();
-					token = parser.nextToken();
-					if (token == Token.VALUE_STRING) {
-						String text = parser.text();
-						logger.debug("PARSE VALUE {} = {}", fieldName, text);
-					}
-				}
+			// XContentParser parser = null;
+			// Token token = null;
+			// parser = request.contentParser();
+			// // REST body (JSON) parse
+			// while ((token = parser.nextToken()) != Token.END_OBJECT) {
+			// 	if (token == XContentParser.Token.FIELD_NAME) {
+			// 		String fieldName = parser.currentName();
+			// 		token = parser.nextToken();
+			// 		if (token == Token.VALUE_STRING) {
+			// 			String text = parser.text();
+			// 			logger.debug("PARSE VALUE {} = {}", fieldName, text);
+			// 		}
+			// 	}
+			// }
+			String body = request.content().utf8ToString();
+			JSONObject jobj = new JSONObject(new JSONTokener(body));
+			for (String key : jobj.keySet()) {
+				String value = jobj.optString(key, "");
+				logger.debug("PARSE VALUE {} = {}", key, value);
 			}
 		} catch (Exception e) {
 			logger.error("", e);
