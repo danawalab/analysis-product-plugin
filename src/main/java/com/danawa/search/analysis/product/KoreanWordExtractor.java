@@ -33,7 +33,7 @@ public class KoreanWordExtractor {
 	boolean fastResultFound;
 	int remnantOffset;
 	int remnantLength;
-	boolean hasRemnant;
+	// boolean hasRemnant;
 	boolean isUnicode;
 
 	private PriorityQueue<Entry> queue = new PriorityQueue<Entry>(8, new Comparator<Entry>() {
@@ -422,7 +422,7 @@ public class KoreanWordExtractor {
 	public int setInput(char[] buffer, int offset, int length) {
 		remnantOffset = 0;
 		remnantLength = 0;
-		hasRemnant = false;
+		// hasRemnant = false;
 		isUnicode = isUnicode(buffer, offset, length);
 		Arrays.fill(status, 0);
 		
@@ -483,7 +483,7 @@ public class KoreanWordExtractor {
 				}
 				remnantOffset = tabular.length;
 				remnantLength = length - tabular.length;
-				hasRemnant = remnantLength > 0;
+				// hasRemnant = remnantLength > 0;
 				length = tabular.length;
 			}
 		}
@@ -614,9 +614,9 @@ public class KoreanWordExtractor {
 		return bestEntry;
 	}
 	
-	public boolean hasRemnant() {
-		return hasRemnant;
-	}
+	// public boolean hasRemnant() {
+	// 	return hasRemnant;
+	// }
 	
 	public int getTabularSize() {
 		return tabular.length;

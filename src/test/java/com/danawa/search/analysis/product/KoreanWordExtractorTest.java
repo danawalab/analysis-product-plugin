@@ -38,7 +38,7 @@ public class KoreanWordExtractorTest {
 	}
 
 	@Test public void testUserDictionary() {
-		if (!TestUtil.isMassiveTestEnabled()) { return; }
+		if (TestUtil.launchForBuild()) { return; }
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
 		if (propFile == null) { return; }
 		Properties prop = TestUtil.readProperties(propFile);
@@ -52,7 +52,7 @@ public class KoreanWordExtractorTest {
 	}
 
 	@Test public void testExtractorSimple() {
-		if (!TestUtil.isMassiveTestEnabled()) { return; }
+		if (TestUtil.launchForBuild()) { return; }
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
 		if (propFile == null) { return; }
 		Properties prop = TestUtil.readProperties(propFile);

@@ -5,6 +5,7 @@ import java.io.StringReader;
 import java.util.regex.Matcher;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.util.TestUtil;
 
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
@@ -74,6 +75,7 @@ public class ProductNameTokenizerTest {
 
 	@Test
 	public void testTokenizer() throws Exception {
+		if (TestUtil.launchForBuild()) { return; }
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		ProductNameDictionary dictionary = null;

@@ -5,7 +5,7 @@ import java.net.URL;
 import java.util.Properties;
 
 public final class TestUtil {
-	public static final String SYSPROP_MASSIVE_TEST_ENABLED = "SYSPROP_MASSIVE_TEST_ENABLED";
+	public static final String SYSPROP_LAUNCH_FOR_BUILD = "SYSPROP_LAUNCH_FOR_BUILD";
 
 	public static final String T = "TRUE";
 	public static final String F = "FALSE";
@@ -13,8 +13,8 @@ public final class TestUtil {
 
 	public static final String CLASS_SUFFIX = ".class";
 
-	public static boolean isMassiveTestEnabled() {
-		return T.equals(getSystemProperty(SYSPROP_MASSIVE_TEST_ENABLED));
+	public static boolean launchForBuild() {
+		return T.equals(getSystemProperty(SYSPROP_LAUNCH_FOR_BUILD, "true"));
 	}
 
 	public static final String getSystemProperty(String key) {

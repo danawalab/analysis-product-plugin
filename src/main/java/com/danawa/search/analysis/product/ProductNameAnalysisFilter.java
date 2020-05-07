@@ -84,7 +84,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	int extractOffset;
 	int extractFinal;
 	int finalOffset;
-	boolean extractRemnant;
+	// boolean extractRemnant;
 	CharVector token;
 	boolean hasToken;
 
@@ -194,8 +194,13 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				if(extractOffset != 0 && extractOffset < extractFinal) {
 					int length = extractFinal - extractOffset;
 					logger.trace("SET-EXTRACTOR(1):{}~{}", extractOffset, length);
-					int localLength = extractor.setInput(buffer, extractOffset, length);
-					extractRemnant = extractor.hasRemnant();
+					// int localLength = extractor.setInput(buffer, extractOffset, length);
+					int localLength = extractor.getTabularSize();
+					if (length < localLength) {
+						localLength = length;
+					}
+					extractor.setInput(buffer, extractOffset, localLength);
+					// extractRemnant = extractor.hasRemnant();
 					entry = extractor.extract();
 					extractOffset += localLength;
 				} else {
@@ -236,15 +241,21 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							System.arraycopy(charsRef.array(), charsRef.offset(), buffer, 0, charsRef.length());
 							int length = charsRef.length();
 							
-							int localLength = extractor.setInput(buffer, length);
+							// int localLength = extractor.setInput(buffer, length);
+							int localLength = extractor.getTabularSize();
+							if (length < localLength) {
+								localLength = length;
+							}
+							extractor.setInput(buffer, localLength);
 							logger.trace("SET-EXTRACTOR(2):{}~{} / {}", 0, length, localLength);
-							extractRemnant = extractor.hasRemnant();
+							// extractRemnant = extractor.hasRemnant();
 							entry = extractor.extract();
 							baseOffset = offsetAttribute.startOffset();
 							//termIncrementCount = -1;
-							extractOffset = length;//localLength;
+							extractOffset = localLength;
 							extractFinal = length;
 							finalOffset = offset + length;
+							currentOffset = lastOffset = 0;
 						}
 					}
 				}
@@ -253,7 +264,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			while (entry != null && (entry.tagProb().posTag() == PosTag.J)) {
 				entry = entry.next();
 			}
-			// logger.trace("entry:{}", entry);
+			logger.trace("entry:{} / {} / {}", entry, lastOffset, currentOffset);
 
 			if (entry != null) {
 				synonymAttribute.setSynonyms(null);
@@ -267,6 +278,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				currentOffset = offset + entry.offset() + entry.column();
 				entry = entry.next();
 
+				logger.trace("entry:{} / {} / {}", entry, lastOffset, currentOffset);
 				if (lastOffset > currentOffset) {
 					entry = null;
 				}
@@ -312,6 +324,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		extractOffset = 0;
 		extractFinal = 0;
 		finalOffset = 0;
-		extractRemnant = false;
+		// extractRemnant = false;
 	}
 }
