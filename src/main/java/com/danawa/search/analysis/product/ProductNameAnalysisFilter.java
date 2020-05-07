@@ -84,7 +84,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	int extractOffset;
 	int extractFinal;
 	int finalOffset;
-	// boolean extractRemnant;
 	CharVector token;
 	boolean hasToken;
 
@@ -98,12 +97,12 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				while(hasToken()) {
 					
 					//중단신호. 버퍼를 넘게 읽었으므로, 큐를 소모하고 다음차례에 다시 읽도록 한다.
-					if(tokenAttribute.charVector().offset() == 0 && tokenAttribute.charVector().length() == 0) {
+					if(tokenAttribute.ref().offset() == 0 && tokenAttribute.ref().length() == 0) {
 						hasToken = true;
 						break;
 					}
 					//여기서 분리어를 체크 한다.
-					CharVector ctoken = tokenAttribute.charVector();
+					CharVector ctoken = tokenAttribute.ref();
 					
 					if(typeAttribute.type() == ProductNameTokenizer.FULL_STRING) {
 						parsingRule.addEntry(ctoken, posTagAttribute, typeAttribute.type(), false);
@@ -139,7 +138,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			synonymAttribute.setSynonyms(null);
 			while (parsingRule!=null && parsingRule.hasNext(token)) {
 				//logger.trace("token : {} / type : {}", token, typeAttribute.type());
-				tokenAttribute.setCharVector(token.array(), token.offset(), token.length());
+				tokenAttribute.ref(token.array(), token.offset(), token.length());
 
 				if(analyzerOption.useStopword() && stopDictionary!=null && stopDictionary.set().contains(token)) {
 					stopwordAttribute.setStopword(true);
@@ -172,7 +171,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				}
 				// Lucene 구조와 호환성유지를 위해 CharTermAttirubte 에 복사해 준다
 				// array 크기 등을 고려할 필요가 있다.
-				CharVector ref = tokenAttribute.charVector();
+				CharVector ref = tokenAttribute.ref();
 				termAttribute.copyBuffer(ref.array(), ref.offset(), ref.length());
 				return true;
 			}
@@ -190,17 +189,15 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		while (true) {
 			if (entry == null) {
 				//한글분석되지 않은 버퍼는 이어서 수행한다.
-				logger.trace("EXTRACTOFFSET:{} / FINAL:{}", extractOffset, extractFinal);
+				// logger.trace("EXTRACTOFFSET:{} / FINAL:{}", extractOffset, extractFinal);
 				if(extractOffset != 0 && extractOffset < extractFinal) {
 					int length = extractFinal - extractOffset;
-					logger.trace("SET-EXTRACTOR(1):{}~{}", extractOffset, length);
-					// int localLength = extractor.setInput(buffer, extractOffset, length);
+					// logger.trace("SET-EXTRACTOR(1):{}~{}", extractOffset, length);
 					int localLength = extractor.getTabularSize();
 					if (length < localLength) {
 						localLength = length;
 					}
 					extractor.setInput(buffer, extractOffset, localLength);
-					// extractRemnant = extractor.hasRemnant();
 					entry = extractor.extract();
 					extractOffset += localLength;
 				} else {
@@ -220,8 +217,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						boolean hasNext = false;
 	
 						while ((hasNext = input.incrementToken())) {
-							if (tokenAttribute.charVector().offset() == 0
-									&& tokenAttribute.charVector().length() == 0) {
+							if (tokenAttribute.ref().offset() == 0
+									&& tokenAttribute.ref().length() == 0) {
 								return true;
 							}
 							break;
@@ -235,23 +232,20 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							synonymAttribute.setSynonyms(synonyms);
 							return true;
 						} else {
-							CharVector charsRef = tokenAttribute.charVector();
+							CharVector charsRef = tokenAttribute.ref();
 							buffer = new char[charsRef.length()];
 							offset = charsRef.offset();
 							System.arraycopy(charsRef.array(), charsRef.offset(), buffer, 0, charsRef.length());
 							int length = charsRef.length();
 							
-							// int localLength = extractor.setInput(buffer, length);
 							int localLength = extractor.getTabularSize();
 							if (length < localLength) {
 								localLength = length;
 							}
 							extractor.setInput(buffer, localLength);
-							logger.trace("SET-EXTRACTOR(2):{}~{} / {}", 0, length, localLength);
-							// extractRemnant = extractor.hasRemnant();
+							// logger.trace("SET-EXTRACTOR(2):{}~{} / {}", 0, length, localLength);
 							entry = extractor.extract();
 							baseOffset = offsetAttribute.startOffset();
-							//termIncrementCount = -1;
 							extractOffset = localLength;
 							extractFinal = length;
 							finalOffset = offset + length;
@@ -268,40 +262,25 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 			if (entry != null) {
 				synonymAttribute.setSynonyms(null);
-				tokenAttribute
-						.setOffset(offset + entry.offset(), entry.column());
+				tokenAttribute.setOffset(offset + entry.offset(), entry.column());
 				posTagAttribute.setPosTag(entry.posTag());
 				offsetAttribute.setOffset(baseOffset + entry.offset(),
-						baseOffset + entry.offset() + entry.column());
+					baseOffset + entry.offset() + entry.column());
 				int currentRow = entry.row();
 				lastOffset = currentOffset;
 				currentOffset = offset + entry.offset() + entry.column();
 				entry = entry.next();
 
-				logger.trace("entry:{} / {} / {}", entry, lastOffset, currentOffset);
+				// logger.trace("entry:{} / {} / {}", entry, lastOffset, currentOffset);
 				if (lastOffset > currentOffset) {
 					entry = null;
 				}
 				if (entry != null && entry.row() < currentRow) {
 					entry = null;
 				}
-				
-//				if(entry == null && extractRemnant) {
-//					//나머지는 그냥 뽑지 않고 다시 extractor 로 보낸다. 
-//					//비록 oversize 에 대한 전체적인 한글분석이 이루어지지 않더라도.
-//					//끊기는 단어는 없어질것으로 생각됨.
-//					if(tokenAttribute.charVector().length() < extractor.getTabularSize()) {
-//						extractOffset -= tokenAttribute.charVector().length();
-//						extractRemnant = false;
-//						continue;
-//					}
-//				}
-				//termIncrementCount++;
 				return true;
 			} else {
-				// logger.trace("not extracted.");
 				posTagAttribute.setPosTag(PosTag.UNK);
-				//termIncrementCount = -1;
 				continue;
 			}
 		}
@@ -310,7 +289,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	@Override
 	public void reset() throws IOException {
 		super.reset();
-		//termIncrementCount = 0;
 		additionalTermAttribute.init(this);
 		entry = null;
 		offset = 0;
@@ -324,6 +302,5 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		extractOffset = 0;
 		extractFinal = 0;
 		finalOffset = 0;
-		// extractRemnant = false;
 	}
 }

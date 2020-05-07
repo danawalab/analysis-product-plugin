@@ -142,7 +142,7 @@ public class ProductNameTokenizer extends Tokenizer {
 				CharSequence fullString = new CharVector(fullTermBuffer, 0, readLengthPrev);
 				if (synonymDictionary != null && synonymDictionary.map().containsKey(fullString)) {
 					offsetAttribute.setOffset(0, readLengthPrev);
-					CharVector charsRef = tokenAttribute.charVector();
+					CharVector charsRef = tokenAttribute.ref();
 					charsRef.init(fullTermBuffer, 0, readLengthPrev);
 					// 앞 뒤 공백을 제거한다.
 					for (int inx = charsRef.length() - 1; inx >= 0; inx--) {
@@ -170,12 +170,12 @@ public class ProductNameTokenizer extends Tokenizer {
 
 
 		if (ret) {
-			token = tokenAttribute.charVector();
+			token = tokenAttribute.ref();
 			offsetAttribute.setOffset(baseOffset + token.offset(), baseOffset + token.offset() + token.length());
 			logger.trace("return \"{}\" {}~{}", tokenAttribute, offsetAttribute.startOffset(),
 				offsetAttribute.endOffset());
-			if (tokenAttribute.charVector() != null && tokenAttribute.charVector().offset() == 0
-				&& tokenAttribute.charVector().length() == 0) {
+			if (tokenAttribute.ref() != null && tokenAttribute.ref().offset() == 0
+				&& tokenAttribute.ref().length() == 0) {
 				return true;
 			}
 		}
@@ -201,7 +201,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		while (true) {
 			if (position == -1) {
 				position = 0;
-				tokenAttribute.setCharVector(workBuffer, 0, 0);
+				tokenAttribute.ref(workBuffer, 0, 0);
 				return true;
 			}
 
@@ -218,7 +218,7 @@ public class ProductNameTokenizer extends Tokenizer {
 				// 신규데이터를 뒤이어 입력한다.
 				System.arraycopy(freshBuffer, 0, workBuffer, lastLength, readLength - lastLength);
 				freshBuffer = null;
-				tokenAttribute.setCharVector(workBuffer, 0, readLength);
+				tokenAttribute.ref(workBuffer, 0, readLength);
 				// if(logger.isTraceEnabled()) {
 				// logger.trace("readLength:{} / lastLength:{}", readLength, lastLength);
 				// logger.trace("buffer : {} / read : {} char : {}", termAttribute, readLength,
@@ -328,7 +328,7 @@ public class ProductNameTokenizer extends Tokenizer {
 						freshBuffer = null;
 						// 이전버퍼의 남은부분을 리턴하고 끝.
 						if (lastLength > 0) {
-							tokenAttribute.setCharVector(workBuffer, positionPrev, lastLength);
+							tokenAttribute.ref(workBuffer, positionPrev, lastLength);
 							// logger.trace("readLength:{} / positionPrev:{} / readLengthPrev:{} / last
 							// term:{}", lastLength, positionPrev, readLengthPrev, termAttribute);
 							// 딱 맞게 읽어 더이상 읽을것이 없는 경우.

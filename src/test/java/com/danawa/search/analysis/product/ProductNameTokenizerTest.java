@@ -90,7 +90,7 @@ public class ProductNameTokenizerTest {
 			TypeAttribute typeAttribute = tokenizer.addAttribute(TypeAttribute.class);
 			tokenizer.reset();
 			for (; tokenizer.incrementToken();) {
-				logger.debug("TOKEN:{} / {}~{} / {}", tokenAttribute.charVector(), offsetAttribute.startOffset(),
+				logger.debug("TOKEN:{} / {}~{} / {}", tokenAttribute.ref(), offsetAttribute.startOffset(),
 					offsetAttribute.endOffset(), typeAttribute.type());
 			}
 		} finally {
