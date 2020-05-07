@@ -43,7 +43,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	@Inject
 	ProductNameAnalysisAction(Settings settings, RestController controller) {
 		controller.registerHandler(Method.GET, BASE_URI + "/{action}", this);
+		controller.registerHandler(Method.POST, BASE_URI + "/{action}", this);
 		controller.registerHandler(Method.GET, BASE_URI, this);
+		controller.registerHandler(Method.POST, BASE_URI, this);
 	}
 
 	@Override
@@ -80,6 +82,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	public void addDocument(RestRequest request, NodeClient client) {
 
 		try {
+			logger.debug("PARSING REST-BODY...");
 			XContentParser parser = null;
 			Token token = null;
 			parser = request.contentParser();
@@ -98,6 +101,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			logger.error("", e);
 		}
 		try {
+			logger.debug("TESTING SEARCH...");
 			// 문서 검색 테스트
 			ActionListener<SearchResponse> listener = new ActionListener<SearchResponse>() {
 				@Override public void onResponse(SearchResponse response) {
@@ -110,7 +114,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				@Override public void onFailure(Exception e) { }
 			};
 			SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-			sourceBuilder.query(QueryBuilders.termQuery("PRODUCTNAME", "상품명테스트"));
+			sourceBuilder.query(QueryBuilders.matchAllQuery());
 			sourceBuilder.from(0);
 			sourceBuilder.size(5);
 			sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
@@ -121,6 +125,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			logger.error("", e);
 		}
 		try {
+			logger.debug("CREATE DOCUMENT...");
 			// 샘플문서 생성 테스트
 			IndexRequestBuilder builder = client.prepareIndex("sample_index", "_doc");
 			Map<String, Object> source = new HashMap<>();
