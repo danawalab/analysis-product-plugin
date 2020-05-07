@@ -77,8 +77,10 @@ public class ProductNameTokenizerTest {
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		ProductNameDictionary dictionary = null;
+		String str = TEXT_STR;
+		str = "페이유에 균일가 7종/F20005W_F10011M_F20246W_247W_251W_FMS10";
 		try {
-			reader = new StringReader(TEXT_STR);
+			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary);
 			tokenizer.setReader(reader);
 			TokenInfoAttribute tokenAttribute = tokenizer.addAttribute(TokenInfoAttribute.class);

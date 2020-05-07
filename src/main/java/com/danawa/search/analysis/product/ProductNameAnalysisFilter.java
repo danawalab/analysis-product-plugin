@@ -61,7 +61,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private SetDictionary stopDictionary;
 	private ProductNameDictionary dictionary;
 	
-	protected ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary) {
+	protected ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary, AnalyzerOption analyzerOption) {
 		super(input);
 		this.extractor = extractor;
 		this.dictionary = dictionary;
@@ -69,7 +69,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
 		this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
-		this.analyzerOption = new AnalyzerOption();
+		this.analyzerOption = analyzerOption;
 		additionalTermAttribute.init(this);
 		logger.trace("init");
 	}
@@ -190,8 +190,10 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		while (true) {
 			if (entry == null) {
 				//한글분석되지 않은 버퍼는 이어서 수행한다.
+				logger.trace("EXTRACTOFFSET:{} / FINAL:{}", extractOffset, extractFinal);
 				if(extractOffset != 0 && extractOffset < extractFinal) {
 					int length = extractFinal - extractOffset;
+					logger.trace("SET-EXTRACTOR(1):{}~{}", extractOffset, length);
 					int localLength = extractor.setInput(buffer, extractOffset, length);
 					extractRemnant = extractor.hasRemnant();
 					entry = extractor.extract();
@@ -235,11 +237,12 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							int length = charsRef.length();
 							
 							int localLength = extractor.setInput(buffer, length);
+							logger.trace("SET-EXTRACTOR(2):{}~{} / {}", 0, length, localLength);
 							extractRemnant = extractor.hasRemnant();
 							entry = extractor.extract();
 							baseOffset = offsetAttribute.startOffset();
 							//termIncrementCount = -1;
-							extractOffset = localLength;
+							extractOffset = length;//localLength;
 							extractFinal = length;
 							finalOffset = offset + length;
 						}
@@ -271,16 +274,16 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					entry = null;
 				}
 				
-				if(entry == null && extractRemnant) {
-					//나머지는 그냥 뽑지 않고 다시 extractor 로 보낸다. 
-					//비록 oversize 에 대한 전체적인 한글분석이 이루어지지 않더라도.
-					//끊기는 단어는 없어질것으로 생각됨.
-					if(tokenAttribute.charVector().length() < extractor.getTabularSize()) {
-						extractOffset -= tokenAttribute.charVector().length();
-						extractRemnant = false;
-						continue;
-					}
-				}
+//				if(entry == null && extractRemnant) {
+//					//나머지는 그냥 뽑지 않고 다시 extractor 로 보낸다. 
+//					//비록 oversize 에 대한 전체적인 한글분석이 이루어지지 않더라도.
+//					//끊기는 단어는 없어질것으로 생각됨.
+//					if(tokenAttribute.charVector().length() < extractor.getTabularSize()) {
+//						extractOffset -= tokenAttribute.charVector().length();
+//						extractRemnant = false;
+//						continue;
+//					}
+//				}
 				//termIncrementCount++;
 				return true;
 			} else {

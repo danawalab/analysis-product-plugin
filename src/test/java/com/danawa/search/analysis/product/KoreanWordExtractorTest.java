@@ -59,6 +59,7 @@ public class KoreanWordExtractorTest {
 		ProductNameDictionary commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
 		KoreanWordExtractor extractor = new KoreanWordExtractor(commonDictionary);
 		String str = "한글분석기테스트중입니다";
+		str = "/F20005W_F10011M_F20246W_247W_251W_FMS10";
 		char[] buf = str.toCharArray();
 		if (extractor.setInput(buf, 0, buf.length) != -1) {
 			Entry entry = extractor.extract();

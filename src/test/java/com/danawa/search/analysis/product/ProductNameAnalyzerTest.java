@@ -56,6 +56,8 @@ public class ProductNameAnalyzerTest {
 		str = "애나멜 버클 여자구두 플랫슈즈 단화 로퍼 RJ-ae3300";
 		str = "탠디 소재가고급스러운송아지가죽남성 스니커즈 515323 3가지색 428519";
 		str = "49_5840-F6^BLACK^225(35)";
+		str = "페이유에 균일가 7종/F20005W_F10011M_F20246W_247W_251W_FMS10";
+		str = "JBW Mens Luxury Jet Setter 2.34 Carat Diamond Wrist Watch with Stainless Steel Link Bracelet Black/G";
 
 		Reader reader = null;
 		TokenStream stream = null;

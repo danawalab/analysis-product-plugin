@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
-import com.danawa.search.analysis.dict.CustomDictionary;
 import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
@@ -40,7 +39,7 @@ import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
  */
 public class ProductNameParsingRule {
 	
-	private static final Logger logger = Loggers.getLogger(ProductNameParsingRule.class, "");
+	private static Logger logger = Loggers.getLogger(ProductNameParsingRule.class, "");
 	
 	private KoreanWordExtractor extractor;
 	private AnalyzerOption option;
@@ -58,8 +57,6 @@ public class ProductNameParsingRule {
 	private SetDictionary userDictionary;
 	private CompoundDictionary compoundDictionary;
 	private SetDictionary stopDictionary;
-	private Set<CharSequence> brandDictionary;
-	private Set<CharSequence> makerDictionary;
 	private OffsetAttribute offsetAttribute;
 	private AdditionalTermAttribute additionalTermAttribute;
 	private CharVector term;
@@ -86,15 +83,7 @@ public class ProductNameParsingRule {
 		userDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_USER, SetDictionary.class);
 		compoundDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_COMPOUND, CompoundDictionary.class);
 		stopDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_STOP, SetDictionary.class);
-		{
-			CustomDictionary obj = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_BRAND, CustomDictionary.class);
-			if (obj != null) { brandDictionary = obj.getWordSet(); }
-		}
-		{
-			CustomDictionary obj = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_MAKER, CustomDictionary.class);
-			if (obj != null) { makerDictionary = obj.getWordSet(); }
-		}
-		queue = new ArrayList<RuleEntry>();
+		queue = new ArrayList<>();
 	}
 	
 	public ProductNameParsingRule clone(TypeAttribute typeAttribute,
@@ -111,7 +100,7 @@ public class ProductNameParsingRule {
 		clone.position = 0;
 		clone.lastPosition = 0;
 		clone.baseOffset = 0;
-		clone.queue = new ArrayList<RuleEntry>();
+		clone.queue = new ArrayList<>();
 		clone.unitDictionary = this.unitDictionary;
 		clone.spaceDictionary = this.spaceDictionary;
 		clone.unitSynonymDictionary = this.unitSynonymDictionary;
@@ -216,12 +205,11 @@ public class ProductNameParsingRule {
 	public boolean hasNext(CharVector token) {
 		return hasNext(token, true, true);
 	}
-	
-	@SuppressWarnings({ "unused", "rawtypes", "unchecked" })
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public boolean hasNext(CharVector token, boolean fullExtract, boolean setOffset) {
 		String type = null;
 		String typePrev = null;
-		String typeNext = null;
 		
 		if(position < lastPosition) {
 			
@@ -229,8 +217,8 @@ public class ProductNameParsingRule {
 			
 			baseOffset = offsetAttribute.startOffset();
 			
-			RuleEntry e0, e1, e2, e3, e4, e5, et;
-			e0 = e1 = e2 = e3 = e4 = e5 = et = null;
+			RuleEntry e0, e1, e2, e3, et;
+			e0 = e1 = e2 = e3 = et = null;
 			
 			CharVector eTerm;
 			
@@ -258,7 +246,7 @@ public class ProductNameParsingRule {
 			
 			////////////////////////////////////////////////////////////////////////////////
 			//규칙분류 시작.
-Collections.sort(queue);
+			Collections.sort(queue);
 			
 			for (int qinx = 0; qinx < queue.size(); qinx++) {
 				e0 = queue.get(qinx);
@@ -565,7 +553,6 @@ Collections.sort(queue);
 								if(findInx > 1 && e2.type == HANGUL) {
 									continue;
 								}
-//								int unitLength = e2.start + e2.length - e1.start;
 								// 2015.9.6 swsong : e1과 e2의 버퍼가 다르다면, 서로의 position 이 영향을 주지 않는다.
 								int unitLength = 0;
 								if(e2.buf == e1.buf) {
@@ -625,7 +612,7 @@ Collections.sort(queue);
 									RuleEntry backup = e0.clone();
 									
 									if(fullExtract) {
-										e0.subEntry = new ArrayList<RuleEntry>();
+										e0.subEntry = new ArrayList<>();
 										e0.subEntry.add(backup);
 									}
 									
@@ -685,7 +672,7 @@ Collections.sort(queue);
 									
 									if(fullExtract) {
 										if(e0.subEntry == null) {
-											e0.subEntry = new ArrayList<RuleEntry>();
+											e0.subEntry = new ArrayList<>();
 										}
 										if(synonyms != null && synonyms.length > 0) {
 											e0.synonym = synonyms;
@@ -712,7 +699,7 @@ Collections.sort(queue);
 									e1.modifiable = true;
 								} else {
 									if(fullExtract) {
-										e0.subEntry = new ArrayList<RuleEntry>();
+										e0.subEntry = new ArrayList<>();
 										e0.subEntry.add(e0.clone());
 									}
 									
@@ -747,12 +734,8 @@ Collections.sort(queue);
 			int typeContinuousMerge = 0;
 			int overIndex = 0;
 			boolean isContinue = false;
-			boolean postProcess = false;
-			boolean isPrevCandidate  = false;
-			boolean codeFound = false;
 			boolean isAlphaNum = false;
 			boolean isAlphaNumPrev = false;
-			boolean isAlphaNumNext = false;
 			
 			//4차 가공, 모델명 색출
 			for (int qinx = 0; qinx < queue.size(); qinx++) {
@@ -772,8 +755,6 @@ Collections.sort(queue);
 				type = e0.type;
 				
 				isContinue = true;
-				postProcess = true;
-				codeFound = false;
 				typeContinuousMerge = 0;
 				overIndex = 0;
 				
@@ -790,12 +771,11 @@ Collections.sort(queue);
 				
 				if(qinx + 1 < queue.size()) {
 					e1 = queue.get(qinx + 1);
-					isAlphaNumNext = e1.type == ALPHA || e1.type == NUMBER || e1.type == NUMBER_TRANS;
 				}
 				
 				if(isAlphaNum || e0.type == SYMBOL || e0.type == UNIT_ALPHA) {
 					if(qinx == 0) {
-						postProcess = false;
+						// NOP
 					} else if(qinx < queue.size()) {
 						e1 = queue.get(qinx - 1);
 						if(e0.length == 0 || e1.length == 0) {
@@ -977,7 +957,7 @@ Collections.sort(queue);
 					if(typeContinuousMerge > 1) {
 						List<RuleEntry> subQueue = null;
 						if(fullExtract) {
-							subQueue = new ArrayList<RuleEntry>();
+							subQueue = new ArrayList<>();
 						}
 						logger.trace("merging..qinx:{} / tcont:{}", qinx, typeContinuousMerge);
 						RuleEntry entry = mergeQueue(qinx, typeContinuousMerge, queue, subQueue);
@@ -992,6 +972,11 @@ Collections.sort(queue);
 								mergeSubQueue(entry, subQueue);
 								if(subQueue.size() > 1) {
 									entry.subEntry = subQueue;
+									// 엘라스틱서치에서 AdditionalTerm 을 표현해 줄 수 없으므로 일반추출 가능하도록 만들어줌
+									RuleEntry e = entry.clone();
+									e.subEntry = new ArrayList<>();
+									e.synonym = null;
+									subQueue.add(0, e);
 								}
 								logger.trace("entry:{} / subQueue:{}", entry, entry.subEntry);
 								logger.trace("## Q[{}] : {}", qinx, queue);
@@ -1014,7 +999,7 @@ Collections.sort(queue);
 				if(typeContinuousMerge > 1) {
 					List<RuleEntry> subQueue = null;
 					if(fullExtract) {
-						subQueue = new ArrayList<RuleEntry>();
+						subQueue = new ArrayList<>();
 					}
 					logger.trace("merging.. {} / {} / {}", typeContinuousMerge, queue, subQueue);
 					RuleEntry entry = mergeQueue(queue.size(), typeContinuousMerge, queue, subQueue);
@@ -1130,40 +1115,6 @@ Collections.sort(queue);
 					}
 				}
 				
-				//취소됨 (2015-04-06 장혁준 주임 요청사항)
-				//한글뒤 단독 숫자가 붙을 경우 붙여서도 한 번 출력해 준다 
-				//if(e0.type == NUMBER && qinx > 0) {
-				//	e1 = queue.get(qinx - 1);
-				//	e2 = null;
-				//	
-				//	if(qinx + 1 < queue.size()) {
-				//		e2 = queue.get(qinx + 1);
-				//	}
-				//	
-				//	if (e0.start == e1.start + e1.length && !(e1.type == MODEL_NAME || e1.type == ALPHA || e1.type == ALPHANUM)
-				//			&& (e2 == null || 
-				//			(e2 != null  &&
-				//			(!(e2.type == MODEL_NAME || e2.type == ALPHA || e2.type == ALPHANUM) && e2.start >= (e0.start + e0.length)) ||
-				//			((e2.type == MODEL_NAME || e2.type == ALPHA || e2.type == ALPHANUM) && e2.start > (e0.start + e0.length)) 
-				//			))) {
-				//		e2 = e0.clone();
-				//		e0.start = e1.start;
-				//		e0.length = e1.length + e2.length;
-				//		e0.startOffset = e1.startOffset;
-				//		e0.endOffset = e1.startOffset + e2.length;
-				//		e0.type = e1.type;
-				//		if(e0.subEntry == null) {
-				//			e0.subEntry = new ArrayList<RuleEntry>();
-				//		}
-				//		e0.subEntry.add(e1);
-				//		e0.subEntry.add(e2);
-				//		queue.remove(qinx - 1);
-				//		typeContinuous = 0;
-				//		qinx--;
-				//		continue;
-				//	}
-				//}
-				
 				//5자리 이상의 독립적인 숫자는 모델명으로 리턴.
 				if(e0.type == NUMBER && e0.length >= 5) {
 					e0.type = MODEL_NAME;
@@ -1260,7 +1211,7 @@ Collections.sort(queue);
 								List synonyms = null;
 								//일반 추가텀의 동의어 처리.
 								if(option.useSynonym() && synonymDictionary.containsKey(term)) {
-									synonyms = new ArrayList();
+									synonyms = new ArrayList<>();
 									synonyms.addAll(Arrays.asList(synonymDictionary.get(term)));
                                     List synonymsExt = synonymExtract(synonyms);
                                     if(synonymsExt != null) {
@@ -1275,8 +1226,6 @@ Collections.sort(queue);
 								this.subLength = 0;
 							} else {
 								this.subLength = 0;
-								//testEntry(subEntry, entry);
-								//applyEntry(subEntry, token, typeAttribute, synonymAttribute);
 								logger.trace("entry:{}", entry);
 								return true;
 							}
@@ -1295,7 +1244,7 @@ Collections.sort(queue);
 					List synonyms = null;
 					
 					if(option.useSynonym() && synonymDictionary.containsKey(term)) {
-						synonyms = new ArrayList();
+						synonyms = new ArrayList<>();
 						synonyms.addAll(Arrays.asList(synonymDictionary.get(term)));
                         List synonymsExt = synonymExtract(synonyms);
                         if(synonymsExt != null) {
@@ -1360,6 +1309,8 @@ Collections.sort(queue);
 			entryClone.startOffset = offsetStarts + st;
 			entryClone.endOffset = offsetStarts + st + entryClone.length;
 			entryClone.type = ptype;
+			entryClone.subEntry = new ArrayList<>();
+			entryClone.synonym = null;
 			logger.trace("add splited entry : ({}) : {}~{}", entryClone, entryClone.start, entryClone.length);
 			queue.add(baseInx + addInx, entryClone);
 			addInx++;
@@ -1400,9 +1351,8 @@ Collections.sort(queue);
 		}
 	}
 	
-	@SuppressWarnings("unused")
 	private boolean mergeSubQueue(RuleEntry entry, List<RuleEntry>subQueue) {
-		RuleEntry e0, e1, e2, e3, e4, e5, e6;
+		RuleEntry e0, e1, e2, e3, e4;
 		e0 = e1 = e2 = null;
 		boolean settable = true;
 		
@@ -1500,46 +1450,44 @@ Collections.sort(queue);
 					 */
 					
 					//색인전용 규칙으로 되어 있던 텀 병합 루틴을 질의용으로도 사용하고, 분리된 글자를 지우지 않던 기존 규칙을 다시 취소함.
-					//if(option.isForDocument()) {
-						//영숫자 앞 혹은 뒤에 특수문자로 연결되어 있다면.
-						if ((inx - continuous == 0 && rearMatch)
-								|| (frontMatch && inx == subQueue.size())
-								|| frontMatch && rearMatch) {
-							int pos = inx - continuous;
-							e1 = subQueue.get(pos).clone();
-							e1.length += continuous - 1;
-							//붙여서 출력해주기 위해 subentry 들을 삭제.
-							//2016.05.13 교차영숫자 체크를 전구간으로 확대하되 3글자 이하에서만 체크하도록 함.
-							//if (pos == 0 || !option.isForDocument()) 
-							if (continuous < 3) {
-								for (int subInx = 0; subInx < continuous; subInx++) {
-									// 2016.05.13 규칙에 의해 변경됨. 교차영숫자 머징 후 분리된글자는 삭제
-									// 2014.12.29 1byte 씩 교차된 영 숫자는 분리하지 않는다
-									// 삭제: ---분리된 글자는 지우지 않고 같이 출력하도록 한다.---
-									e2 = subQueue.get(pos + subInx);
-									subQueue.remove(pos + subInx);
-									e1.subEntry.add(e2);
-									logger.trace("remove entry : {} , C:{}/{}/{}", e2, continuous, subInx, inx);
-									
-									continuous--;
-									subInx--;
-									inx--;
-								}
+					//영숫자 앞 혹은 뒤에 특수문자로 연결되어 있다면.
+					if ((inx - continuous == 0 && rearMatch)
+							|| (frontMatch && inx == subQueue.size())
+							|| frontMatch && rearMatch) {
+						int pos = inx - continuous;
+						e1 = subQueue.get(pos).clone();
+						e1.length += continuous - 1;
+						//붙여서 출력해주기 위해 subentry 들을 삭제.
+						//2016.05.13 교차영숫자 체크를 전구간으로 확대하되 3글자 이하에서만 체크하도록 함.
+						//if (pos == 0 || !option.isForDocument()) 
+						if (continuous < 3) {
+							for (int subInx = 0; subInx < continuous; subInx++) {
+								// 2016.05.13 규칙에 의해 변경됨. 교차영숫자 머징 후 분리된글자는 삭제
+								// 2014.12.29 1byte 씩 교차된 영 숫자는 분리하지 않는다
+								// 삭제: ---분리된 글자는 지우지 않고 같이 출력하도록 한다.---
+								e2 = subQueue.get(pos + subInx);
+								subQueue.remove(pos + subInx);
+								e1.subEntry.add(e2);
+								logger.trace("remove entry : {} , C:{}/{}/{}", e2, continuous, subInx, inx);
+								
+								continuous--;
+								subInx--;
+								inx--;
 							}
-							
-							e1.type = ALPHANUM;
-							e1.endOffset += e1.length - 1;
-							if(frontMatch && rearMatch) {
-								subQueue.add(pos + continuous, e1);
-							} else if(frontMatch) {
-								subQueue.add(pos + continuous, e1);
-							} else if(rearMatch) {
-								subQueue.add(pos, e1);
-							}
-							logger.trace("entry : {}", e1);
-							inx -= continuous;
 						}
-					//}
+						
+						e1.type = ALPHANUM;
+						e1.endOffset += e1.length - 1;
+						if(frontMatch && rearMatch) {
+							subQueue.add(pos + continuous, e1);
+						} else if(frontMatch) {
+							subQueue.add(pos + continuous, e1);
+						} else if(rearMatch) {
+							subQueue.add(pos, e1);
+						}
+						logger.trace("entry : {}", e1);
+						inx -= continuous;
+					}
 					continuous = 0;
 				} else {
 					continuous = 0;
@@ -1565,12 +1513,9 @@ Collections.sort(queue);
 					&& (e4 == null || (e4.type == SYMBOL && e2.start + e2.length == e4.start)))) {
 					
 					if (logger.isTraceEnabled()) {
-						logger.trace(
-								"================================================================================");
-						logger.trace("entry : {}{} // I:{} / C:{} / F:{} / R:{} / Q:{}", e1.makeTerm(null),
-								e2.makeTerm(null), inx);
-						logger.trace(
-								"================================================================================");
+						logger.trace("================================================================================");
+						logger.trace("entry : {}{} // I:{} / C:{} / F:{} / R:{} / Q:{}", e1.makeTerm(null), e2.makeTerm(null), inx);
+						logger.trace("================================================================================");
 					}
 					
 					e1.length++;
@@ -1662,14 +1607,7 @@ Collections.sort(queue);
 										e3.length = e1Length;
 										e3.endOffset = e3.startOffset + e1Length;
 										e3.type = e1Type;
-										
-										//e5 = e1.clone();
-										//e5.length -= e1Length;
-										//e5.endOffset -= e1Length;
-										//e1.subEntry.add(e5);
-										
 										e1 = e3;
-										
 										int e2Length = 0;
 										for (int sinx = 0; sinx < e2.length; sinx++) {
 											if(getType(e2.buf[e2.start + sinx]) == e2Type) {
@@ -1682,16 +1620,7 @@ Collections.sort(queue);
 										e4.length = e2Length;
 										e4.endOffset = e4.startOffset + e2Length;
 										e4.type = e2Type;
-										
-										//e6 = e2.clone();
-										//e6.start += e2Length;
-										//e6.length -= e2Length;
-										//e6.startOffset += e2Length;
-										//e6.endOffset -= e2Length;
-										//e2.subEntry.add(e6);
-									
 										e2 = e4;
-										
 										checkLevel = 3;
 									}
 								}
@@ -1743,7 +1672,8 @@ Collections.sort(queue);
 			if (subQueue.size() > 2) {
 				e0 = subQueue.get(0);
 				e1 = subQueue.get(1);
-				String finalType = getType(e1.buf[e1.start+e1.length]);
+				logger.trace("TERM:{}/{}", e1.start, e1.length);
+				String finalType = getType(e1.buf[e1.start + e1.length - 1]);
 				//모델명 맨 앞의 두바이트가 타입이 틀리고 뒤에 기호가 나오면 붙여준다.
 				if ( e1.start == e0.start + e0.length &&
 						e0.length == 1 && e1.length == 1 && finalType == SYMBOL
@@ -1868,7 +1798,6 @@ Collections.sort(queue);
 		if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
 			typeAttribute.setType(COMPOUND);
 			//복합명사 분리는 색인시에만 수행. 쿼리시에는 분해하지 않고, 표시만.
-//			if(option.isForDocument() && additionalTermAttribute != null) {
 			// 2017-11-10 swsong 복합명사 분리를 검색, 색인 모두 수행한다.
 			// 공백있는 단어가 검색이 안되는 문제가 있어서 추가텀을 T or (A1 and A2 and A3 ..) 하여 검색하게 된다
 			if(additionalTermAttribute != null) {
@@ -1886,8 +1815,7 @@ Collections.sort(queue);
 		}
 	}
 	
-	@SuppressWarnings({ "rawtypes" })
-	public List<List<CharVector>> synonymExtract(List synonyms) {
+	public List<List<CharVector>> synonymExtract(List<?> synonyms) {
 		ProductNameParsingRule parsingRule = this.clone(
 				new TypeAttributeImpl(), null, this.offsetAttribute, null);
 		parsingRule.option = new AnalyzerOption();
@@ -1900,7 +1828,7 @@ Collections.sort(queue);
 			Object synonymObj = synonyms.get(synonymInx);
 			logger.trace("synonym:{}", synonymObj);
 
-            List<CharVector> synonymTokens = new ArrayList<CharVector>(1);
+            List<CharVector> synonymTokens = new ArrayList<>(1);
 			if(synonymObj instanceof CharVector) {
                 CharVector synonymCV = (CharVector) synonymObj;
                 //유사어가 공백이 포함된 여러어절로 구성되어 있을 경우 처리.
@@ -1916,7 +1844,7 @@ Collections.sort(queue);
                 }
             }
 
-            List<CharVector> extracted = new ArrayList<CharVector>();
+            List<CharVector> extracted = new ArrayList<>();
             //어절별로 처리한다. 하나의 어절에서 여러 단어가 나올수 있다.
             StringBuilder sb = new StringBuilder();
             for(CharVector synonymCV : synonymTokens) {
@@ -1976,17 +1904,10 @@ Collections.sort(queue);
 
             if (extracted != null && extracted.size() > 0) {
 				logger.trace("SYNONYM-EXTRACTED:{}", extracted);
-//                StringBuilder sb = new StringBuilder();
-//                for(CharVector cv : extracted) {
-//                    if(sb.length() > 0) {
-//                        sb.append("`");
-//                    }
-//                    sb.append(cv.toString());
-//                }
                 String idString = sb.toString();
                 if(!dupSet.contains(idString)) {
                     if(result == null) {
-                        result = new ArrayList<List<CharVector>>();
+                        result = new ArrayList<>();
                     }
                     result.add(extracted);
                     logger.trace("synonym:{}, {}", extracted, idString);
@@ -1994,15 +1915,12 @@ Collections.sort(queue);
                 }
             }
 		}
-
         return result;
 	}
 	
 	private boolean containsDictionary(CharVector cv) {
 		if (extractor.dictionary().find(cv) != null ||
-			userDictionary.contains(cv) ||
-			(brandDictionary != null && brandDictionary.contains(cv)) ||
-			(makerDictionary != null && makerDictionary.contains(cv))) {
+			userDictionary.contains(cv)) {
 			return true;
 		}
 		return false;
@@ -2026,7 +1944,7 @@ Collections.sort(queue);
 			this.startOffset = startOffset;
 			this.endOffset = endOffset;
 			this.type = type;
-			this.subEntry = new ArrayList<RuleEntry>();
+			this.subEntry = new ArrayList<>();
 			this.modifiable = true;
 		}
 
