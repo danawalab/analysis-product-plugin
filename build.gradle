@@ -39,7 +39,6 @@ task copyToDependencies(type: Copy) {
 }
 
 test {
-	exclude '**/*'
 }
 
 build.dependsOn(copyToDependencies)

@@ -15,7 +15,7 @@ public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAt
 	}
 
 	@Override
-	public void setOffset(int offset, int length) {
+	public void offset(int offset, int length) {
 		ref.offset(offset);
 		ref.length(length);
 	}

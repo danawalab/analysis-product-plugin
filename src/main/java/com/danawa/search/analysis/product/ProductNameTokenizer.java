@@ -6,6 +6,7 @@ import java.util.regex.Pattern;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
+import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
@@ -258,11 +259,11 @@ public class ProductNameTokenizer extends Tokenizer {
 					}
 					// logger.trace("C1:{} [{}] / C2:{} [{}]", c1, t1, c2, t2);
 					if (t1 == WHITESPACE) {
-						tokenAttribute.setOffset(positionPrev, position - positionPrev);
+						tokenAttribute.offset(positionPrev, position - positionPrev);
 						position++;
 						return true;
 					} else if (t2 == WHITESPACE) {
-						tokenAttribute.setOffset(positionPrev, position - positionPrev);
+						tokenAttribute.offset(positionPrev, position - positionPrev);
 						position++;
 						return true;
 					} else if (position > 0 && getType(workBuffer[position - 1]) == NUMBER && c2 > 128) {
@@ -273,17 +274,17 @@ public class ProductNameTokenizer extends Tokenizer {
 						t1 = t2;
 					} else if (t1 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c1) || c1 > 128)
 							&& position != positionPrev) {
-						tokenAttribute.setOffset(positionPrev, position - positionPrev);
+						tokenAttribute.offset(positionPrev, position - positionPrev);
 						return true;
 					} else if (t2 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c2) || c2 > 128)
 							&& position != positionPrev) {
-						tokenAttribute.setOffset(positionPrev, position - positionPrev);
+						tokenAttribute.offset(positionPrev, position - positionPrev);
 						return true;
 					} else if (((c0 < 128 && c2 > 128) || (c2 < 128 && c0 > 128)) && position != positionPrev) {
 						/**
 						 * 기존 토크나이징은 타입별로 분리가 되지 않기 때문에 바로 직전 문자타입과 비교하여 알파벳 과 유니코드 정도는 우선 분리해 주도록 한다
 						 */
-						tokenAttribute.setOffset(positionPrev, position - positionPrev);
+						tokenAttribute.offset(positionPrev, position - positionPrev);
 						return true;
 					}
 				}
@@ -345,6 +346,96 @@ public class ProductNameTokenizer extends Tokenizer {
 			break;
 		}
 		return false;
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+
+	private Entry entry;
+	private KoreanWordExtractor extractor;
+	private int state;
+	private static final int FINISHED = 1;
+
+	public final boolean incrementTokenNew() throws IOException {
+		boolean ret = false;
+		int pos = position;
+		while (state != FINISHED) {
+try { Thread.sleep(500); } catch (Exception ignore) { }
+			// 필요변수 : 읽어온 길이, 처리한 길이, 베이스 위치
+			if (pos >= readLength) {
+				// 읽어온 버퍼가 없거나 모두 처리한 상태라면  리더에서 읽어온다.
+				char[] buffer = new char[IO_BUFFER_SIZE];
+				baseOffset += readLength;
+				readLength = input.read(buffer, 0, buffer.length);
+				if (readLength != -1) {
+					tokenAttribute.ref(buffer, 0, 0);
+					// 읽어온 직후 앞공백 건너뜀.
+					for (pos = 0; pos < readLength; pos++) {
+						if (getType(buffer[pos]) != WHITESPACE) { break; }
+					}
+					position = pos;
+				} else {
+					state = FINISHED;
+				}
+			} else {
+				// 처리할것이 남아 있다면
+				char[] buffer = tokenAttribute.ref().array();
+				char c1 = buffer[position];
+				char c2 = 0;
+				char c0 = 0;
+				String t1 = getType(c1);
+				String t2 = null;
+				// 기본적으로는 공백단위로 토크닝 한다. 만약 한글과 특수문자가 섞여있다면 우선은 분리한다
+				for (pos++ ; pos < readLength; pos++) {
+					c2 = buffer[pos];
+					c0 = 0;
+					t2 = getType(c2);
+					if (pos > 0) {
+						c0 = buffer[pos - 1];
+					}
+					// if (t1 == WHITESPACE) {
+					// 	ret = true;
+					// 	break;
+					// } else if (t2 == WHITESPACE) {
+					// 	ret = true;
+					// 	break;
+					// } else 
+					if (pos > 0 && getType(buffer[pos - 1]) == NUMBER && c2 > 128) {
+						// 숫자직후 유니코드는 단위명일 확률이 높으므로 연결하여 출력
+						c1 = c2;
+						t1 = t2;
+					} else if (t1 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c1) || c1 > 128) && pos != position) {
+						ret = true;
+						break;
+					} else if (t2 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c2) || c2 > 128) && pos != position) {
+						ret = true;
+						break;
+					} else if (((c0 < 128 && c2 > 128) || (c2 < 128 && c0 > 128)) && pos != position) {
+						// 기존 토크나이징은 타입별로 분리가 되지 않기 때문에 바로 직전 문자타입과 비교하여 알파벳 과 유니코드 정도는 우선 분리해 주도록 한다
+						ret = true;
+						break;
+					}
+					// if (pos > -1) {
+					// 	position = readLength;
+					// 	tokenAttribute.offset(pos, readLength - pos);
+					// 	offsetAttribute.setOffset(baseOffset + pos, baseOffset + readLength);
+					// 	ret = true;
+					// 	break;
+					// }
+					// 뒤공백 건너뜀
+					for (; pos < readLength; pos++) {
+						if (getType(buffer[pos]) != WHITESPACE) { break; }
+					}
+				}
+				if (pos == readLength) { ret = true; }
+				if (ret == true) { 
+					tokenAttribute.offset(position, pos - position);
+					offsetAttribute.setOffset(baseOffset + position, baseOffset + pos);
+					position = pos + 1;
+					break; 
+				}
+			}
+		}
+		return ret;
 	}
 
 	protected static boolean containsChar(char[] array, char c) {

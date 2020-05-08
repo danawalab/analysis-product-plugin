@@ -203,7 +203,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				} else {
 					if (currentOffset > 0 && finalOffset > currentOffset) {
 						synonymAttribute.setSynonyms(null);
-						tokenAttribute.setOffset(currentOffset, finalOffset - currentOffset);
+						tokenAttribute.offset(currentOffset, finalOffset - currentOffset);
 						posTagAttribute.setPosTag(PosTag.UNK);
 						if (baseOffset < currentOffset) {
 							offsetAttribute.setOffset(currentOffset, finalOffset);
@@ -262,7 +262,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 			if (entry != null) {
 				synonymAttribute.setSynonyms(null);
-				tokenAttribute.setOffset(offset + entry.offset(), entry.column());
+				tokenAttribute.offset(offset + entry.offset(), entry.column());
 				posTagAttribute.setPosTag(entry.posTag());
 				offsetAttribute.setOffset(baseOffset + entry.offset(),
 					baseOffset + entry.offset() + entry.column());

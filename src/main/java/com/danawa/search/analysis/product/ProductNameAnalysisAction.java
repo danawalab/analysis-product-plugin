@@ -66,11 +66,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		return channel -> {
-			// XContentBuilder builder = channel.newBuilder();
-			// builder.startObject()
-			// 	.field("message", "OK")
-			// 	.field("action", action)
-			// .endObject();
 			JSONStringer builder = new JSONStringer();
 			builder.object()
 				.key("message").value("OK")
@@ -90,20 +85,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		try {
 			logger.debug("PARSING REST-BODY...");
-			// XContentParser parser = null;
-			// Token token = null;
-			// parser = request.contentParser();
-			// // REST body (JSON) parse
-			// while ((token = parser.nextToken()) != Token.END_OBJECT) {
-			// 	if (token == XContentParser.Token.FIELD_NAME) {
-			// 		String fieldName = parser.currentName();
-			// 		token = parser.nextToken();
-			// 		if (token == Token.VALUE_STRING) {
-			// 			String text = parser.text();
-			// 			logger.debug("PARSE VALUE {} = {}", fieldName, text);
-			// 		}
-			// 	}
-			// }
 			String body = request.content().utf8ToString();
 			JSONObject jobj = new JSONObject(new JSONTokener(body));
 			for (String key : jobj.keySet()) {
@@ -127,7 +108,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				@Override public void onFailure(Exception e) { }
 			};
 			SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-			sourceBuilder.query(QueryBuilders.matchAllQuery());
+			sourceBuilder.query(QueryBuilders.queryStringQuery("PRODUCTNAME:상품명테스트"));
 			sourceBuilder.from(0);
 			sourceBuilder.size(5);
 			sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
