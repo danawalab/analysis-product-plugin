@@ -107,7 +107,7 @@ public class ProductNameTokenizerTest {
 		if (propFile == null) { return; }
 
 		Properties prop = TestUtil.readProperties(propFile);
-		ProductNameDictionary dictionary = null;//ProductNameTokenizerFactory.loadDictionary(null, prop);
+		ProductNameDictionary dictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
 		Reader reader = null;
 		ProductNameTokenizer tokenizer = null;
 		String str = TEXT_STR;
@@ -122,9 +122,9 @@ public class ProductNameTokenizerTest {
 			OffsetAttribute offsetAttribute = tokenizer.addAttribute(OffsetAttribute.class);
 			TypeAttribute typeAttribute = tokenizer.addAttribute(TypeAttribute.class);
 			tokenizer.reset();
-			for (; tokenizer.incrementTokenNew();) {
-				logger.debug("TOKEN:{} / {}~{} / {}", tokenAttribute.ref(), offsetAttribute.startOffset(),
-					offsetAttribute.endOffset(), typeAttribute.type());
+			for (; tokenizer.incrementToken();) {
+				logger.debug("TOKEN:{} / {}~{} / {} / {}", tokenAttribute.ref(), offsetAttribute.startOffset(),
+					offsetAttribute.endOffset(), typeAttribute.type(), tokenAttribute.posTag());
 			}
 		} finally {
 			try { tokenizer.close(); } catch (Exception ignore) { }

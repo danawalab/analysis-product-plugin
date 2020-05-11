@@ -1,9 +1,9 @@
 package com.danawa.search.analysis.product;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import com.danawa.util.ContextStore;
 
@@ -22,14 +22,14 @@ import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.json.JSONObject;
 import org.json.JSONStringer;
 import org.json.JSONTokener;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 
 public class ProductNameAnalysisAction extends BaseRestHandler {
 

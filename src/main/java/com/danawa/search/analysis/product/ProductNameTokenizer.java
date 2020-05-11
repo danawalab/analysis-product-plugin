@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
+import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
@@ -13,8 +14,8 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
-import org.apache.lucene.util.AttributeFactory;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.util.AttributeFactory;
 import org.elasticsearch.common.logging.Loggers;
 
 public class ProductNameTokenizer extends Tokenizer {
@@ -103,6 +104,7 @@ public class ProductNameTokenizer extends Tokenizer {
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
 
+	private char[] buffer;
 	private char[] workBuffer;
 	private char[] freshBuffer;
 	private char[] fullTermBuffer;
@@ -113,12 +115,17 @@ public class ProductNameTokenizer extends Tokenizer {
 	private int lastLength;
 	private int baseOffset;
 	private String splitType;
+	private int offset;
 
+	private ProductNameDictionary dictionary;
 	private SynonymDictionary synonymDictionary;
+	private KoreanWordExtractor extractor;
 
 	protected ProductNameTokenizer(ProductNameDictionary dictionary) {
 		if (dictionary != null) {
+			this.dictionary = dictionary;
 			synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
+			extractor = new KoreanWordExtractor(dictionary);
 		}
 		init();
 	}
@@ -133,8 +140,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		fullTermBuffer = new char[MAX_STRING_LENGTH];
 	}
 
-	@Override
-	public final boolean incrementToken() throws IOException {
+	public final boolean incrementTokenOld() throws IOException {
 		boolean ret = false;
 		CharVector token = new CharVector();
 		// 전체동의어는 전체 단어중 동의어가 존재하는것만 체크해야 하므로 먼저 체크한다.
@@ -351,78 +357,107 @@ public class ProductNameTokenizer extends Tokenizer {
 	////////////////////////////////////////////////////////////////////////////////
 
 	private Entry entry;
-	private KoreanWordExtractor extractor;
 	private int state;
 	private static final int FINISHED = 1;
 
-	public final boolean incrementTokenNew() throws IOException {
+	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
-		int offset = position;
+		// int offset = position;
 		while (state != FINISHED) {
 // 임시코드. 테스트시 무한루프에 의한 프리징 방지
-try { Thread.sleep(100); } catch (Exception ignore) { }
+// try { Thread.sleep(300); } catch (Exception ignore) { }
 			// 필요변수 : 읽어온 길이, 처리한 길이, 베이스 위치
-			if (offset >= readLength) {
+			if (position >= readLength) {
+				////////////////////////////////////////////////////////////////////////////////
+				// 1. 원본 읽어오기 (버퍼 크기만큼 읽어옴)
+				////////////////////////////////////////////////////////////////////////////////
 				// 읽어온 버퍼가 없거나 모두 처리한 상태라면  리더에서 읽어온다.
-				char[] buffer = new char[IO_BUFFER_SIZE];
+				buffer = new char[IO_BUFFER_SIZE];
 				baseOffset += readLength;
 				readLength = input.read(buffer, 0, buffer.length);
 				if (readLength != -1) {
 					tokenAttribute.ref(buffer, 0, 0);
-					// 읽어온 직후 앞공백 건너뜀.
-					for (offset = 0; offset < readLength; offset++) {
-						if (getType(buffer[offset]) != WHITESPACE) { break; }
-					}
-					position = offset;
+					position = offset = 0;
+					entry = null;
 				} else {
 					state = FINISHED;
 				}
 			} else {
-				// 처리할것이 남아 있다면
-				char[] buffer = tokenAttribute.ref().array();
-				char c1 = buffer[position];
-				char c2 = 0;
-				String t1 = getType(c1);
-				String t2 = null;
-				// 기본적으로는 공백단위로 토크닝 한다. 만약 한글과 특수문자가 섞여있다면 우선은 분리한다
-				for (offset++ ; offset < readLength; offset++) {
-					c2 = buffer[offset];
-					t2 = getType(c2);
-					if (t1 == WHITESPACE && t2 != WHITESPACE) {
-						// 공백뒤 일반문자. 토크닝 시작 위치 설정
-						position = offset;
-					} else if (t1 == WHITESPACE && t2 == WHITESPACE) {
-						// 공백뒤 공백. 아무일 하지 않음.
-					} else if (t1 != WHITESPACE && t2 == WHITESPACE) {
-						// 일반문자 뒤 공백. 끊어줌.
-						ret = true;
-						break;
-					} else if (t1 == NUMBER && c2 > 128) {
-						// 숫자직후 유니코드. 단위명일 확률이 높으므로 연결하여 출력
-					} else if (t1 != SYMBOL && t2 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c2) || c2 > 128)) {
-						ret = true;
-						break;
-					} else if ((c1 < 128 && c2 > 128) || (c2 < 128 && c1 > 128)) {
-						// 알파벳 과 유니코드 분리
-						ret = true;
-						break;
+				if (entry == null) {
+					////////////////////////////////////////////////////////////////////////////////
+					// 2. 버퍼 내 단순 토크닝 (공백 / 특수기호에 의한 분해)
+					////////////////////////////////////////////////////////////////////////////////
+					char c1 = buffer[position];
+					char c2 = 0;
+					String t1 = getType(c1);
+					String t2 = null;
+					// 기본적으로는 공백단위로 토크닝 한다. 만약 한글과 특수문자가 섞여있다면 우선은 분리한다
+					for (offset++ ; offset < readLength; offset++) {
+						c2 = buffer[offset];
+						t2 = getType(c2);
+						if (t1 == WHITESPACE && t2 != WHITESPACE) {
+							// 공백뒤 일반문자. 토크닝 시작 위치 설정
+							position = offset;
+						} else if (t1 == WHITESPACE && t2 == WHITESPACE) {
+							// 공백뒤 공백. 아무일 하지 않음.
+						} else if (t1 != WHITESPACE && t2 == WHITESPACE) {
+							// 일반문자 뒤 공백. 끊어줌.
+							ret = true;
+							break;
+						} else if (t1 == NUMBER && c2 > 128) {
+							// 숫자직후 유니코드. 단위명일 확률이 높으므로 연결하여 출력
+						} else if (t1 != SYMBOL && t2 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c2) || c2 > 128)) {
+							ret = true;
+							break;
+						} else if ((c1 < 128 && c2 > 128) || (c2 < 128 && c1 > 128)) {
+							// 알파벳 과 유니코드 분리
+							ret = true;
+							break;
+						}
+						c1 = c2;
+						t1 = t2;
 					}
-					c1 = c2;
-					t1 = t2;
-				}
-				// 버퍼의 끝까지 간 경우
-				if (offset == readLength) { 
-					if (!ret && t1 != WHITESPACE) {
-						ret = true; 
+					// 버퍼의 끝까지 간 경우 토큰으로 인정
+					if (offset >= readLength) { 
+						if (!ret && t1 != WHITESPACE) {
+							ret = true; 
+						} else {
+							// 공백으로 끝난경우 종료조건 충족
+							position = readLength;
+						}
 					}
-				}
-				if (ret == true) { 
-					// CharVector cv = new CharVector(buffer, position, offset - position);
-					// logger.debug("TOKEN:{}", cv);
-					tokenAttribute.offset(position, offset - position);
-					offsetAttribute.setOffset(baseOffset + position, baseOffset + offset);
-					position = offset;
-					break; 
+					if (ret == true) {
+						int length = offset - position;
+						if (length > extractor.getTabularSize()) {
+							length = extractor.getTabularSize();
+						}
+						extractor.setInput(buffer, position, length);
+						entry = extractor.extract();
+					}
+				} else {
+					////////////////////////////////////////////////////////////////////////////////
+					// 3. 한글분해
+					////////////////////////////////////////////////////////////////////////////////
+					// 분해된 한글이 있으므로 속성에 출력해 준다
+					tokenAttribute.ref(buffer, entry.offset(), entry.column());
+					tokenAttribute.posTag(entry.posTag());
+					offsetAttribute.setOffset(baseOffset + entry.offset(), baseOffset + entry.offset() + entry.column());
+
+					position = entry.offset() + entry.column();
+					entry = entry.next();
+					if (entry == null) {
+						// 분해된 한글이 없다면 다음구간 한글분해 시도
+						if (position < offset) {
+							int length = offset - position;
+							if (length > extractor.getTabularSize()) {
+								length = extractor.getTabularSize();
+							}
+							extractor.setInput(buffer, position, length);
+							entry = extractor.extract();
+						}
+					}
+					ret = true;
+					break;
 				}
 			}
 		}
