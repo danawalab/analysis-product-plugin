@@ -357,11 +357,12 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	public final boolean incrementTokenNew() throws IOException {
 		boolean ret = false;
-		int pos = position;
+		int offset = position;
 		while (state != FINISHED) {
-try { Thread.sleep(500); } catch (Exception ignore) { }
+// 임시코드. 테스트시 무한루프에 의한 프리징 방지
+try { Thread.sleep(100); } catch (Exception ignore) { }
 			// 필요변수 : 읽어온 길이, 처리한 길이, 베이스 위치
-			if (pos >= readLength) {
+			if (offset >= readLength) {
 				// 읽어온 버퍼가 없거나 모두 처리한 상태라면  리더에서 읽어온다.
 				char[] buffer = new char[IO_BUFFER_SIZE];
 				baseOffset += readLength;
@@ -369,10 +370,10 @@ try { Thread.sleep(500); } catch (Exception ignore) { }
 				if (readLength != -1) {
 					tokenAttribute.ref(buffer, 0, 0);
 					// 읽어온 직후 앞공백 건너뜀.
-					for (pos = 0; pos < readLength; pos++) {
-						if (getType(buffer[pos]) != WHITESPACE) { break; }
+					for (offset = 0; offset < readLength; offset++) {
+						if (getType(buffer[offset]) != WHITESPACE) { break; }
 					}
-					position = pos;
+					position = offset;
 				} else {
 					state = FINISHED;
 				}
@@ -381,56 +382,46 @@ try { Thread.sleep(500); } catch (Exception ignore) { }
 				char[] buffer = tokenAttribute.ref().array();
 				char c1 = buffer[position];
 				char c2 = 0;
-				char c0 = 0;
 				String t1 = getType(c1);
 				String t2 = null;
 				// 기본적으로는 공백단위로 토크닝 한다. 만약 한글과 특수문자가 섞여있다면 우선은 분리한다
-				for (pos++ ; pos < readLength; pos++) {
-					c2 = buffer[pos];
-					c0 = 0;
+				for (offset++ ; offset < readLength; offset++) {
+					c2 = buffer[offset];
 					t2 = getType(c2);
-					if (pos > 0) {
-						c0 = buffer[pos - 1];
-					}
-					// if (t1 == WHITESPACE) {
-					// 	ret = true;
-					// 	break;
-					// } else if (t2 == WHITESPACE) {
-					// 	ret = true;
-					// 	break;
-					// } else 
-					if (pos > 0 && getType(buffer[pos - 1]) == NUMBER && c2 > 128) {
-						// 숫자직후 유니코드는 단위명일 확률이 높으므로 연결하여 출력
-						c1 = c2;
-						t1 = t2;
-					} else if (t1 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c1) || c1 > 128) && pos != position) {
+					if (t1 == WHITESPACE && t2 != WHITESPACE) {
+						// 공백뒤 일반문자. 토크닝 시작 위치 설정
+						position = offset;
+					} else if (t1 == WHITESPACE && t2 == WHITESPACE) {
+						// 공백뒤 공백. 아무일 하지 않음.
+					} else if (t1 != WHITESPACE && t2 == WHITESPACE) {
+						// 일반문자 뒤 공백. 끊어줌.
 						ret = true;
 						break;
-					} else if (t2 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c2) || c2 > 128) && pos != position) {
+					} else if (t1 == NUMBER && c2 > 128) {
+						// 숫자직후 유니코드. 단위명일 확률이 높으므로 연결하여 출력
+					} else if (t1 != SYMBOL && t2 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c2) || c2 > 128)) {
 						ret = true;
 						break;
-					} else if (((c0 < 128 && c2 > 128) || (c2 < 128 && c0 > 128)) && pos != position) {
-						// 기존 토크나이징은 타입별로 분리가 되지 않기 때문에 바로 직전 문자타입과 비교하여 알파벳 과 유니코드 정도는 우선 분리해 주도록 한다
+					} else if ((c1 < 128 && c2 > 128) || (c2 < 128 && c1 > 128)) {
+						// 알파벳 과 유니코드 분리
 						ret = true;
 						break;
 					}
-					// if (pos > -1) {
-					// 	position = readLength;
-					// 	tokenAttribute.offset(pos, readLength - pos);
-					// 	offsetAttribute.setOffset(baseOffset + pos, baseOffset + readLength);
-					// 	ret = true;
-					// 	break;
-					// }
-					// 뒤공백 건너뜀
-					for (; pos < readLength; pos++) {
-						if (getType(buffer[pos]) != WHITESPACE) { break; }
+					c1 = c2;
+					t1 = t2;
+				}
+				// 버퍼의 끝까지 간 경우
+				if (offset == readLength) { 
+					if (!ret && t1 != WHITESPACE) {
+						ret = true; 
 					}
 				}
-				if (pos == readLength) { ret = true; }
 				if (ret == true) { 
-					tokenAttribute.offset(position, pos - position);
-					offsetAttribute.setOffset(baseOffset + position, baseOffset + pos);
-					position = pos + 1;
+					// CharVector cv = new CharVector(buffer, position, offset - position);
+					// logger.debug("TOKEN:{}", cv);
+					tokenAttribute.offset(position, offset - position);
+					offsetAttribute.setOffset(baseOffset + position, baseOffset + offset);
+					position = offset;
 					break; 
 				}
 			}
