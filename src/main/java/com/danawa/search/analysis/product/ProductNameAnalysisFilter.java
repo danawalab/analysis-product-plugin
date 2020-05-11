@@ -61,6 +61,10 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private SetDictionary stopDictionary;
 	private ProductNameDictionary dictionary;
 	
+	public ProductNameAnalysisFilter(TokenStream input) {
+		super(input);
+	}
+
 	protected ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary, AnalyzerOption analyzerOption) {
 		super(input);
 		this.extractor = extractor;
@@ -283,6 +287,15 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				posTagAttribute.setPosTag(PosTag.UNK);
 				continue;
 			}
+		}
+	}
+
+	public final boolean incrementTokenNew() throws IOException {
+		while (true) {
+			boolean ret = input.incrementToken();
+			CharVector ref = tokenAttribute.ref();
+			termAttribute.copyBuffer(ref.array(), ref.offset(), ref.length());
+			return ret;
 		}
 	}
 	

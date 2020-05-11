@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
-import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
@@ -51,17 +50,14 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	public static final char[] AVAIL_SYMBOLS = new char[] {
 		// 일반적으로 포함할 수 있는 모든 특수기호들
-		// 2019년 3월 변경사항 '+', '&' 추가
 		'-', '.', '/', '+', '&' };
 
 	public static final char[] AVAIL_SYMBOLS_STANDALONE = new char[] {
-		// 2019년 3월 추가사항
-		// 독립적으로 사용될수 있는 특수기호들
+		// 독립적으로 사용될수 있는 특수기호들 (변경시 추가)
 	};
 
 	public static final char[] AVAIL_SYMBOLS_CONNECTOR = new char[] {
 		// 예외특수문자, 연결자로 사용될 수 있는 기호들
-		// 2017년 6월 변경사항 모델명 결합자 '&' 추가
 		'-', '.', '/', '&' };
 
 	public static final char SYMBOL_COLON = ':';
@@ -92,7 +88,6 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	protected static final char[] AVAIL_SYMBOLS_INNUMBER = new char[] {
 		// 예외특수문자, 숫자에 사용이 가능한 기호들
-		// 2017.9.8 변경사항 해상도 및 비율구분자 ':' 추가
 		// 아래 항목이 바뀌는 경우 숫자와 관련된 정규식도 같이 바뀌어야 함
 		',', '.', SYMBOL_COLON };
 
@@ -117,13 +112,11 @@ public class ProductNameTokenizer extends Tokenizer {
 	private String splitType;
 	private int offset;
 
-	private ProductNameDictionary dictionary;
 	private SynonymDictionary synonymDictionary;
 	private KoreanWordExtractor extractor;
 
 	protected ProductNameTokenizer(ProductNameDictionary dictionary) {
 		if (dictionary != null) {
-			this.dictionary = dictionary;
 			synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
 			extractor = new KoreanWordExtractor(dictionary);
 		}
@@ -360,18 +353,17 @@ public class ProductNameTokenizer extends Tokenizer {
 	private int state;
 	private static final int FINISHED = 1;
 
+	@Override
 	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
-		// int offset = position;
 		while (state != FINISHED) {
 // 임시코드. 테스트시 무한루프에 의한 프리징 방지
 // try { Thread.sleep(300); } catch (Exception ignore) { }
-			// 필요변수 : 읽어온 길이, 처리한 길이, 베이스 위치
 			if (position >= readLength) {
 				////////////////////////////////////////////////////////////////////////////////
 				// 1. 원본 읽어오기 (버퍼 크기만큼 읽어옴)
-				////////////////////////////////////////////////////////////////////////////////
 				// 읽어온 버퍼가 없거나 모두 처리한 상태라면  리더에서 읽어온다.
+				////////////////////////////////////////////////////////////////////////////////
 				buffer = new char[IO_BUFFER_SIZE];
 				baseOffset += readLength;
 				readLength = input.read(buffer, 0, buffer.length);
@@ -427,12 +419,22 @@ public class ProductNameTokenizer extends Tokenizer {
 						}
 					}
 					if (ret == true) {
-						int length = offset - position;
-						if (length > extractor.getTabularSize()) {
-							length = extractor.getTabularSize();
+						if (logger.isTraceEnabled()) {
+							logger.trace("BLOCK:{}", new CharVector(buffer, position, offset - position));
 						}
-						extractor.setInput(buffer, position, length);
-						entry = extractor.extract();
+						if (extractor != null) {
+							int length = offset - position;
+							if (length > extractor.getTabularSize()) {
+								length = extractor.getTabularSize();
+							}
+							extractor.setInput(buffer, position, length);
+							entry = extractor.extract();
+						} else {
+							tokenAttribute.ref(buffer, position, offset - position);
+							offsetAttribute.setOffset(baseOffset + position, baseOffset + offset - position);
+							position = offset;
+							break;
+						}
 					}
 				} else {
 					////////////////////////////////////////////////////////////////////////////////
