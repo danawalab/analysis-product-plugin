@@ -8,8 +8,9 @@ import org.apache.lucene.util.AttributeReflector;
 
 public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAttribute {
 
-	private CharVector ref = null;
-	private PosTag posTag = null;
+	private CharVector ref;
+	private PosTag posTag;
+	private int state;
 
 	@Override
 	public void ref(char[] buffer, int offset, int length) {
@@ -38,6 +39,31 @@ public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAt
 	}
 
 	@Override
+	public void state(int state) {
+		this.state = state;
+	}
+
+	@Override
+	public int state() {
+		return state;
+	}
+
+	@Override
+	public boolean isState(int flag) {
+		return (state & flag) != 0;
+	}
+
+	@Override
+	public void addState(int flag) {
+		state = state | flag;
+	}
+
+	@Override
+	public void rmState(int flag) {
+		state = state & ~flag;
+	}
+
+	@Override
 	public String toString() {
 		return String.valueOf(ref);
 	}
@@ -48,17 +74,21 @@ public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAt
 			TokenInfoAttribute target = (TokenInfoAttribute) attr;
 			target.ref(ref.array(), ref.offset(), ref.length());
 			target.posTag(posTag);
+			target.state(state);
 		}
 	}
 
 	@Override
 	public void clear() {
 		ref = new CharVector();
+		posTag = null;
+		state = STATE_READY;
 	}
 
 	@Override
 	public void reflectWith(AttributeReflector reflector) {
 		reflector.reflect(TokenInfoAttribute.class, "ref", ref);
 		reflector.reflect(TokenInfoAttribute.class, "posTag", posTag);
+		reflector.reflect(TokenInfoAttribute.class, "state", state);
 	}
 }

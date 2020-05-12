@@ -1926,7 +1926,7 @@ public class ProductNameParsingRule {
 		return false;
 	}
 	
-	private class RuleEntry implements Comparable<RuleEntry> {
+	public static class RuleEntry implements Comparable<RuleEntry> {
 		char[] buf;
 		int start;
 		int length;

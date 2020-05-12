@@ -11,6 +11,7 @@ import com.danawa.util.TestUtil;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.elasticsearch.common.logging.Loggers;
 import org.junit.Test;
 
@@ -24,7 +25,7 @@ public class ProductNameAnalysisFilterTest {
         ProductNameDictionary dictionary = null;
         Tokenizer tokenizer = null;
         ProductNameAnalysisFilter tstream = null;
-        String str = "TokenFilterTest";
+        String str = "TokenFilter한글Test";
 		try {
             reader = new StringReader(str);
             tokenizer = new ProductNameTokenizer(dictionary);
@@ -32,8 +33,9 @@ public class ProductNameAnalysisFilterTest {
             tstream = new ProductNameAnalysisFilter(tokenizer);
             tstream.reset();
             CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
+            OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);
             while (tstream.incrementTokenNew()) {
-                logger.debug("TOKEN:{}", termAttr);
+                logger.debug("TOKEN:{} / {}~{}", termAttr, offsetAttr.startOffset(), offsetAttr.endOffset());
             }
         } catch (Exception e) {
             logger.error("", e);

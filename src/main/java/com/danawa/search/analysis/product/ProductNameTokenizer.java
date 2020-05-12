@@ -10,6 +10,7 @@ import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
@@ -22,7 +23,7 @@ public class ProductNameTokenizer extends Tokenizer {
 	private static Logger logger = Loggers.getLogger(ProductNameTokenizer.class, "");
 
 	public static final int IO_BUFFER_SIZE = 100;
-	public static final int MAX_STRING_LENGTH = 64;
+	public static final int FULL_TERM_LENGTH = 64;
 
 	public static final String WHITESPACE = "<WHITESPACE>";
 	public static final String SYMBOL = "<SYMBOL>";
@@ -95,6 +96,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		// 단어사이에 구분자로 올 수 있는 기호들, 사용자단어에 들어가는 기호는 삭제해야 한다.
 		',', '|', '[', ']', '<', '>', '{', '}' };
 
+	protected final CharTermAttribute charAttribute = addAttribute(CharTermAttribute.class);
 	private final TokenInfoAttribute tokenAttribute = addAttribute(TokenInfoAttribute.class);
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
@@ -130,7 +132,8 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private void init() {
 		workBuffer = new char[IO_BUFFER_SIZE];
-		fullTermBuffer = new char[MAX_STRING_LENGTH];
+		fullTermBuffer = new char[FULL_TERM_LENGTH];
+		super.clearAttributes();
 	}
 
 	public final boolean incrementTokenOld() throws IOException {
@@ -350,13 +353,11 @@ public class ProductNameTokenizer extends Tokenizer {
 	////////////////////////////////////////////////////////////////////////////////
 
 	private Entry entry;
-	private int state;
-	private static final int FINISHED = 1;
 
 	@Override
 	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
-		while (state != FINISHED) {
+		while (!tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_FINISHED)) {
 // 임시코드. 테스트시 무한루프에 의한 프리징 방지
 // try { Thread.sleep(300); } catch (Exception ignore) { }
 			if (position >= readLength) {
@@ -369,10 +370,29 @@ public class ProductNameTokenizer extends Tokenizer {
 				readLength = input.read(buffer, 0, buffer.length);
 				if (readLength != -1) {
 					tokenAttribute.ref(buffer, 0, 0);
+					tokenAttribute.rmState(TokenInfoAttribute.STATE_BUFFER_EXHAUSTED);
 					position = offset = 0;
 					entry = null;
 				} else {
-					state = FINISHED;
+					tokenAttribute.addState(TokenInfoAttribute.STATE_INPUT_FINISHED);
+				}
+				if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
+					// FULL-TERM, 테스트 후 (공백포함여부, 유니코드포함여부) TokenInfoAttribute 에 입력.
+					ret = true;
+					for (int inx = 0; inx < readLength; inx++) {
+						char ch = buffer[inx];
+						String type = getType(ch);
+						if (!(type != WHITESPACE && (type == ALPHA || type == NUMBER || type == SYMBOL))) {
+							ret = false;
+						}
+					}
+					if (ret) {
+						tokenAttribute.ref(buffer, 0, readLength);
+						tokenAttribute.posTag(null);
+						offsetAttribute.setOffset(0, readLength);
+						typeAttribute.setType(FULL_STRING);
+						break;
+					}
 				}
 			} else {
 				if (entry == null) {
@@ -408,7 +428,7 @@ public class ProductNameTokenizer extends Tokenizer {
 						}
 						c1 = c2;
 						t1 = t2;
-					}
+					} // FOR-OFFSET
 					// 버퍼의 끝까지 간 경우 토큰으로 인정
 					if (offset >= readLength) { 
 						if (!ret && t1 != WHITESPACE) {
@@ -431,8 +451,15 @@ public class ProductNameTokenizer extends Tokenizer {
 							entry = extractor.extract();
 						} else {
 							tokenAttribute.ref(buffer, position, offset - position);
-							offsetAttribute.setOffset(baseOffset + position, baseOffset + offset - position);
+							offsetAttribute.setOffset(baseOffset + position, baseOffset + offset);
 							position = offset;
+							// 마지막 공백이 있는경우 건너뜀
+							for (; position < readLength; position++) { 
+								if (getType(buffer[position]) != WHITESPACE) { break;} 
+							}
+							if (position == readLength) {
+								tokenAttribute.addState(TokenInfoAttribute.STATE_BUFFER_EXHAUSTED);
+							}
 							break;
 						}
 					}
@@ -458,11 +485,18 @@ public class ProductNameTokenizer extends Tokenizer {
 							entry = extractor.extract();
 						}
 					}
+					// 마지막 공백이 있는경우 건너뜀
+					for (; position < readLength; position++) { 
+						if (getType(buffer[position]) != WHITESPACE) { break;} 
+					}
+					if (position == readLength) {
+						tokenAttribute.addState(TokenInfoAttribute.STATE_BUFFER_EXHAUSTED);
+					}
 					ret = true;
 					break;
 				}
 			}
-		}
+		} // WHILE-STATE
 		return ret;
 	}
 
@@ -596,7 +630,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		super.reset();
 		Arrays.fill(workBuffer, (char)0);
 		if(fullTermBuffer == null) {
-			fullTermBuffer = new char[MAX_STRING_LENGTH];
+			fullTermBuffer = new char[FULL_TERM_LENGTH];
 		}
 		position = positionPrev = readLength = readLengthPrev = 0;
 		baseOffset = 0;

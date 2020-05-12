@@ -11,6 +11,7 @@ import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
+import com.danawa.search.analysis.product.ProductNameParsingRule.RuleEntry;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
@@ -290,16 +291,40 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		}
 	}
 
+	private List<RuleEntry> termList;
+
 	public final boolean incrementTokenNew() throws IOException {
+// 임시코드
+if (termList == null) { termList = new ArrayList<>(); }
+		boolean ret = false;
+		// FIXME : 큐 마지막에 ASCII 텀이 남아 있다면 모델명규칙 등을 위해 남겨 두어야 함.
+		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
 		while (true) {
-			boolean ret = input.incrementToken();
-			CharVector ref = tokenAttribute.ref();
-			termAttribute.copyBuffer(ref.array(), ref.offset(), ref.length());
-			return ret;
+// 임시코드. 테스트시 무한루프에 의한 프리징 방지
+// try { Thread.sleep(300); } catch (Exception ignore) { }
+			if (termList.size() == 0) {
+				if (tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_FINISHED)) {
+					ret = false;
+					break;
+				}
+				while (input.incrementToken()) {
+					CharVector ref = tokenAttribute.ref();
+					termList.add(new RuleEntry(ref.array(), ref.offset(), ref.length(), offsetAttribute.startOffset(), offsetAttribute.endOffset(), null));
+					if (tokenAttribute.isState(TokenInfoAttribute.STATE_BUFFER_EXHAUSTED)) {
+						break;
+					}
+				}
+			} else {
+				RuleEntry entry = termList.remove(0);
+				termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
+				offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
+				ret = true;
+				break;
+			}
 		}
+		return ret;
 	}
 	
-	@Override
 	public void reset() throws IOException {
 		super.reset();
 		additionalTermAttribute.init(this);
