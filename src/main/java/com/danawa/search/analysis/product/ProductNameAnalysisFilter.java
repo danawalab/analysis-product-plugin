@@ -293,9 +293,19 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 	private List<RuleEntry> termList;
 
+	public void testInit() {
+		termList = new ArrayList<>();
+		ProductNameDictionary dictionary = tokenAttribute.dictionary();
+		this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
+		this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
+		this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
+		this.analyzerOption = new AnalyzerOption();
+		this.extractor = new KoreanWordExtractor(dictionary);
+		this.parsingRule = new ProductNameParsingRule(extractor, dictionary, analyzerOption, offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);
+	}
+
 	public final boolean incrementTokenNew() throws IOException {
-// 임시코드
-if (termList == null) { termList = new ArrayList<>(); }
 		boolean ret = false;
 		// FIXME : 큐 마지막에 ASCII 텀이 남아 있다면 모델명규칙 등을 위해 남겨 두어야 함.
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
@@ -308,20 +318,72 @@ if (termList == null) { termList = new ArrayList<>(); }
 					break;
 				}
 				while (input.incrementToken()) {
+					// 한번 읽어온 버퍼를 다 소진할때까지 큐에 넣는다.
 					CharVector ref = tokenAttribute.ref();
-					termList.add(new RuleEntry(ref.array(), ref.offset(), ref.length(), offsetAttribute.startOffset(), offsetAttribute.endOffset(), null));
-					if (tokenAttribute.isState(TokenInfoAttribute.STATE_BUFFER_EXHAUSTED)) {
+					if(spaceDictionary != null && spaceDictionary.containsKey(ref)) {
+						int offsetSt = offsetAttribute.startOffset();
+						CharSequence[] splits = spaceDictionary.get(ref);
+						logger.trace("SPLIT:{}{}", "", splits);
+						for (int sinx = 0, position = 0; sinx < splits.length; sinx++) {
+							int length = splits[sinx].length();
+							if(sinx > 0) {
+								// 강제 분리를 위한 빈공백
+								termList.add(new RuleEntry(ref.array(), position, 0, 
+									offsetSt + position, offsetSt + position, ProductNameTokenizer.SYMBOL));
+							}
+							termList.add(new RuleEntry(ref.array(), ref.offset() + position, length, 
+								offsetSt + position, offsetSt + position + length, null));
+							position += length;
+						}
+					} else {
+						termList.add(new RuleEntry(ref.array(), ref.offset(), ref.length(), 
+							offsetAttribute.startOffset(), offsetAttribute.endOffset(), null));
+					}
+					if (tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED)) {
 						break;
 					}
-				}
+				} // LOOP (incrementToken())
+				// RULE PROCESS
+				logger.trace("ENTRY QUEUE-SIZE:{}", termList.size());
 			} else {
-				RuleEntry entry = termList.remove(0);
+				// 엔트리를 출력할때 오프셋 순서대로 정렬하여 출력한다.
+				RuleEntry entry = null;
+				while ((entry = termList.get(0)) == null) { termList.remove(0); }
 				termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
 				offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
+
+				if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
+					tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
+				} else {
+					tokenAttribute.rmState(TokenInfoAttribute.STATE_TERM_STOP);
+				}
+				if (analyzerOption.useSynonym()) {
+					if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
+						List<Object> synonyms = new ArrayList<>();
+						CharSequence[] wordSynonym = synonymDictionary.map().get(token);
+						if (synonymAttribute.getSynonyms() != null) {
+							synonyms.addAll(synonymAttribute.getSynonyms());
+						}
+						if (wordSynonym != null) {
+							synonyms.addAll(Arrays.asList(wordSynonym));
+						}
+						//
+						// 동의어는 한번 더 분석해 준다.
+						// 단 단위명은 더 분석하지 않는다.
+						if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
+							List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
+							if (synonymsExt != null) {
+								synonyms = (List<Object>) synonymsExt;
+							}
+						}
+						synonymAttribute.setSynonyms(synonyms);
+					}
+				}
 				ret = true;
+				termList.remove(0);
 				break;
 			}
-		}
+		} // LOOP
 		return ret;
 	}
 	

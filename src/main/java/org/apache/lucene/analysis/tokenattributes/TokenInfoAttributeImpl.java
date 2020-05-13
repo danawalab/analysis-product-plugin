@@ -1,6 +1,7 @@
 package org.apache.lucene.analysis.tokenattributes;
 
 import com.danawa.search.analysis.dict.PosTag;
+import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.util.CharVector;
 
 import org.apache.lucene.util.AttributeImpl;
@@ -11,6 +12,8 @@ public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAt
 	private CharVector ref;
 	private PosTag posTag;
 	private int state;
+	private int baseOffset;
+	private ProductNameDictionary dictionary;
 
 	@Override
 	public void ref(char[] buffer, int offset, int length) {
@@ -64,6 +67,26 @@ public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAt
 	}
 
 	@Override
+	public void dictionary(ProductNameDictionary dictionary) {
+		this.dictionary = dictionary;
+	}
+
+	@Override
+	public ProductNameDictionary dictionary() {
+		return dictionary;
+	}
+
+	@Override
+	public void baseOffset(int baseOffset) {
+		this.baseOffset = baseOffset;
+	}
+
+	@Override
+	public int baseOffset() {
+		return baseOffset;
+	}
+
+	@Override
 	public String toString() {
 		return String.valueOf(ref);
 	}
@@ -75,6 +98,7 @@ public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAt
 			target.ref(ref.array(), ref.offset(), ref.length());
 			target.posTag(posTag);
 			target.state(state);
+			target.dictionary(dictionary);
 		}
 	}
 
@@ -82,7 +106,7 @@ public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAt
 	public void clear() {
 		ref = new CharVector();
 		posTag = null;
-		state = STATE_READY;
+		state = STATE_INPUT_READY;
 	}
 
 	@Override
@@ -90,5 +114,6 @@ public class TokenInfoAttributeImpl extends AttributeImpl implements TokenInfoAt
 		reflector.reflect(TokenInfoAttribute.class, "ref", ref);
 		reflector.reflect(TokenInfoAttribute.class, "posTag", posTag);
 		reflector.reflect(TokenInfoAttribute.class, "state", state);
+		reflector.reflect(TokenInfoAttribute.class, "dictionary", dictionary);
 	}
 }

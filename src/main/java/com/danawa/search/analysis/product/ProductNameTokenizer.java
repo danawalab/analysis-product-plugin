@@ -121,6 +121,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		if (dictionary != null) {
 			synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
 			extractor = new KoreanWordExtractor(dictionary);
+			tokenAttribute.dictionary(dictionary);
 		}
 		init();
 	}
@@ -370,7 +371,7 @@ public class ProductNameTokenizer extends Tokenizer {
 				readLength = input.read(buffer, 0, buffer.length);
 				if (readLength != -1) {
 					tokenAttribute.ref(buffer, 0, 0);
-					tokenAttribute.rmState(TokenInfoAttribute.STATE_BUFFER_EXHAUSTED);
+					tokenAttribute.rmState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED);
 					position = offset = 0;
 					entry = null;
 				} else {
@@ -428,7 +429,7 @@ public class ProductNameTokenizer extends Tokenizer {
 						}
 						c1 = c2;
 						t1 = t2;
-					} // FOR-OFFSET
+					} // LOOP (offset)
 					// 버퍼의 끝까지 간 경우 토큰으로 인정
 					if (offset >= readLength) { 
 						if (!ret && t1 != WHITESPACE) {
@@ -458,7 +459,7 @@ public class ProductNameTokenizer extends Tokenizer {
 								if (getType(buffer[position]) != WHITESPACE) { break;} 
 							}
 							if (position == readLength) {
-								tokenAttribute.addState(TokenInfoAttribute.STATE_BUFFER_EXHAUSTED);
+								tokenAttribute.addState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED);
 							}
 							break;
 						}
@@ -486,17 +487,17 @@ public class ProductNameTokenizer extends Tokenizer {
 						}
 					}
 					// 마지막 공백이 있는경우 건너뜀
-					for (; position < readLength; position++) { 
+					for (; position < readLength; position++) {
 						if (getType(buffer[position]) != WHITESPACE) { break;} 
 					}
 					if (position == readLength) {
-						tokenAttribute.addState(TokenInfoAttribute.STATE_BUFFER_EXHAUSTED);
+						tokenAttribute.addState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED);
 					}
 					ret = true;
 					break;
 				}
 			}
-		} // WHILE-STATE
+		} // LOOP
 		return ret;
 	}
 
