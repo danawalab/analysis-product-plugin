@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.common.logging.Loggers;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,8 +52,9 @@ public class ProductNameAnalysisFilterTest {
 			tstream.reset();
 			CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
 			OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);
+			TypeAttribute typeAttr = tstream.addAttribute(TypeAttribute.class);
 			while (tstream.incrementTokenNew()) {
-				logger.debug("TOKEN:{} / {}~{}", termAttr, offsetAttr.startOffset(), offsetAttr.endOffset());
+				logger.debug("TOKEN:{} / {}~{} / {}", termAttr, offsetAttr.startOffset(), offsetAttr.endOffset(), typeAttr.type());
 			}
 		} catch (Exception e) {
 			logger.error("", e);

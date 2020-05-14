@@ -371,6 +371,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				while ((entry = termList.get(0)) == null) { termList.remove(0); }
 				termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
 				offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
+				typeAttribute.setType(entry.type);
 
 				if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
 					tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
