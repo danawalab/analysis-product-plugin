@@ -1,6 +1,7 @@
 package com.danawa.search.analysis.product;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.concurrent.TimeUnit;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,8 +29,8 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.json.JSONObject;
-import org.json.JSONStringer;
 import org.json.JSONTokener;
+import org.json.JSONWriter;
 
 public class ProductNameAnalysisAction extends BaseRestHandler {
 
@@ -66,12 +67,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		return channel -> {
-			JSONStringer builder = new JSONStringer();
+			StringWriter buffer = new StringWriter();
+			JSONWriter builder = new JSONWriter(buffer);
 			builder.object()
 				.key("message").value("OK")
 				.key("action").value(action)
 				.endObject();
-			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, String.valueOf(builder)));
+			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, buffer.toString()));
 		};
 	}
 

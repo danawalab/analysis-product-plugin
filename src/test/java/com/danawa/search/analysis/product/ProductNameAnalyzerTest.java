@@ -9,12 +9,7 @@ import java.util.Properties;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.util.TestUtil;
 
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
 import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
@@ -32,16 +27,10 @@ public class ProductNameAnalyzerTest {
 	private static Logger logger = Loggers.getLogger(ProductNameAnalyzerTest.class, "");
 
 	@Before public void init() {
-		Level level = Level.toLevel(System.getProperty("LOG_LEVEL"), Level.DEBUG);
-		LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-		Configuration config = ctx.getConfiguration();
-		LoggerConfig loggerConfig = config.getLoggerConfig(LogManager.ROOT_LOGGER_NAME);
-		loggerConfig.setLevel(level);
-		Loggers.setLevel(Loggers.getLogger(ProductNameTokenizer.class, ""), level);
-		Loggers.setLevel(Loggers.getLogger(ProductNameParsingRule.class, ""), level);
-		Loggers.setLevel(Loggers.getLogger(ProductNameAnalysisFilter.class, ""), level);
-		ctx.updateLoggers();
-
+		TestUtil.setLogLevel(System.getProperty("LOG_LEVEL"), 
+			ProductNameTokenizer.class, 
+			ProductNameParsingRule.class,
+			ProductNameAnalysisFilter.class);
 	}
 
 	@Test public void testAnalyzerSimple() {

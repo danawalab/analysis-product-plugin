@@ -344,6 +344,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					}
 				} // LOOP (incrementToken())
 				// RULE PROCESS
+				parsingRule.processRule(termList, true);
+
 				logger.trace("ENTRY QUEUE-SIZE:{}", termList.size());
 			} else {
 				// 엔트리를 출력할때 오프셋 순서대로 정렬하여 출력한다.

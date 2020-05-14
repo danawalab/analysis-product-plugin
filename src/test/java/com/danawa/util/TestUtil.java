@@ -4,6 +4,13 @@ import java.io.File;
 import java.net.URL;
 import java.util.Properties;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.elasticsearch.common.logging.Loggers;
+
 public final class TestUtil {
 	public static final String SYSPROP_LAUNCH_FOR_BUILD = "SYSPROP_LAUNCH_FOR_BUILD";
 
@@ -55,5 +62,17 @@ public final class TestUtil {
 
 	public static final Properties readProperties(File file) {
 		return ResourceResolver.readProperties(file);
+	}
+
+	public static final void setLogLevel(String levelStr, Class<?>... classes) {
+		Level level = Level.toLevel(levelStr, Level.DEBUG);
+		LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+		Configuration config = ctx.getConfiguration();
+		LoggerConfig loggerConfig = config.getLoggerConfig(LogManager.ROOT_LOGGER_NAME);
+		loggerConfig.setLevel(level);
+		for (Class<?> cls : classes) {
+			Loggers.setLevel(Loggers.getLogger(cls, ""), level);
+		}
+		ctx.updateLoggers();
 	}
 }
