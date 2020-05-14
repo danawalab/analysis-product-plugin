@@ -76,6 +76,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
 		this.analyzerOption = analyzerOption;
 		additionalTermAttribute.init(this);
+		termList = new ArrayList<>();
 		logger.trace("init");
 	}
 	
@@ -92,204 +93,204 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	CharVector token;
 	boolean hasToken;
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public final boolean incrementToken() throws IOException {
-		while(true) {
-			if (parsingRule == null) {
-				parsingRule = new ProductNameParsingRule(extractor, dictionary, analyzerOption, offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);
-				hasToken = false;
-				while(hasToken()) {
-					
-					//중단신호. 버퍼를 넘게 읽었으므로, 큐를 소모하고 다음차례에 다시 읽도록 한다.
-					if(tokenAttribute.ref().offset() == 0 && tokenAttribute.ref().length() == 0) {
-						hasToken = true;
-						break;
-					}
-					//여기서 분리어를 체크 한다.
-					CharVector ctoken = tokenAttribute.ref();
-					
-					if(typeAttribute.type() == ProductNameTokenizer.FULL_STRING) {
-						parsingRule.addEntry(ctoken, posTagAttribute, typeAttribute.type(), false);
-					} else {
-						if(spaceDictionary != null && spaceDictionary.containsKey(ctoken)) {
-							int offsetSt = offsetAttribute.startOffset();
-							int offsetEd = offsetAttribute.endOffset();
-							//분리어.
-							CharSequence[] splits = spaceDictionary.get(ctoken);
-							for (int cinx = 0, pos = ctoken.offset(), offd = 0; cinx < splits.length; cinx++) {
-								int termLength = splits[cinx].length();
-								if(cinx > 0) {
-									//빈공백
-									offsetAttribute.setOffset(offsetSt + offd, offsetSt + offd);
-									parsingRule.addEntry(new CharVector(ctoken.array(),
-											pos, 0), posTagAttribute, ProductNameTokenizer.SYMBOL, false);
-								}
-								offsetAttribute.setOffset(offsetSt + offd, offsetSt + offd + termLength);
-								parsingRule.addEntry(new CharVector(ctoken.array(),
-										pos, termLength), posTagAttribute, typeAttribute.type(), false);
-								pos += termLength;
-								offd += termLength;
-							}
-							offsetAttribute.setOffset(offsetSt, offsetEd);
-						} else {
-							parsingRule.addEntry(ctoken, posTagAttribute, typeAttribute.type(), true);
-						}
-					}
-				}
-				parsingRule.init();
-				token = new CharVector();
-			}
-			synonymAttribute.setSynonyms(null);
-			while (parsingRule!=null && parsingRule.hasNext(token)) {
-				//logger.trace("token : {} / type : {}", token, typeAttribute.type());
-				tokenAttribute.ref(token.array(), token.offset(), token.length());
+//	@Override
+//	@SuppressWarnings("unchecked")
+//	public final boolean incrementToken() throws IOException {
+//		while(true) {
+//			if (parsingRule == null) {
+//				parsingRule = new ProductNameParsingRule(extractor, dictionary, analyzerOption, offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);
+//				hasToken = false;
+//				while(hasToken()) {
+//					
+//					//중단신호. 버퍼를 넘게 읽었으므로, 큐를 소모하고 다음차례에 다시 읽도록 한다.
+//					if(tokenAttribute.ref().offset() == 0 && tokenAttribute.ref().length() == 0) {
+//						hasToken = true;
+//						break;
+//					}
+//					//여기서 분리어를 체크 한다.
+//					CharVector ctoken = tokenAttribute.ref();
+//					
+//					if(typeAttribute.type() == ProductNameTokenizer.FULL_STRING) {
+//						parsingRule.addEntry(ctoken, posTagAttribute, typeAttribute.type(), false);
+//					} else {
+//						if(spaceDictionary != null && spaceDictionary.containsKey(ctoken)) {
+//							int offsetSt = offsetAttribute.startOffset();
+//							int offsetEd = offsetAttribute.endOffset();
+//							//분리어.
+//							CharSequence[] splits = spaceDictionary.get(ctoken);
+//							for (int cinx = 0, pos = ctoken.offset(), offd = 0; cinx < splits.length; cinx++) {
+//								int termLength = splits[cinx].length();
+//								if(cinx > 0) {
+//									//빈공백
+//									offsetAttribute.setOffset(offsetSt + offd, offsetSt + offd);
+//									parsingRule.addEntry(new CharVector(ctoken.array(),
+//											pos, 0), posTagAttribute, ProductNameTokenizer.SYMBOL, false);
+//								}
+//								offsetAttribute.setOffset(offsetSt + offd, offsetSt + offd + termLength);
+//								parsingRule.addEntry(new CharVector(ctoken.array(),
+//										pos, termLength), posTagAttribute, typeAttribute.type(), false);
+//								pos += termLength;
+//								offd += termLength;
+//							}
+//							offsetAttribute.setOffset(offsetSt, offsetEd);
+//						} else {
+//							parsingRule.addEntry(ctoken, posTagAttribute, typeAttribute.type(), true);
+//						}
+//					}
+//				}
+//				parsingRule.init();
+//				token = new CharVector();
+//			}
+//			synonymAttribute.setSynonyms(null);
+//			while (parsingRule!=null && parsingRule.hasNext(token)) {
+//				//logger.trace("token : {} / type : {}", token, typeAttribute.type());
+//				tokenAttribute.ref(token.array(), token.offset(), token.length());
+//
+//				if(analyzerOption.useStopword() && stopDictionary!=null && stopDictionary.set().contains(token)) {
+//					stopwordAttribute.setStopword(true);
+//				}else{
+//					stopwordAttribute.setStopword(false);
+//				}
+//				if(analyzerOption.useSynonym()) {
+//					if(synonymDictionary!=null && synonymDictionary.map().containsKey(token)) {
+//						List<Object> synonyms = new ArrayList<>();
+//						CharSequence[] wordSynonym = synonymDictionary.map().get(token);
+//						if(synonymAttribute.getSynonyms()!=null) {
+//							synonyms.addAll(synonymAttribute.getSynonyms());
+//						}
+//						if(wordSynonym != null) {
+//							synonyms.addAll(Arrays.asList(wordSynonym));
+//						}
+//
+//						//
+//						// 동의어는 한번 더 분석해 준다.
+//						// 단 단위명은 더 분석하지 않는다.
+//						//
+//						if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
+//                            List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
+//                            if(synonymsExt != null) {
+//                                synonyms = (List<Object>) synonymsExt;
+//                            }
+//						}
+//						synonymAttribute.setSynonyms(synonyms);
+//					}
+//				}
+//				// Lucene 구조와 호환성유지를 위해 CharTermAttirubte 에 복사해 준다
+//				// array 크기 등을 고려할 필요가 있다.
+//				CharVector ref = tokenAttribute.ref();
+//				termAttribute.copyBuffer(ref.array(), ref.offset(), ref.length());
+//				return true;
+//			}
+//			
+//			if(hasToken) {
+//				parsingRule = null;
+//				continue;
+//			}
+//		
+//			return false;
+//		}
+//	}
 
-				if(analyzerOption.useStopword() && stopDictionary!=null && stopDictionary.set().contains(token)) {
-					stopwordAttribute.setStopword(true);
-				}else{
-					stopwordAttribute.setStopword(false);
-				}
-				if(analyzerOption.useSynonym()) {
-					if(synonymDictionary!=null && synonymDictionary.map().containsKey(token)) {
-						List<Object> synonyms = new ArrayList<>();
-						CharSequence[] wordSynonym = synonymDictionary.map().get(token);
-						if(synonymAttribute.getSynonyms()!=null) {
-							synonyms.addAll(synonymAttribute.getSynonyms());
-						}
-						if(wordSynonym != null) {
-							synonyms.addAll(Arrays.asList(wordSynonym));
-						}
-
-						//
-						// 동의어는 한번 더 분석해 준다.
-						// 단 단위명은 더 분석하지 않는다.
-						//
-						if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
-                            List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
-                            if(synonymsExt != null) {
-                                synonyms = (List<Object>) synonymsExt;
-                            }
-						}
-						synonymAttribute.setSynonyms(synonyms);
-					}
-				}
-				// Lucene 구조와 호환성유지를 위해 CharTermAttirubte 에 복사해 준다
-				// array 크기 등을 고려할 필요가 있다.
-				CharVector ref = tokenAttribute.ref();
-				termAttribute.copyBuffer(ref.array(), ref.offset(), ref.length());
-				return true;
-			}
-			
-			if(hasToken) {
-				parsingRule = null;
-				continue;
-			}
-		
-			return false;
-		}
-	}
-
-	public boolean hasToken() throws IOException {
-		while (true) {
-			if (entry == null) {
-				//한글분석되지 않은 버퍼는 이어서 수행한다.
-				// logger.trace("EXTRACTOFFSET:{} / FINAL:{}", extractOffset, extractFinal);
-				if(extractOffset != 0 && extractOffset < extractFinal) {
-					int length = extractFinal - extractOffset;
-					// logger.trace("SET-EXTRACTOR(1):{}~{}", extractOffset, length);
-					int localLength = extractor.getTabularSize();
-					if (length < localLength) {
-						localLength = length;
-					}
-					extractor.setInput(buffer, extractOffset, localLength);
-					entry = extractor.extract();
-					extractOffset += localLength;
-				} else {
-					if (currentOffset > 0 && finalOffset > currentOffset) {
-						synonymAttribute.setSynonyms(null);
-						tokenAttribute.offset(currentOffset, finalOffset - currentOffset);
-						posTagAttribute.setPosTag(PosTag.UNK);
-						if (baseOffset < currentOffset) {
-							offsetAttribute.setOffset(currentOffset, finalOffset);
-						} else {
-							offsetAttribute.setOffset(baseOffset + currentOffset, baseOffset + finalOffset);
-						}
-						currentOffset = finalOffset;
-						return true;
-					} else {
-	
-						boolean hasNext = false;
-	
-						while ((hasNext = input.incrementToken())) {
-							if (tokenAttribute.ref().offset() == 0
-									&& tokenAttribute.ref().length() == 0) {
-								return true;
-							}
-							break;
-						}
-						if (!hasNext) {
-							return false;
-						}
-						// 전체단어, 사용자 단어는 분해하지 않는다.
-						if (typeAttribute.type() == ProductNameTokenizer.FULL_STRING) {
-							List<?> synonyms = tokenSynonymAttribute.getSynonyms();
-							synonymAttribute.setSynonyms(synonyms);
-							return true;
-						} else {
-							CharVector charsRef = tokenAttribute.ref();
-							buffer = new char[charsRef.length()];
-							offset = charsRef.offset();
-							System.arraycopy(charsRef.array(), charsRef.offset(), buffer, 0, charsRef.length());
-							int length = charsRef.length();
-							
-							int localLength = extractor.getTabularSize();
-							if (length < localLength) {
-								localLength = length;
-							}
-							extractor.setInput(buffer, localLength);
-							// logger.trace("SET-EXTRACTOR(2):{}~{} / {}", 0, length, localLength);
-							entry = extractor.extract();
-							baseOffset = offsetAttribute.startOffset();
-							extractOffset = localLength;
-							extractFinal = length;
-							finalOffset = offset + length;
-							currentOffset = lastOffset = 0;
-						}
-					}
-				}
-			}
-
-			while (entry != null && (entry.tagProb().posTag() == PosTag.J)) {
-				entry = entry.next();
-			}
-			logger.trace("entry:{} / {} / {}", entry, lastOffset, currentOffset);
-
-			if (entry != null) {
-				synonymAttribute.setSynonyms(null);
-				tokenAttribute.offset(offset + entry.offset(), entry.column());
-				posTagAttribute.setPosTag(entry.posTag());
-				offsetAttribute.setOffset(baseOffset + entry.offset(),
-					baseOffset + entry.offset() + entry.column());
-				int currentRow = entry.row();
-				lastOffset = currentOffset;
-				currentOffset = offset + entry.offset() + entry.column();
-				entry = entry.next();
-
-				// logger.trace("entry:{} / {} / {}", entry, lastOffset, currentOffset);
-				if (lastOffset > currentOffset) {
-					entry = null;
-				}
-				if (entry != null && entry.row() < currentRow) {
-					entry = null;
-				}
-				return true;
-			} else {
-				posTagAttribute.setPosTag(PosTag.UNK);
-				continue;
-			}
-		}
-	}
+//	public boolean hasToken() throws IOException {
+//		while (true) {
+//			if (entry == null) {
+//				//한글분석되지 않은 버퍼는 이어서 수행한다.
+//				// logger.trace("EXTRACTOFFSET:{} / FINAL:{}", extractOffset, extractFinal);
+//				if(extractOffset != 0 && extractOffset < extractFinal) {
+//					int length = extractFinal - extractOffset;
+//					// logger.trace("SET-EXTRACTOR(1):{}~{}", extractOffset, length);
+//					int localLength = extractor.getTabularSize();
+//					if (length < localLength) {
+//						localLength = length;
+//					}
+//					extractor.setInput(buffer, extractOffset, localLength);
+//					entry = extractor.extract();
+//					extractOffset += localLength;
+//				} else {
+//					if (currentOffset > 0 && finalOffset > currentOffset) {
+//						synonymAttribute.setSynonyms(null);
+//						tokenAttribute.offset(currentOffset, finalOffset - currentOffset);
+//						posTagAttribute.setPosTag(PosTag.UNK);
+//						if (baseOffset < currentOffset) {
+//							offsetAttribute.setOffset(currentOffset, finalOffset);
+//						} else {
+//							offsetAttribute.setOffset(baseOffset + currentOffset, baseOffset + finalOffset);
+//						}
+//						currentOffset = finalOffset;
+//						return true;
+//					} else {
+//	
+//						boolean hasNext = false;
+//	
+//						while ((hasNext = input.incrementToken())) {
+//							if (tokenAttribute.ref().offset() == 0
+//									&& tokenAttribute.ref().length() == 0) {
+//								return true;
+//							}
+//							break;
+//						}
+//						if (!hasNext) {
+//							return false;
+//						}
+//						// 전체단어, 사용자 단어는 분해하지 않는다.
+//						if (typeAttribute.type() == ProductNameTokenizer.FULL_STRING) {
+//							List<?> synonyms = tokenSynonymAttribute.getSynonyms();
+//							synonymAttribute.setSynonyms(synonyms);
+//							return true;
+//						} else {
+//							CharVector charsRef = tokenAttribute.ref();
+//							buffer = new char[charsRef.length()];
+//							offset = charsRef.offset();
+//							System.arraycopy(charsRef.array(), charsRef.offset(), buffer, 0, charsRef.length());
+//							int length = charsRef.length();
+//							
+//							int localLength = extractor.getTabularSize();
+//							if (length < localLength) {
+//								localLength = length;
+//							}
+//							extractor.setInput(buffer, localLength);
+//							// logger.trace("SET-EXTRACTOR(2):{}~{} / {}", 0, length, localLength);
+//							entry = extractor.extract();
+//							baseOffset = offsetAttribute.startOffset();
+//							extractOffset = localLength;
+//							extractFinal = length;
+//							finalOffset = offset + length;
+//							currentOffset = lastOffset = 0;
+//						}
+//					}
+//				}
+//			}
+//
+//			while (entry != null && (entry.tagProb().posTag() == PosTag.J)) {
+//				entry = entry.next();
+//			}
+//			logger.trace("entry:{} / {} / {}", entry, lastOffset, currentOffset);
+//
+//			if (entry != null) {
+//				synonymAttribute.setSynonyms(null);
+//				tokenAttribute.offset(offset + entry.offset(), entry.column());
+//				posTagAttribute.setPosTag(entry.posTag());
+//				offsetAttribute.setOffset(baseOffset + entry.offset(),
+//					baseOffset + entry.offset() + entry.column());
+//				int currentRow = entry.row();
+//				lastOffset = currentOffset;
+//				currentOffset = offset + entry.offset() + entry.column();
+//				entry = entry.next();
+//
+//				// logger.trace("entry:{} / {} / {}", entry, lastOffset, currentOffset);
+//				if (lastOffset > currentOffset) {
+//					entry = null;
+//				}
+//				if (entry != null && entry.row() < currentRow) {
+//					entry = null;
+//				}
+//				return true;
+//			} else {
+//				posTagAttribute.setPosTag(PosTag.UNK);
+//				continue;
+//			}
+//		}
+//	}
 
 	private List<RuleEntry> termList;
 
@@ -302,9 +303,13 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
 		this.analyzerOption = new AnalyzerOption();
 		this.extractor = new KoreanWordExtractor(dictionary);
+
+		analyzerOption.useSynonym(true);
+		analyzerOption.useStopword(true);
+		// analyzerOption.setForDocument();
 	}
 
-	public final boolean incrementTokenNew() throws IOException {
+	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
 		// FIXME : 큐 마지막에 ASCII 텀이 남아 있다면 모델명규칙 등을 위해 남겨 두어야 함.
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
@@ -372,6 +377,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
 				offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
 				typeAttribute.setType(entry.type);
+				token = entry.makeTerm(null);
 
 				if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
 					tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
@@ -382,6 +388,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
 						List<Object> synonyms = new ArrayList<>();
 						CharSequence[] wordSynonym = synonymDictionary.map().get(token);
+						logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
 						if (synonymAttribute.getSynonyms() != null) {
 							synonyms.addAll(synonymAttribute.getSynonyms());
 						}
