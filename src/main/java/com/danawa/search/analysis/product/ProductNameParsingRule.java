@@ -1030,6 +1030,8 @@ public class ProductNameParsingRule {
 			//0길이는 제거한다. (구분자)
 			if(e0.length == 0) {
 				queue.remove(qinx);
+				qinx--;
+				continue;
 			}
 			//올 수 없는 특수문자는 제외시킨다.
 			//TODO:특수문자가 한꺼번에 많이 들어온 경우 허용되는 특수문자만 가린다.

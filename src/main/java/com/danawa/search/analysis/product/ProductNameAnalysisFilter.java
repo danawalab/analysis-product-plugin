@@ -295,20 +295,23 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 	public void testInit() {
 		termList = new ArrayList<>();
-		ProductNameDictionary dictionary = tokenAttribute.dictionary();
+		this.dictionary = tokenAttribute.dictionary();
 		this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
 		this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
 		this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
 		this.analyzerOption = new AnalyzerOption();
 		this.extractor = new KoreanWordExtractor(dictionary);
-		this.parsingRule = new ProductNameParsingRule(extractor, dictionary, analyzerOption, offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);
 	}
 
 	public final boolean incrementTokenNew() throws IOException {
 		boolean ret = false;
 		// FIXME : 큐 마지막에 ASCII 텀이 남아 있다면 모델명규칙 등을 위해 남겨 두어야 함.
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
+		if (parsingRule == null) {
+			parsingRule = new ProductNameParsingRule(extractor, dictionary, analyzerOption, 
+				offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);
+		}
 		while (true) {
 // 임시코드. 테스트시 무한루프에 의한 프리징 방지
 // try { Thread.sleep(300); } catch (Exception ignore) { }
@@ -320,6 +323,19 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				while (input.incrementToken()) {
 					// 한번 읽어온 버퍼를 다 소진할때까지 큐에 넣는다.
 					CharVector ref = tokenAttribute.ref();
+					String type = typeAttribute.type();
+					PosTag posTag = tokenAttribute.posTag();
+					if(posTag == PosTag.N) {
+						type = ProductNameTokenizer.HANGUL;
+					} else if(posTag == PosTag.DIGIT) {
+						type = ProductNameTokenizer.NUMBER;
+					} else if(posTag == PosTag.ALPHA) {
+						type = ProductNameTokenizer.ALPHA;
+					} else if(posTag == PosTag.SYMBOL) {
+						type = ProductNameTokenizer.SYMBOL;
+					} else if(posTag == null || posTag == PosTag.UNK) {
+						type = ProductNameTokenizer.UNCATEGORIZED;
+					}
 					if(spaceDictionary != null && spaceDictionary.containsKey(ref)) {
 						int offsetSt = offsetAttribute.startOffset();
 						CharSequence[] splits = spaceDictionary.get(ref);
@@ -332,19 +348,21 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 									offsetSt + position, offsetSt + position, ProductNameTokenizer.SYMBOL));
 							}
 							termList.add(new RuleEntry(ref.array(), ref.offset() + position, length, 
-								offsetSt + position, offsetSt + position + length, null));
+								offsetSt + position, offsetSt + position + length, type));
 							position += length;
 						}
 					} else {
 						termList.add(new RuleEntry(ref.array(), ref.offset(), ref.length(), 
-							offsetAttribute.startOffset(), offsetAttribute.endOffset(), null));
+							offsetAttribute.startOffset(), offsetAttribute.endOffset(), type));
 					}
 					if (tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED)) {
 						break;
 					}
 				} // LOOP (incrementToken())
 				// RULE PROCESS
-				parsingRule.processRule(termList, true);
+				if (termList.size() > 0) {
+					parsingRule.processRule(termList, true);
+				}
 
 				logger.trace("ENTRY QUEUE-SIZE:{}", termList.size());
 			} else {
