@@ -103,15 +103,15 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private char[] buffer;
 	private char[] workBuffer;
-	private char[] freshBuffer;
-	private char[] fullTermBuffer;
+	// private char[] freshBuffer;
+	// private char[] fullTermBuffer;
 	private int position;
-	private int positionPrev;
+	// private int positionPrev;
 	private int readLength;
-	private int readLengthPrev;
-	private int lastLength;
+	// private int readLengthPrev;
+	// private int lastLength;
 	private int baseOffset;
-	private String splitType;
+	// private String splitType;
 	private int offset;
 
 	private SynonymDictionary synonymDictionary;
@@ -133,223 +133,224 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private void init() {
 		workBuffer = new char[IO_BUFFER_SIZE];
-		fullTermBuffer = new char[FULL_TERM_LENGTH];
+		// fullTermBuffer = new char[FULL_TERM_LENGTH];
+		position = readLength = baseOffset = offset = 0;
 		super.clearAttributes();
 	}
 
-	public final boolean incrementTokenOld() throws IOException {
-		boolean ret = false;
-		CharVector token = new CharVector();
-		// 전체동의어는 전체 단어중 동의어가 존재하는것만 체크해야 하므로 먼저 체크한다.
-		if (readLength == -1 && readLengthPrev > 0 && readLengthPrev >= position) {
-			if (fullTermBuffer != null) {
-				CharSequence fullString = new CharVector(fullTermBuffer, 0, readLengthPrev);
-				if (synonymDictionary != null && synonymDictionary.map().containsKey(fullString)) {
-					offsetAttribute.setOffset(0, readLengthPrev);
-					CharVector charsRef = tokenAttribute.ref();
-					charsRef.init(fullTermBuffer, 0, readLengthPrev);
-					// 앞 뒤 공백을 제거한다.
-					for (int inx = charsRef.length() - 1; inx >= 0; inx--) {
-						if (getType(charsRef.array()[inx]) != WHITESPACE) {
-							break;
-						}
-						charsRef.length(charsRef.length() - 1);
-					}
-					for (int inx = 0; inx < charsRef.length(); inx++) {
-						if (getType(charsRef.array()[inx]) != WHITESPACE) {
-							break;
-						}
-						charsRef.offset(charsRef.offset() + 1);
-						charsRef.length(charsRef.length() - 1);
-					}
-					typeAttribute.setType(FULL_STRING);
-					fullTermBuffer = null;
-					return true;
-				}
-			}
-			return false;
-		}
+	// public final boolean incrementTokenOld() throws IOException {
+	// 	boolean ret = false;
+	// 	CharVector token = new CharVector();
+	// 	// 전체동의어는 전체 단어중 동의어가 존재하는것만 체크해야 하므로 먼저 체크한다.
+	// 	if (readLength == -1 && readLengthPrev > 0 && readLengthPrev >= position) {
+	// 		if (fullTermBuffer != null) {
+	// 			CharSequence fullString = new CharVector(fullTermBuffer, 0, readLengthPrev);
+	// 			if (synonymDictionary != null && synonymDictionary.map().containsKey(fullString)) {
+	// 				offsetAttribute.setOffset(0, readLengthPrev);
+	// 				CharVector charsRef = tokenAttribute.ref();
+	// 				charsRef.init(fullTermBuffer, 0, readLengthPrev);
+	// 				// 앞 뒤 공백을 제거한다.
+	// 				for (int inx = charsRef.length() - 1; inx >= 0; inx--) {
+	// 					if (getType(charsRef.array()[inx]) != WHITESPACE) {
+	// 						break;
+	// 					}
+	// 					charsRef.length(charsRef.length() - 1);
+	// 				}
+	// 				for (int inx = 0; inx < charsRef.length(); inx++) {
+	// 					if (getType(charsRef.array()[inx]) != WHITESPACE) {
+	// 						break;
+	// 					}
+	// 					charsRef.offset(charsRef.offset() + 1);
+	// 					charsRef.length(charsRef.length() - 1);
+	// 				}
+	// 				typeAttribute.setType(FULL_STRING);
+	// 				fullTermBuffer = null;
+	// 				return true;
+	// 			}
+	// 		}
+	// 		return false;
+	// 	}
 
-		ret = hasToken();
+	// 	ret = hasToken();
 
 
-		if (ret) {
-			token = tokenAttribute.ref();
-			offsetAttribute.setOffset(baseOffset + token.offset(), baseOffset + token.offset() + token.length());
-			logger.trace("return \"{}\" {}~{}", tokenAttribute, offsetAttribute.startOffset(),
-				offsetAttribute.endOffset());
-			if (tokenAttribute.ref() != null && tokenAttribute.ref().offset() == 0
-				&& tokenAttribute.ref().length() == 0) {
-				return true;
-			}
-		}
+	// 	if (ret) {
+	// 		token = tokenAttribute.ref();
+	// 		offsetAttribute.setOffset(baseOffset + token.offset(), baseOffset + token.offset() + token.length());
+	// 		logger.trace("return \"{}\" {}~{}", tokenAttribute, offsetAttribute.startOffset(),
+	// 			offsetAttribute.endOffset());
+	// 		if (tokenAttribute.ref() != null && tokenAttribute.ref().offset() == 0
+	// 			&& tokenAttribute.ref().length() == 0) {
+	// 			return true;
+	// 		}
+	// 	}
 
-		// 공백은 건너 뜀.
-		for (; position < readLength; position++) {
-			// if(logger.isTraceEnabled()) {
-			// logger.trace("char[{}]:{}", position,getType(buffer[position]));
-			// }
-			if (getType(workBuffer[position]) != WHITESPACE) {
-				break;
-			}
-		}
-		positionPrev = position;
-		return ret;
-	}
+	// 	// 공백은 건너 뜀.
+	// 	for (; position < readLength; position++) {
+	// 		// if(logger.isTraceEnabled()) {
+	// 		// logger.trace("char[{}]:{}", position,getType(buffer[position]));
+	// 		// }
+	// 		if (getType(workBuffer[position]) != WHITESPACE) {
+	// 			break;
+	// 		}
+	// 	}
+	// 	positionPrev = position;
+	// 	return ret;
+	// }
 
-	private boolean hasToken() throws IOException {
-		// IO_BUFFER_SIZE 에 맞게 잘라서 읽어들인 후
-		// 공백문자별로 토크닝 하여 규칙성 분류로 넘겨줌
-		// logger.trace("position:{} / positionPrev:{} / readLength:{}", position,
-		// positionPrev, readLength);
-		while (true) {
-			if (position == -1) {
-				position = 0;
-				tokenAttribute.ref(workBuffer, 0, 0);
-				return true;
-			}
+	// private boolean hasToken() throws IOException {
+	// 	// IO_BUFFER_SIZE 에 맞게 잘라서 읽어들인 후
+	// 	// 공백문자별로 토크닝 하여 규칙성 분류로 넘겨줌
+	// 	// logger.trace("position:{} / positionPrev:{} / readLength:{}", position,
+	// 	// positionPrev, readLength);
+	// 	while (true) {
+	// 		if (position == -1) {
+	// 			position = 0;
+	// 			tokenAttribute.ref(workBuffer, 0, 0);
+	// 			return true;
+	// 		}
 
-			if (position == 0 && freshBuffer != null) {
-				// logger.trace("readPrev:{} / lastLength:{}", readLengthPrev, lastLength);
-				baseOffset += (readLengthPrev - lastLength);
-				// logger.trace("baseOffset : {}", baseOffset);
-				readLength += lastLength;
-				// 0번 주소로 밀어내고
-				logger.trace("move buffer offset {} => {} / {} chars", positionPrev, 0, lastLength);
-				// CharVector 특성상 내보내지 않은 버퍼에 영향을 줄 수 있으므로 새로 버퍼를 잡아준다.
-				workBuffer = Arrays.copyOf(workBuffer, workBuffer.length);
-				System.arraycopy(workBuffer, positionPrev, workBuffer, 0, lastLength);
-				// 신규데이터를 뒤이어 입력한다.
-				System.arraycopy(freshBuffer, 0, workBuffer, lastLength, readLength - lastLength);
-				freshBuffer = null;
-				tokenAttribute.ref(workBuffer, 0, readLength);
-				// if(logger.isTraceEnabled()) {
-				// logger.trace("readLength:{} / lastLength:{}", readLength, lastLength);
-				// logger.trace("buffer : {} / read : {} char : {}", termAttribute, readLength,
-				// new String(buffer, lastLength, readLength - lastLength));
-				// }
-				freshBuffer = null;
-			}
+	// 		if (position == 0 && freshBuffer != null) {
+	// 			// logger.trace("readPrev:{} / lastLength:{}", readLengthPrev, lastLength);
+	// 			baseOffset += (readLengthPrev - lastLength);
+	// 			// logger.trace("baseOffset : {}", baseOffset);
+	// 			readLength += lastLength;
+	// 			// 0번 주소로 밀어내고
+	// 			logger.trace("move buffer offset {} => {} / {} chars", positionPrev, 0, lastLength);
+	// 			// CharVector 특성상 내보내지 않은 버퍼에 영향을 줄 수 있으므로 새로 버퍼를 잡아준다.
+	// 			workBuffer = Arrays.copyOf(workBuffer, workBuffer.length);
+	// 			System.arraycopy(workBuffer, positionPrev, workBuffer, 0, lastLength);
+	// 			// 신규데이터를 뒤이어 입력한다.
+	// 			System.arraycopy(freshBuffer, 0, workBuffer, lastLength, readLength - lastLength);
+	// 			freshBuffer = null;
+	// 			tokenAttribute.ref(workBuffer, 0, readLength);
+	// 			// if(logger.isTraceEnabled()) {
+	// 			// logger.trace("readLength:{} / lastLength:{}", readLength, lastLength);
+	// 			// logger.trace("buffer : {} / read : {} char : {}", termAttribute, readLength,
+	// 			// new String(buffer, lastLength, readLength - lastLength));
+	// 			// }
+	// 			freshBuffer = null;
+	// 		}
 
-			if (readLength > position) {
-				if (splitType != null) {
-					splitType = null;
-					position++;
-					return true;
-				}
-				// FIXME: 앞공백 제거는 읽어온 이후 최초 한번만 필요함.
-				// 앞 공백 제거
-				for (; position < readLength; position++) {
-					if (getType(workBuffer[position]) != WHITESPACE) {
-						break;
-					}
-				}
-				positionPrev = position;
+	// 		if (readLength > position) {
+	// 			if (splitType != null) {
+	// 				splitType = null;
+	// 				position++;
+	// 				return true;
+	// 			}
+	// 			// FIXME: 앞공백 제거는 읽어온 이후 최초 한번만 필요함.
+	// 			// 앞 공백 제거
+	// 			for (; position < readLength; position++) {
+	// 				if (getType(workBuffer[position]) != WHITESPACE) {
+	// 					break;
+	// 				}
+	// 			}
+	// 			positionPrev = position;
 
-				char c1 = workBuffer[positionPrev];
-				char c2 = 0;
-				char c0 = 0;
-				String t1 = getType(c1);
-				String t2 = null;
-				for (; position < readLength; position++) {
-					// 기본적으로는 공백단위로 토크닝 한다.
-					// 만약 한글과 특수문자가 섞여있다면 우선은 분리한다
-					c2 = workBuffer[position];
-					c0 = 0;
-					t2 = getType(c2);
-					if (position > 0) {
-						c0 = workBuffer[position - 1];
-					}
-					// logger.trace("C1:{} [{}] / C2:{} [{}]", c1, t1, c2, t2);
-					if (t1 == WHITESPACE) {
-						tokenAttribute.offset(positionPrev, position - positionPrev);
-						position++;
-						return true;
-					} else if (t2 == WHITESPACE) {
-						tokenAttribute.offset(positionPrev, position - positionPrev);
-						position++;
-						return true;
-					} else if (position > 0 && getType(workBuffer[position - 1]) == NUMBER && c2 > 128) {
-						/**
-						 * 숫자직후 유니코드는 단위명일 확률이 높으므로 연결하여 출력
-						 */
-						c1 = c2;
-						t1 = t2;
-					} else if (t1 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c1) || c1 > 128)
-							&& position != positionPrev) {
-						tokenAttribute.offset(positionPrev, position - positionPrev);
-						return true;
-					} else if (t2 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c2) || c2 > 128)
-							&& position != positionPrev) {
-						tokenAttribute.offset(positionPrev, position - positionPrev);
-						return true;
-					} else if (((c0 < 128 && c2 > 128) || (c2 < 128 && c0 > 128)) && position != positionPrev) {
-						/**
-						 * 기존 토크나이징은 타입별로 분리가 되지 않기 때문에 바로 직전 문자타입과 비교하여 알파벳 과 유니코드 정도는 우선 분리해 주도록 한다
-						 */
-						tokenAttribute.offset(positionPrev, position - positionPrev);
-						return true;
-					}
-				}
-			}
+	// 			char c1 = workBuffer[positionPrev];
+	// 			char c2 = 0;
+	// 			char c0 = 0;
+	// 			String t1 = getType(c1);
+	// 			String t2 = null;
+	// 			for (; position < readLength; position++) {
+	// 				// 기본적으로는 공백단위로 토크닝 한다.
+	// 				// 만약 한글과 특수문자가 섞여있다면 우선은 분리한다
+	// 				c2 = workBuffer[position];
+	// 				c0 = 0;
+	// 				t2 = getType(c2);
+	// 				if (position > 0) {
+	// 					c0 = workBuffer[position - 1];
+	// 				}
+	// 				// logger.trace("C1:{} [{}] / C2:{} [{}]", c1, t1, c2, t2);
+	// 				if (t1 == WHITESPACE) {
+	// 					tokenAttribute.offset(positionPrev, position - positionPrev);
+	// 					position++;
+	// 					return true;
+	// 				} else if (t2 == WHITESPACE) {
+	// 					tokenAttribute.offset(positionPrev, position - positionPrev);
+	// 					position++;
+	// 					return true;
+	// 				} else if (position > 0 && getType(workBuffer[position - 1]) == NUMBER && c2 > 128) {
+	// 					/**
+	// 					 * 숫자직후 유니코드는 단위명일 확률이 높으므로 연결하여 출력
+	// 					 */
+	// 					c1 = c2;
+	// 					t1 = t2;
+	// 				} else if (t1 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c1) || c1 > 128)
+	// 						&& position != positionPrev) {
+	// 					tokenAttribute.offset(positionPrev, position - positionPrev);
+	// 					return true;
+	// 				} else if (t2 == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, c2) || c2 > 128)
+	// 						&& position != positionPrev) {
+	// 					tokenAttribute.offset(positionPrev, position - positionPrev);
+	// 					return true;
+	// 				} else if (((c0 < 128 && c2 > 128) || (c2 < 128 && c0 > 128)) && position != positionPrev) {
+	// 					/**
+	// 					 * 기존 토크나이징은 타입별로 분리가 되지 않기 때문에 바로 직전 문자타입과 비교하여 알파벳 과 유니코드 정도는 우선 분리해 주도록 한다
+	// 					 */
+	// 					tokenAttribute.offset(positionPrev, position - positionPrev);
+	// 					return true;
+	// 				}
+	// 			}
+	// 		}
 
-			if (readLength == position) {
-				if (readLength != 0 && positionPrev == 0) {
-					// 한번도 플러시되지 않은 프로세스에서 버퍼를 다 읽은 경우라면 한번 플러시 해 준다
-					positionPrev = position;
-					return true;
-				}
+	// 		if (readLength == position) {
+	// 			if (readLength != 0 && positionPrev == 0) {
+	// 				// 한번도 플러시되지 않은 프로세스에서 버퍼를 다 읽은 경우라면 한번 플러시 해 준다
+	// 				positionPrev = position;
+	// 				return true;
+	// 			}
 
-				lastLength = readLength - positionPrev;
-				// 버퍼를 다 읽었으므로, 이어서 읽을것이 있는지 먼저 확인 해야 한다.
+	// 			lastLength = readLength - positionPrev;
+	// 			// 버퍼를 다 읽었으므로, 이어서 읽을것이 있는지 먼저 확인 해야 한다.
 
-				// logger.trace("read position reached. readLength:{} / position:{} /
-				// positionPrev:{} / lastLength:{} / bufferLength:{}", readLength, position,
-				// positionPrev, lastLength, buffer.length);
+	// 			// logger.trace("read position reached. readLength:{} / position:{} /
+	// 			// positionPrev:{} / lastLength:{} / bufferLength:{}", readLength, position,
+	// 			// positionPrev, lastLength, buffer.length);
 
-				if (readLength != -1) {
-					// if(logger.isTraceEnabled()) {
-					// logger.trace("try read from {} length:{}", lastLength,
-					// buffer.length-lastLength);
-					// }
-					freshBuffer = new char[IO_BUFFER_SIZE];
-					readLengthPrev = readLength;
-					readLength = input.read(freshBuffer, 0, workBuffer.length - lastLength);
-					// 읽기에 성공한 경우
-					if (readLength > 0) {
-						// 전체문자열을 저장할 버퍼 전체문자열 제한 크기가 넘어가면 그냥 버린다.
-						if (fullTermBuffer != null && baseOffset + readLength < fullTermBuffer.length) {
-							System.arraycopy(freshBuffer, 0, fullTermBuffer, baseOffset + readLengthPrev, readLength);
-							// if(logger.isTraceEnabled()) {
-							// logger.trace("total string : \"{}\"",
-							// new String(stringbuffer,0,baseOffset + readLengthPrev + readLength));
-							// }
-						} else {
-							fullTermBuffer = null;
-						}
-						position = -1;
-					} else {
-						freshBuffer = null;
-						// 이전버퍼의 남은부분을 리턴하고 끝.
-						if (lastLength > 0) {
-							tokenAttribute.ref(workBuffer, positionPrev, lastLength);
-							// logger.trace("readLength:{} / positionPrev:{} / readLengthPrev:{} / last
-							// term:{}", lastLength, positionPrev, readLengthPrev, termAttribute);
-							// 딱 맞게 읽어 더이상 읽을것이 없는 경우.
-							return true;
-						} else {
-							return false;
-						}
-					}
-				} else {
-					return false;
-				}
-				continue;
-			}
-			break;
-		}
-		return false;
-	}
+	// 			if (readLength != -1) {
+	// 				// if(logger.isTraceEnabled()) {
+	// 				// logger.trace("try read from {} length:{}", lastLength,
+	// 				// buffer.length-lastLength);
+	// 				// }
+	// 				freshBuffer = new char[IO_BUFFER_SIZE];
+	// 				readLengthPrev = readLength;
+	// 				readLength = input.read(freshBuffer, 0, workBuffer.length - lastLength);
+	// 				// 읽기에 성공한 경우
+	// 				if (readLength > 0) {
+	// 					// 전체문자열을 저장할 버퍼 전체문자열 제한 크기가 넘어가면 그냥 버린다.
+	// 					if (fullTermBuffer != null && baseOffset + readLength < fullTermBuffer.length) {
+	// 						System.arraycopy(freshBuffer, 0, fullTermBuffer, baseOffset + readLengthPrev, readLength);
+	// 						// if(logger.isTraceEnabled()) {
+	// 						// logger.trace("total string : \"{}\"",
+	// 						// new String(stringbuffer,0,baseOffset + readLengthPrev + readLength));
+	// 						// }
+	// 					} else {
+	// 						fullTermBuffer = null;
+	// 					}
+	// 					position = -1;
+	// 				} else {
+	// 					freshBuffer = null;
+	// 					// 이전버퍼의 남은부분을 리턴하고 끝.
+	// 					if (lastLength > 0) {
+	// 						tokenAttribute.ref(workBuffer, positionPrev, lastLength);
+	// 						// logger.trace("readLength:{} / positionPrev:{} / readLengthPrev:{} / last
+	// 						// term:{}", lastLength, positionPrev, readLengthPrev, termAttribute);
+	// 						// 딱 맞게 읽어 더이상 읽을것이 없는 경우.
+	// 						return true;
+	// 					} else {
+	// 						return false;
+	// 					}
+	// 				}
+	// 			} else {
+	// 				return false;
+	// 			}
+	// 			continue;
+	// 		}
+	// 		break;
+	// 	}
+	// 	return false;
+	// }
 
 	////////////////////////////////////////////////////////////////////////////////
 
@@ -400,6 +401,7 @@ public class ProductNameTokenizer extends Tokenizer {
 					////////////////////////////////////////////////////////////////////////////////
 					// 2. 버퍼 내 단순 토크닝 (공백 / 특수기호에 의한 분해)
 					////////////////////////////////////////////////////////////////////////////////
+					if (offset < position) { offset = position; }
 					char c1 = buffer[position];
 					char c2 = 0;
 					String t1 = getType(c1);
@@ -469,6 +471,10 @@ public class ProductNameTokenizer extends Tokenizer {
 					// 3. 한글분해
 					////////////////////////////////////////////////////////////////////////////////
 					// 분해된 한글이 있으므로 속성에 출력해 준다
+					if (entry.column() < 0) {
+						entry = entry.next();
+						continue;
+					}
 					tokenAttribute.ref(buffer, entry.offset(), entry.column());
 					tokenAttribute.posTag(entry.posTag());
 					offsetAttribute.setOffset(baseOffset + entry.offset(), baseOffset + entry.offset() + entry.column());
@@ -629,12 +635,14 @@ public class ProductNameTokenizer extends Tokenizer {
 	@Override
 	public void reset() throws IOException {
 		super.reset();
-		Arrays.fill(workBuffer, (char)0);
-		if(fullTermBuffer == null) {
-			fullTermBuffer = new char[FULL_TERM_LENGTH];
-		}
-		position = positionPrev = readLength = readLengthPrev = 0;
-		baseOffset = 0;
+		Arrays.fill(workBuffer, (char) 0);
+		// if(fullTermBuffer == null) {
+		// 	fullTermBuffer = new char[FULL_TERM_LENGTH];
+		// }
+		// position = positionPrev = readLength = readLengthPrev = 0;
+		position = readLength = 0;
+		baseOffset = offset = 0;
+		entry = null;
 		this.clearAttributes();
 	}
 

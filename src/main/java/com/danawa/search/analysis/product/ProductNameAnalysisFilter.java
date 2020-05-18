@@ -77,6 +77,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		this.analyzerOption = analyzerOption;
 		additionalTermAttribute.init(this);
 		termList = new ArrayList<>();
+		super.clearAttributes();
 		logger.trace("init");
 	}
 	
@@ -330,7 +331,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					CharVector ref = tokenAttribute.ref();
 					String type = typeAttribute.type();
 					PosTag posTag = tokenAttribute.posTag();
-					if(posTag == PosTag.N) {
+					if (type == ProductNameTokenizer.FULL_STRING) {
+						// NOP
+					} else if(posTag == PosTag.N) {
 						type = ProductNameTokenizer.HANGUL;
 					} else if(posTag == PosTag.DIGIT) {
 						type = ProductNameTokenizer.NUMBER;
@@ -430,5 +433,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		extractOffset = 0;
 		extractFinal = 0;
 		finalOffset = 0;
+		termList = new ArrayList<>();
+		this.clearAttributes();
 	}
 }

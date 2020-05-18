@@ -383,7 +383,7 @@ public class ProductNameParsingRule {
 					if (unitDictionary != null && unitDictionary.contains(unitCv)) {
 						e1 = e0.clone();
 						e0.length = numInx;
-						e0.endOffset = e0.start + e0.length;
+						e0.endOffset = e0.startOffset + e0.length;
 						logger.trace("NUMBER FOUND:{} / {}", e0, e1);
 						if(numberTrans) {
 							e0.type = NUMBER_TRANS;
