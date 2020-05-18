@@ -359,6 +359,7 @@ public class ProductNameTokenizer extends Tokenizer {
 	@Override
 	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
+		typeAttribute.setType(null);
 		while (!tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_FINISHED)) {
 // 임시코드. 테스트시 무한루프에 의한 프리징 방지
 // try { Thread.sleep(300); } catch (Exception ignore) { }
