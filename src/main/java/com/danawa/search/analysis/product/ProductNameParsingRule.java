@@ -268,98 +268,100 @@ public class ProductNameParsingRule {
 				}
 			}
 			
-			//extractor 는 타입이 다른 엔트리 에 대해서 체크하지 못하므로
-			//엔트리들을 합쳐서 복합어/사용자 사전에 체크해 본다
-			//최대 3개 엔트리까지 체크
-			for (int linx = 2; linx >= 1; linx--) {
-				boolean passFlag = false;
-				char[] tmpbuf = e0.buf;
-				int tmpst = e0.start;
-				int tmped = 0;
-				
-				//합쳐질 단어들은 사이에 공백이 없고 묶은뒤 앞뒤로 
-				//공백이 있는경우에만 합치도록 한다.
-				//로직의 유연화를 위해 루프기반 로직으로 변경 (2020.1.23)
-				if (queue.size() > qinx + linx) {
-					e1 = queue.get(qinx + linx);
-					if (e1.buf == tmpbuf) {
-						tmped = e1.start + e1.length;
-						if ((tmpst == 0 || (tmpst > 0 && tmpbuf[tmpst - 1] == ' ')) &&
-							(tmped == lastPosition || (tmped < lastPosition && tmpbuf[tmped] == ' '))) {
-							passFlag = true;
-							e1 = e0;
-							for (int tinx = 0; tinx < linx; tinx++) {
-								e2 = queue.get(qinx + tinx + 1);
-								if (e2.start != e1.start + e1.length) {
-									passFlag = false;
-									break;
+			if (fullExtract) {
+				//extractor 는 타입이 다른 엔트리 에 대해서 체크하지 못하므로
+				//엔트리들을 합쳐서 복합어/사용자 사전에 체크해 본다
+				//최대 3개 엔트리까지 체크
+				for (int linx = 2; linx >= 1; linx--) {
+					boolean passFlag = false;
+					char[] tmpbuf = e0.buf;
+					int tmpst = e0.start;
+					int tmped = 0;
+					
+					//합쳐질 단어들은 사이에 공백이 없고 묶은뒤 앞뒤로 
+					//공백이 있는경우에만 합치도록 한다.
+					//로직의 유연화를 위해 루프기반 로직으로 변경 (2020.1.23)
+					if (queue.size() > qinx + linx) {
+						e1 = queue.get(qinx + linx);
+						if (e1.buf == tmpbuf) {
+							tmped = e1.start + e1.length;
+							if ((tmpst == 0 || (tmpst > 0 && tmpbuf[tmpst - 1] == ' ')) &&
+								(tmped == lastPosition || (tmped < lastPosition && tmpbuf[tmped] == ' '))) {
+								passFlag = true;
+								e1 = e0;
+								for (int tinx = 0; tinx < linx; tinx++) {
+									e2 = queue.get(qinx + tinx + 1);
+									if (e2.start != e1.start + e1.length) {
+										passFlag = false;
+										break;
+									}
+									e1 = e2;
 								}
-								e1 = e2;
 							}
 						}
 					}
-				}
-				
-				if (passFlag) {
-					e1 = queue.get(qinx + linx);
-					cvTmp.init(e0.buf, e0.start, e1.start + e1.length - e0.start);
-					if (spaceDictionary.containsKey(cvTmp)) {
-						CharSequence[] splits = spaceDictionary.get(cvTmp);
-						for (int rinx = qinx + linx - 1; rinx >= qinx; rinx--) {
-							queue.remove(rinx);
-						}
-						int startOffset = e0.startOffset;
-						for (int sinx = 0; sinx < splits.length; sinx++) {
-							CharVector split = CharVector.valueOf(splits[sinx]);
-							e1 = new RuleEntry( split.array(), split.offset(),split.length(),
-								startOffset, startOffset + split.length(), HANGUL);
-							e1.modifiable = false;
-							queue.add(qinx + sinx, e1);
-							startOffset += e1.length;
-						}
-						e0 = queue.get(qinx);
-					} else if (compoundDictionary.containsKey(cvTmp)) {
-						e0.length = (e1.start + e1.length - e0.start);
-						e0.type = HANGUL;
-						for (int rinx = qinx + linx; rinx > qinx; rinx--) {
-							queue.remove(rinx);
-						}
-						queue.set(qinx, e0);
-						logger.trace("COMPOUND FOUND! : {} / {}", e0, cvTmp);
-					} else if ((stopDictionary != null && option.useStopword() && stopDictionary.contains(cvTmp))) {
-						//금칙어 규칙은 아래의 경우 (사용자,동의어,브랜드,메이커) 와 다르게
-						//통합시, 분리시 동시체크를 할 필요가 없으므로 다른 로직을 적용
-						e0.length = (e1.start + e1.length - e0.start);
-						e0.modifiable = false;
-						e0.type = HANGUL;
-						for (int rinx = qinx + linx; rinx > qinx; rinx--) {
-							queue.remove(rinx);
-						}
-						queue.set(qinx, e0);
-					} else if (containsDictionary(cvTmp)) {
-						//요청에 의해 사용자 사전에 있는 ASCII + UNICODE 조합단어
-						//(토크나이저에서 강제분리됨)는 먼저 체크하여 붙여줌.
-						//해당 경우 통합시, 분리시의 규칙을 둘 다 적용해야 하므로
-						//분리된 단어 모두를 추가텀으로 구성하도록 함.
-						//추가텀은 항상 등록하지 않고 사전에 있는 경우에만 등록한다.
-						//e0.subEntry.add(new RuleEntry(e0.buf, e0.start, e0.length, e0.startOffset, e0.endOffset, HANGUL));
-						e0 = new RuleEntry(e0.buf, e0.start, e0.length, e0.startOffset, e0.endOffset, e0.type);
-						e0.length = (e1.start + e1.length - e0.start);
-						e0.modifiable = false;
-						e0.type = HANGUL;
-						
-						for (int rinx = qinx + linx; rinx >= qinx; rinx--) {
-							queue.remove(rinx);
-						}
-						queue.add(qinx, e0);
-						if (queue.size() > (qinx + 1)) {
-							if ((e1 = queue.get(qinx + 1)).type == FULL_STRING) {
-								e1.subEntry = e0.subEntry;
-								queue.remove(qinx);
+					
+					if (passFlag) {
+						e1 = queue.get(qinx + linx);
+						cvTmp.init(e0.buf, e0.start, e1.start + e1.length - e0.start);
+						if (spaceDictionary.containsKey(cvTmp)) {
+							CharSequence[] splits = spaceDictionary.get(cvTmp);
+							for (int rinx = qinx + linx - 1; rinx >= qinx; rinx--) {
+								queue.remove(rinx);
+							}
+							int startOffset = e0.startOffset;
+							for (int sinx = 0; sinx < splits.length; sinx++) {
+								CharVector split = CharVector.valueOf(splits[sinx]);
+								e1 = new RuleEntry( split.array(), split.offset(),split.length(),
+									startOffset, startOffset + split.length(), HANGUL);
+								e1.modifiable = false;
+								queue.add(qinx + sinx, e1);
+								startOffset += e1.length;
+							}
+							e0 = queue.get(qinx);
+						} else if (compoundDictionary.containsKey(cvTmp)) {
+							e0.length = (e1.start + e1.length - e0.start);
+							e0.type = HANGUL;
+							for (int rinx = qinx + linx; rinx > qinx; rinx--) {
+								queue.remove(rinx);
+							}
+							queue.set(qinx, e0);
+							logger.trace("COMPOUND FOUND! : {} / {}", e0, cvTmp);
+						} else if ((stopDictionary != null && option.useStopword() && stopDictionary.contains(cvTmp))) {
+							//금칙어 규칙은 아래의 경우 (사용자,동의어,브랜드,메이커) 와 다르게
+							//통합시, 분리시 동시체크를 할 필요가 없으므로 다른 로직을 적용
+							e0.length = (e1.start + e1.length - e0.start);
+							e0.modifiable = false;
+							e0.type = HANGUL;
+							for (int rinx = qinx + linx; rinx > qinx; rinx--) {
+								queue.remove(rinx);
+							}
+							queue.set(qinx, e0);
+						} else if (containsDictionary(cvTmp)) {
+							//요청에 의해 사용자 사전에 있는 ASCII + UNICODE 조합단어
+							//(토크나이저에서 강제분리됨)는 먼저 체크하여 붙여줌.
+							//해당 경우 통합시, 분리시의 규칙을 둘 다 적용해야 하므로
+							//분리된 단어 모두를 추가텀으로 구성하도록 함.
+							//추가텀은 항상 등록하지 않고 사전에 있는 경우에만 등록한다.
+							//e0.subEntry.add(new RuleEntry(e0.buf, e0.start, e0.length, e0.startOffset, e0.endOffset, HANGUL));
+							e0 = new RuleEntry(e0.buf, e0.start, e0.length, e0.startOffset, e0.endOffset, e0.type);
+							e0.length = (e1.start + e1.length - e0.start);
+							e0.modifiable = false;
+							e0.type = HANGUL;
+							
+							for (int rinx = qinx + linx; rinx >= qinx; rinx--) {
+								queue.remove(rinx);
+							}
+							queue.add(qinx, e0);
+							if (queue.size() > (qinx + 1)) {
+								if ((e1 = queue.get(qinx + 1)).type == FULL_STRING) {
+									e1.subEntry = e0.subEntry;
+									queue.remove(qinx);
+								}
 							}
 						}
+						break;
 					}
-					break;
 				}
 			}
 
@@ -687,7 +689,7 @@ public class ProductNameParsingRule {
 								queue.remove(qinx + 1);
 							}
 						} else {
-							char tempch2 = e1.buf[e1.start+unitCandidate.length()];
+							char tempch2 = e1.buf[e1.start + unitCandidate.length() - 1];
 							//단위명이 영문이며, 단위명 자투리도 영문인 경우 모델명으로 인식 예:1024mmcc
 							//※ 2017년 6월 변경사항 : 단위명 사이의 x 에 대한 예외규칙 추가
 							if ((getType(tempch1) == ALPHA || getType(tempch2) == ALPHA)

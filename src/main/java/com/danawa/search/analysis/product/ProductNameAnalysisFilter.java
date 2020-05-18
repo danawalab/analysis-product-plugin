@@ -332,6 +332,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					String type = typeAttribute.type();
 					PosTag posTag = tokenAttribute.posTag();
 					if (type == ProductNameTokenizer.FULL_STRING) {
+						// List<?> synonyms = tokenSynonymAttribute.getSynonyms();
+						// synonymAttribute.setSynonyms(synonyms);
 						// NOP
 					} else if(posTag == PosTag.N) {
 						type = ProductNameTokenizer.HANGUL;
