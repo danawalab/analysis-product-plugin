@@ -73,16 +73,18 @@ public class ProductNameParsingRule {
 		this.extractor = extractor;
 		this.option = option;
 		this.typeAttribute = typeAttribute;
-		this.synonymAttribute = synonymAttribute;
+		// this.synonymAttribute = synonymAttribute;
 		this.offsetAttribute = offsetAttribute;
 		this.additionalTermAttribute = additionalTermAttribute;
-		unitDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT, SetDictionary.class);
-		synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
-		unitSynonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT_SYNONYM, SynonymDictionary.class);
-		spaceDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SPACE, SpaceDictionary.class);
-		userDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_USER, SetDictionary.class);
-		compoundDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_COMPOUND, CompoundDictionary.class);
-		stopDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_STOP, SetDictionary.class);
+		if (dictionary != null) {
+			unitDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT, SetDictionary.class);
+			synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
+			unitSynonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT_SYNONYM, SynonymDictionary.class);
+			spaceDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SPACE, SpaceDictionary.class);
+			userDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_USER, SetDictionary.class);
+			compoundDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_COMPOUND, CompoundDictionary.class);
+			stopDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_STOP, SetDictionary.class);
+		}
 		queue = new ArrayList<>();
 	}
 	
@@ -93,7 +95,7 @@ public class ProductNameParsingRule {
 		clone.extractor = this.extractor;
 		clone.option = this.option;
 		clone.typeAttribute = typeAttribute;
-		clone.synonymAttribute = synonymAttribute;
+		// clone.synonymAttribute = synonymAttribute;
 		clone.offsetAttribute = offsetAttribute;
 		clone.additionalTermAttribute = additionalTermAttribute;
 		clone.start = 0;
@@ -219,15 +221,17 @@ public class ProductNameParsingRule {
 		e0 = e1 = e2 = e3 = et = null;
 		
 		CharVector eTerm;
-		
-		if (queue.size() == 2
-				&& queue.get(0).start == queue.get(1).start
-				&& queue.get(0).makeTerm(null).equals(
-					queue.get(1).makeTerm(null))) {
-			e0 = queue.get(0);
-			e1 = queue.remove(1);
-			e0.synonym = e1.synonym;
-		}
+
+// // 삭제여부 판단 필요
+// // FULLSTRING + UNCATEGORIZED 로 출력될 경우 모델명이 추출되지 않을수도 있음
+// 		if (queue.size() == 2
+// 				&& queue.get(0).start == queue.get(1).start
+// 				&& queue.get(0).makeTerm(null).equals(
+// 					queue.get(1).makeTerm(null))) {
+// 			e0 = queue.get(0);
+// 			e1 = queue.remove(1);
+// 			e0.synonym = e1.synonym;
+// 		}
 		
 		if(queue.size() == 1 && queue.get(0).type == null) {
 			//not type-splited. force split by type

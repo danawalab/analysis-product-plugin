@@ -1,0 +1,326 @@
+#모델명 분석 최초규칙부터
+#
+# 모델명 샘플 작성규칙
+#
+# 각 텀끼리는 탭문자 구분, 타입은 스페이스구분
+# 모델명 등 additionalTerm 은 스페이스구분
+#
+# ※ 예시 (Tab:4space 에서 잘 보입니다)
+# 
+# abc-123	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
+#        Tab   Space   Tab Space    Space   Space
+#
+################################################################################
+# 특수문자
+# 특수문자는 색인 검색시 삭제 
+# "-", "/" 만 인식 +는 기본적으로 미포함
+abcde1234#	abcde <ALPHA>	1234 <NUMBER> abcde1234 <MODEL_NAME>
+a-1	a-1 <MODEL_NAME>
+1-a	1-a <MODEL_NAME>
+a#b	a <ALPHA>	b <ALPHA>
+a+b	a <ALPHA>	b <ALPHA>
+a/b	a/b <MODEL_NAME>
+#a/	a <ALPHA>
+1-	1 <NUMBER>
+c+	c <ALPHA>
+# + 는 기본적으로 미포함되지만 pa++ 는 사전에 존재하므로 HANGUL 로 뽑힘
+pa++	pa++ <HANGUL>
+
+#1-2. 삭제된 특수문자로 구분되어 형태소 분리가 된다.
+abcde#1234	abcde <ALPHA>	1234 <NUMBER>
+abc#abc	abc <ALPHA>	abc <ALPHA>
+
+
+################################################################################
+# 예외특수문자
+# 허용되는 특수문자 단독 형태소로 존재할 수 있다.
+# ※ 취소된 규칙임, + 는 분석시 제외함
+air+	air <ALPHA>
+b923#	b <ALPHA>	923 <NUMBER> b923 <MODEL_NAME>
+
+# 특정 규칙이 존재할 경우 특수문자를 사용될 수 있다.
+A-4	A-4 <MODEL_NAME>
+AB-1	AB <ALPHA>	1 <NUMBER> AB-1 <MODEL_NAME>
+a/1/b	a <ALPHA>	1 <NUMBER>	b <ALPHA> a/1/b <MODEL_NAME>
+
+################################################################################
+# 모델명
+# 영문+숫자 조합인 경우 모델명으로 인식되어 전체 한단어로 한번 더 인식해준다.
+abc123	abc <ALPHA>	123 <NUMBER> abc123 <MODEL_NAME>
+abc-123	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
+
+################################################################################
+# 영문 + 숫자
+# 영문은 영문끼리 숫자는 숫자끼리 분리된다.
+abc123d4efg56	abc <ALPHA>	123 <NUMBER>	d <ALPHA>	4 <NUMBER>	efg <ALPHA>	56 <NUMBER> abc123d4efg56 <MODEL_NAME>
+
+# 영문숫자 패턴인 경우 1byte 이하의 구성인 경우는 영문+숫자 한단어로 판단 
+a4	a4 <MODEL_NAME>
+b4	b4 <MODEL_NAME>
+
+################################################################################
+# 단위명
+
+# 단위명 사전에 등록되어 있는 단위명 앞에 숫자 형태소가 있을경우 한단어 판단
+500gb	500 <NUMBER>	500gb <UNIT>
+
+# 단위명일 경우 단위명을 제외한 숫자도 제공되어야함
+1024gb	1024 <NUMBER>	1024gb <UNIT>
+
+# 단위명 동의어도 확장이 되어야함. (단위명 동의어)
+1,024gb	1,024 <NUMBER> 1024 <NUMBER>	1,024gb <UNIT> 1024gb <UNIT>
+
+################################################################################
+# 신조어
+# 신조어 사전 내 규칙 우선순위가 존재. 일치 규칙이 더 우선순위가 높다.
+# 영문 신조어 등록시 적용되어야 한다.
+
+################################################################################
+# 분리어
+# 분리어 사전 등록시 해당 형태로 분리가 되어야 한다.
+# 영문 분리도 가능하여야 한다.
+
+################################################################################
+# 필드 형태소 분석
+# 모델명 필드는 형태소 분석 하지 않는다.
+
+################################################################################
+# 우선순위
+# 분리어 > 신조어 > 단위명 > 단위명 동의어 > 동의어
+
+################################################################################
+
+# 5자리 이상의 숫자는 모델명으로 인식 (분리어로 형태소가 분리되어도 모델명으로 인식?)
+123456	123456 <MODEL_NAME>
+
+# 숫자+’특수문자 (-,/)’ + 숫자 조합은 모델명으로 인식하고 추출시 특수문자도 인식하여 같이 추출 해준다.
+123-456	123 <NUMBER>	456 <NUMBER>	123456 <MODEL_NAME> 123-456 <MODEL_NAME>
+
+# 예외특수문자가 아닌 경우 마지막 남아있는 특수문자는 모델명 추출시 제외
+123-456/	123 <NUMBER>	456 <NUMBER>	123456 <MODEL_NAME> 123-456 <MODEL_NAME>
+abc-123-	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
+
+
+# 영문 + ‘특수문자(-,/)’ + 영문 + 숫자 조합 경우 첫 영문 형태소를 제외한 모델명도 추출
+nt-ok123	nt <ALPHA>	ok <ALPHA>	ntok <ALPHA>	123 <NUMBER> ok123 <MODEL_NAME> nt-ok123 <MODEL_NAME>
+ma-9999aa	ma <ALPHA>	9999 <NUMBER>	aa <ALPHA> 9999aa <MODEL_NAME> ma-9999aa <MODEL_NAME>
+abc-a123cc9	abc <ALPHA>	a <ALPHA>	abca <ALPHA>	123 <NUMBER>	cc <ALPHA>	9 <NUMBER> a123cc9 <MODEL_NAME> abc-a123cc9 <MODEL_NAME>
+ab-ab1	ab <ALPHA>	ab <ALPHA>	abab <ALPHA>	1 <NUMBER> ab1 <MODEL_NAME> ab-ab1 <MODEL_NAME>
+
+################################################################################
+
+# 영문은 영문끼리 숫자는 숫자끼리
+abc123def456	abc <ALPHA>	123 <NUMBER>	def <ALPHA>	456 <NUMBER> abc123def456 <MODEL_NAME>
+
+# 1byte 이하의 구성인 경우 영문+숫자 : 한단어 판단
+a1	a1 <MODEL_NAME>
+
+# 1byte 이하의 구성인 경우 영문+숫자+영문 : 한단어 판단
+a1b	a1b <MODEL_NAME>
+
+# 2byte 이상의 구성인 경우 영문/숫자 분리
+ab1	ab <ALPHA>	1 <NUMBER> ab1 <MODEL_NAME>
+
+# 2byte 이상의 구성인 경우 영문/숫자 분리
+a12c	a <ALPHA>	12 <NUMBER>	c <ALPHA> a12c <MODEL_NAME>
+
+# 특수문자 제거 후 특수문자 앞뒤로 분리
+abc-123	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
+abc12d-e34	abc <ALPHA>	12 <NUMBER>	d <ALPHA>	e <ALPHA>	de <ALPHA>	34 <NUMBER> abc12d-e34 <MODEL_NAME>
+a-1	a-1 <MODEL_NAME>
+abc/def	abc <ALPHA>	def <ALPHA>	abcdef <ALPHA> abc/def <MODEL_NAME>
+
+# 예외 특수문자 인식 (+) // 사라진 규칙, 현재는 문자만 인식.
+air+	air <ALPHA>
+1+1	1 <NUMBER>	1 <NUMBER>
+1+	1 <NUMBER>
+에어+	에어 <HANGUL>
+
+# 모델명 인식 (영문, 영문숫자 조합인 경우 – 추후 모델명 필드 매칭을 위함)
+abc123d	abc <ALPHA>	123 <NUMBER>	d <ALPHA> abc123d <MODEL_NAME>
+u43f	u <ALPHA>	43 <NUMBER>	f <ALPHA> u43f <MODEL_NAME>
+zd360-gd60k	zd <ALPHA>	360 <NUMBER>	gd <ALPHA>	60 <NUMBER>	k <ALPHA> zd360-gd60k <MODEL_NAME>
+23en43v	23 <NUMBER>	en <ALPHA>	43 <NUMBER>	v <ALPHA> 23en43v <MODEL_NAME>
+sd550-pd6ok	sd <ALPHA>	550 <NUMBER>	pd <ALPHA>	6 <NUMBER>	ok <ALPHA> sd550-pd6ok <MODEL_NAME>
+27ea53vq	27 <NUMBER>	ea <ALPHA>	53 <NUMBER>	vq <ALPHA> 27ea53vq <MODEL_NAME>
+15nd530-px7dk	15 <NUMBER>	nd <ALPHA>	530 <NUMBER>	px <ALPHA>	7 <NUMBER>	dk <ALPHA> 15nd530-px7dk <MODEL_NAME>
+abc123d-ef456	abc <ALPHA>	123 <NUMBER>	d <ALPHA>	ef <ALPHA>	def <ALPHA>	456 <NUMBER> abc123d-ef456 <MODEL_NAME>
+A-4	A-4 <MODEL_NAME>
+AB-1	AB <ALPHA>	1 <NUMBER> AB-1 <MODEL_NAME>
+abc123	abc <ALPHA>	123 <NUMBER> abc123 <MODEL_NAME>
+abc-123	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
+abc123d4efg56	abc <ALPHA>	123 <NUMBER>	d <ALPHA>	4 <NUMBER>	efg <ALPHA>	56 <NUMBER> abc123d4efg56 <MODEL_NAME>
+a4	a4 <MODEL_NAME>
+b4	b4 <MODEL_NAME>
+gx1	gx <ALPHA>	1 <NUMBER> gx1 <MODEL_NAME>
+rs833gsme1v	rs <ALPHA>	833 <NUMBER>	gsme <ALPHA>	1 <NUMBER>	v <ALPHA> rs833gsme1v <MODEL_NAME>
+베가lte-a	베가 <HANGUL>	lte <ALPHA>	a <ALPHA>	ltea <ALPHA> lte-a <MODEL_NAME>
+r-f874hbsw	r <ALPHA>	f <ALPHA>	rf <ALPHA>	874 <NUMBER>	hbsw <ALPHA> f874hbsw <MODEL_NAME> r-f874hbsw <MODEL_NAME>
+md760kh/a	md <ALPHA>	760 <NUMBER>	kh <ALPHA>	a <ALPHA>	kha <ALPHA> md760kh/a <MODEL_NAME>
+k5	k5 <MODEL_NAME>
+
+# 질의어 특수문자 제거
+abcde1234#	abcde <ALPHA>	1234 <NUMBER> abcde1234 <MODEL_NAME>
+abcde#1234	abcde <ALPHA>	1234 <NUMBER>
+Air+	Air <ALPHA>
+타이탄 a.e.	타이탄 <HANGUL>	a.e <MODEL_NAME>
+u560-g.ah30k	u <ALPHA>	560 <NUMBER>	g <ALPHA>	ah <ALPHA>	30 <NUMBER>	k <ALPHA> u560-g.ah30k <MODEL_NAME>
+
+# 단위명 인식 (현재 테스트케이스에는 단위명 동의어는 TB,테라,테라바이트 만 적용되어 있음)
+
+1TB	1 <NUMBER>	1TB <UNIT> 1테라 1테라바이트
+1개	1 <NUMBER>	1개 <UNIT>
+
+# 5글자 이상인 숫자는 모델명으로
+#1234567	1234567 <MODEL_NAME>
+
+# 숫자+’특수문자 (-,/)’ + 숫자 조합은 모델명으로 인식하고 추출시 특수문자도 인식하여 같이 추출 해준다.
+123-456	123 <NUMBER>	456 <NUMBER>	123456 <MODEL_NAME> 123-456 <MODEL_NAME>
+123/456	123 <NUMBER>	456 <NUMBER>
+
+# 예외특수문자가 아닌 경우 마지막 남아있는 특수문자는 모델명 추출시 제외
+123-456/	123 <NUMBER>	456 <NUMBER>	123456 <MODEL_NAME> 123-456 <MODEL_NAME>
+123/456-	123 <NUMBER>	456 <NUMBER>
+
+##특수조항 , 숫자 사이의 콤마, 소숫점을 인정하여 하나의 블럭으로 인식 (단위명을 위해 필요)
+2.9	2.9 <NUMBER>
+1,234	1,234 <NUMBER> 1234 <NUMBER>
+1,234,567.890	1,234,567.890 <NUMBER> 1234567.890 <NUMBER>
+1,500원	1,500 <NUMBER> 1500 <NUMBER>	1,500원 <UNIT> 1500원 <UNIT>
+230x140x1.6cm	230 <NUMBER>	140 <NUMBER>	1.6 <NUMBER>	1.6cm <UNIT>
+
+################################################################################
+# 기타
+110000원	110000 <NUMBER>	110000원 <UNIT>
+HSB005A.3인용	HSB <ALPHA>	005 <NUMBER>	A <ALPHA> HSB005A <MODEL_NAME>	3 <NUMBER>	3인용 <UNIT>
+G00152827248	G <ALPHA>	00152827248 <MODEL_NAME> G00152827248 <MODEL_NAME>
+123456+	123456 <MODEL_NAME>
+12345/12345	12345 <MODEL_NAME>	12345 <MODEL_NAME>
+3인용가족용	3 <NUMBER>	3인용 <UNIT>	가족용 <HANGUL>
+1b-12345	1b <ALPHANUM>	12345 <MODEL_NAME> 1b-12345 <MODEL_NAME>
+b1/a2s	b1 <ALPHANUM>	a <ALPHA>	2 <NUMBER>	s <ALPHA>	a2s <ALPHANUM> b1/a2s <MODEL_NAME>
+mm/300mm/(1EA	mm <ALPHA>	300 <NUMBER>	300mm <UNIT>	1 <NUMBER>	1EA <UNIT>
+# ※ 이시점에서 EA 는 단위명 사전에 없었음
+
+################################################################################
+#숫자/숫자/숫자 는 모델명이 아닌 숫자 블럭으로 인식
+111/222/333	111 <NUMBER>	222 <NUMBER>	333 <NUMBER>
+1111/2222/3333	1111 <NUMBER>	2222 <NUMBER>	3333 <NUMBER>
+1/2/3	1 <NUMBER>	2 <NUMBER>	3 <NUMBER>
+a/2/b	a <ALPHA>	2 <NUMBER>	b <ALPHA> a/2/b <MODEL_NAME>
+100mm/200mm/300mm	100 <NUMBER>	100mm <UNIT>	200 <NUMBER>	200mm <UNIT>	300 <NUMBER>	300mm <UNIT>
+TOP-12호	TOP <ALPHA>	12 <NUMBER>	12호 <UNIT>
+f2.8	f <ALPHA>	2.8 <NUMBER> f2.8 <MODEL_NAME>
+
+################################################################################
+#모델명 (영문+숫자+특수문자 -> 특수문자 삭제후 2byte조합 한단어)
+b1/a2s	b1 <ALPHANUM>	a <ALPHA>	2 <NUMBER>	s <ALPHA>	a2s <ALPHANUM> b1/a2s <MODEL_NAME>
+c9-123567	c9 <ALPHANUM>	123567 <MODEL_NAME>	9123567 <MODEL_NAME> c9-123567 <MODEL_NAME>
+d9-b	d9 <ALPHANUM>	b <ALPHA> d9-b <MODEL_NAME>
+d8-1	d8 <ALPHANUM>	1 <NUMBER>	81 <NUMBER> d8-1 <MODEL_NAME>
+
+#모델명 (숫자+영문+특수문자 -> 특수문자 삭제후 2byte조합 한단어)
+1b/a2s	1b <ALPHANUM>	a <ALPHA>	ba <ALPHA>	2 <NUMBER>	s <ALPHA>	a2s <ALPHANUM> 1b/a2s <MODEL_NAME>
+9c-abcdef	9c <ALPHANUM>	abcdef <ALPHA>	cabcdef <ALPHA> 9c-abcdef <MODEL_NAME>
+8a/b	8a <ALPHANUM>	b <ALPHA>	ab <ALPHA> 8a/b <MODEL_NAME>
+7b-3	7b <ALPHANUM>	3 <NUMBER> 7b-3 <MODEL_NAME>
+
+################################################################################
+
+#
+S24D390	S <ALPHA>	24 <NUMBER>	D <ALPHA>	390 <NUMBER> S24D390 <MODEL_NAME>
+NT940X3G-K54	NT <ALPHA>	940 <NUMBER>	X <ALPHA>	3 <NUMBER>	G <ALPHA>	K <ALPHA>	GK <ALPHA>	54 <NUMBER> NT940X3G-K54 <MODEL_NAME>
+SD550-PD65K	SD <ALPHA>	550 <NUMBER>	PD <ALPHA>	65 <NUMBER>	K <ALPHA> SD550-PD65K <MODEL_NAME>
+FP166DWCW	FP <ALPHA>	166 <NUMBER>	DWCW <ALPHA> FP166DWCW <MODEL_NAME>
+AKSO-1X	AKSO <ALPHA>	1X <ALPHANUM> AKSO-1X <MODEL_NAME>
+AKSO-1G	AKSO <ALPHA>	1G <ALPHANUM> AKSO-1G <MODEL_NAME>
+1A-B2C3D4	1A <ALPHANUM>	B <ALPHA>	AB <ALPHA>	2 <NUMBER>	C <ALPHA>	3 <NUMBER>	D <ALPHA>	4 <NUMBER>	B2C3D4 <ALPHANUM> 1A-B2C3D4 <MODEL_NAME>
+A12	A <ALPHA>	12 <NUMBER> A12 <MODEL_NAME>
+1abcdef	1 <NUMBER>	abcdef <ALPHA> 1abcdef <MODEL_NAME>
+a123456	a <ALPHA>	123456 <MODEL_NAME> a123456 <MODEL_NAME>
+I7-4700MQ (2.4GHZ)	I7 <ALPHANUM>	4700 <NUMBER>	74700 <MODEL_NAME>	MQ <ALPHA> I7-4700MQ <MODEL_NAME>	2.4 <NUMBER>	2.4GHZ <UNIT>
+ABC4+123A	ABC <ALPHA>	4 <NUMBER> ABC4 <MODEL_NAME>	123 <NUMBER>	A <ALPHA> 123A <MODEL_NAME>
+엑슬비젼 BYSUO T1 + IN WIN PC 리모컨	엑슬 <HANGUL>	비젼 <HANGUL>	BYSUO <ALPHA>	T1 <MODEL_NAME>	IN <ALPHA>	WIN <ALPHA>	PC <ALPHA>	리모컨 <HANGUL>
+엑슬비젼 BYSUO T1+IN WIN PC 리모컨	엑슬 <HANGUL>	비젼 <HANGUL>	BYSUO <ALPHA>	T1 <MODEL_NAME>	IN <ALPHA>	WIN <ALPHA>	PC <ALPHA>	리모컨 <HANGUL>
+P54M	P <ALPHA>	54 <NUMBER>	M <ALPHA> P54M <MODEL_NAME>
+2룸	2 <NUMBER>	룸 <HANGUL>
+1-2인용 텐트	1 <NUMBER>	2 <NUMBER>	2인용 <UNIT>	텐트 <HANGUL>
+HSB005A1.3인용	HSB <ALPHA>	005 <NUMBER>	A <ALPHA> HSB005A <MODEL_NAME>	1.3 <NUMBER>	1.3인용 <UNIT>
+HSB005A1-3인용	HSB <ALPHA>	005 <NUMBER>	A <ALPHA>	1 <NUMBER> HSB005A1 <MODEL_NAME>	3 <NUMBER>	3인용 <UNIT>
+
+#단위 앞 숫자-숫자 에서 숫자- 가 붙어 나오는 현상 수정 
+
+A1-3인용	A1 <MODEL_NAME>	3 <NUMBER>	3인용 <UNIT>
+A 1-3인용	A <ALPHA>	1 <NUMBER>	3 <NUMBER>	3인용 <UNIT>
+1-3인용	1 <NUMBER>	3 <NUMBER>	3인용 <UNIT>
+A-3인용	A <ALPHA>	3 <NUMBER>	3인용 <UNIT>
+A.3인용	A <ALPHA>	3 <NUMBER>	3인용 <UNIT>
+1.3인용	1.3 <NUMBER>	1.3인용 <UNIT>
+A 1-3인용	A <ALPHA>	1 <NUMBER>	3 <NUMBER>	3인용 <UNIT>
+
+#서로다른 타입의 글자가 교차되어 작성된 영숫자 블럭이 특수문자 사이에 끼워져 있으면 각각 개별로 합해서 한번 더 출력. 
+
+B5M-D3H	B5M <ALPHANUM>	B <ALPHA>	5 <NUMBER>	M <ALPHA>	D <ALPHA>	MD <ALPHA>	3 <NUMBER>	H <ALPHA>	D3H <ALPHANUM> B5M-D3H <MODEL_NAME>
+B75M-D3H	B <ALPHA>	75 <NUMBER>	M <ALPHA>	D <ALPHA>	MD <ALPHA>	3 <NUMBER>	H <ALPHA>	D3H <ALPHANUM> B75M-D3H <MODEL_NAME>
+
+보온밥솥 6인 CR-0613R/0622R/0632FV/0651FR/0661G/O	보온 <HANGUL>	밥솥 <HANGUL>	6 <NUMBER>	6인 <UNIT>	CR <ALPHA>	0613 <NUMBER>	R <ALPHA>	0622 <NUMBER>	R <ALPHA>	0632 <NUMBER>	FV <ALPHA>	0651 <NUMBER>	FR <ALPHA> 0613R/0622R/0632FV/0651FR <MODEL_NAME> CR-0613R/0622R/0632FV/0651FR <MODEL_NAME>	0661 <NUMBER>	0661G <UNIT>	O <ALPHA>
+1세트(4개)  [최대 12개월 무이자할부]브라운 오랄비 전동칫솔모 프리시즌클린 신형 칫솔모 총8개  EB20-4X2  / 정품.브라운.오랄비.	1 <NUMBER>	세트 <HANGUL>	4 <NUMBER>	4개 <UNIT>	최대 <HANGUL>	12 <NUMBER>	12개월 <UNIT>	무이자 <HANGUL>	할부 <HANGUL>	브라운 <HANGUL>	오랄비 <HANGUL>	전동 <HANGUL>	칫솔모 <HANGUL>	프리 <HANGUL>	시즌 <HANGUL>	클린 <HANGUL>	신형 <HANGUL>	칫솔모 <HANGUL>	총 <HANGUL>	8 <NUMBER>	8개 <UNIT>	EB <ALPHA>	20 <NUMBER>	4 <NUMBER>	204 <NUMBER>	X <ALPHA>	2 <NUMBER>	4X2 <ALPHANUM> EB20-4X2 <MODEL_NAME>	정품 <HANGUL>	브라운 <HANGUL>	오랄비 <HANGUL>
+GIGABYTE GA-H61M-DS2V (B3)	GIGABYTE <ALPHA>	GA <ALPHA>	H <ALPHA>	GAH <ALPHA>	61 <NUMBER>	M <ALPHA>	DS <ALPHA>	MDS <ALPHA>	2 <NUMBER>	V <ALPHA> H61M-DS2V <MODEL_NAME> GA-H61M-DS2V <MODEL_NAME>	B3 <MODEL_NAME>
+P5G41T-M LX	P <ALPHA>	5 <NUMBER>	G <ALPHA>	41 <NUMBER>	T <ALPHA>	M <ALPHA>	TM <ALPHA> P5G41T-M <MODEL_NAME>	LX <ALPHA>
+M5A97 EVO	M <ALPHA>	5 <NUMBER>	A <ALPHA>	97 <NUMBER> M5A97 <MODEL_NAME>	EVO <ALPHA>
+P8H61-M PLUS2	P <ALPHA>	8 <NUMBER>	H <ALPHA>	61 <NUMBER>	M <ALPHA> P8H61-M <MODEL_NAME>	PLUS <ALPHA>	2 <NUMBER> PLUS2 <MODEL_NAME>
+Z9PE-D8 WS STCOM	Z <ALPHA>	9 <NUMBER>	PE <ALPHA>	D8 <ALPHANUM>	PED <ALPHA> Z9PE-D8 <MODEL_NAME>	WS <ALPHA>	STCOM <ALPHA>
+M4A87TD EVO	M <ALPHA>	4 <NUMBER>	A <ALPHA>	87 <NUMBER>	TD <ALPHA> M4A87TD <MODEL_NAME>	EVO <ALPHA>
+맥북에어 11인치	맥북 <HANGUL>	에어 <HANGUL>	11 <NUMBER>	11인치 <UNIT>
+GTX750/1110 MHz/1GB/128-bit/개봉반품불	GTX <ALPHA>	750 <NUMBER>	1110 <NUMBER>	7501110 <MODEL_NAME> GTX750/1110 <MODEL_NAME>	MHz <ALPHA>	1 <NUMBER>	1GB <UNIT>	128 <NUMBER>	bit <ALPHA> 128-bit <MODEL_NAME>	개봉 <HANGUL>	반품 <HANGUL>	불 <HANGUL>
+어답터/DC/AC/출력1.5V/2V/3V/4.5V/5V/7.5V/9V/600MA/충전기	어답터 <HANGUL>	DC <ALPHA>	AC <ALPHA>	DCAC <ALPHA> DC/AC <MODEL_NAME>	출력 <HANGUL>	1.5 <NUMBER>	V <ALPHA>	2V <ALPHANUM>	3V <ALPHANUM>	4.5 <NUMBER>	V <ALPHA>	5V <ALPHANUM>	7.5 <NUMBER>	V <ALPHA>	9V <ALPHANUM>	600 <NUMBER>	MA <ALPHA> 1.5V/2V/3V/4.5V/5V/7.5V/9V/600MA <MODEL_NAME>	충전기 <HANGUL>
+
+
+################################################################################
+# 2016.5.13 다나와 장혁준 주임 요청사항
+# https://fastcat.zendesk.com/agent/tickets/249
+# 영문자1byte+숫자1byte가 특수문자 앞에 있을 경우 따로 분리하지 않고, 붙여서 분석하듯이,
+# 특수문자뒤의 "영문자1byte+숫자1byte"도 붙여서 분석되도록 한다.
+a1-b2	a1 <ALPHANUM>	b2 <ALPHANUM> a1-b2 <MODEL_NAME>
+123abc.b9	123 <NUMBER>	abc <ALPHA>	b9 <ALPHANUM> 123abc.b9 <MODEL_NAME>
+abc123-a9	abc <ALPHA>	123 <NUMBER>	a9 <ALPHANUM> abc123-a9 <MODEL_NAME>
+
+
+################################################################################
+# 2017.6.5 다나와 요청사항
+# 10cmx12cm -> 10 cmx 12cm 등으로 잘못 분해되는경우
+# & 기호로 연결된 모델명 인식하지 못하는 경우
+
+10cmx12cm	10 <NUMBER>	10cm <UNIT>	12 <NUMBER>	12cm <UNIT>
+100mmx120mm	100 <NUMBER>	100mm <UNIT>	120 <NUMBER>	120mm <UNIT>
+100mmx120mmx300mm	100 <NUMBER>	100mm <UNIT>	120 <NUMBER>	120mm <UNIT>	300 <NUMBER>	300mm <UNIT>
+5cmx5cm	5 <NUMBER>	5cm <UNIT>	5 <NUMBER>	5cm <UNIT>
+A&B	A&B <MODEL_NAME>
+I&U	I&U <MODEL_NAME>
+G&B	G&B <MODEL_NAME>
+M&A	M&A <MODEL_NAME>
+
+################################################################################
+# 2017.6. 다나와 요청사항
+# 복합명사 사전에 등록된 단어를 추가텀으로 추출
+# 예제에서는 테니스화 -> 테니스, 신발 로 분리 (사전에 추가되어 있어야 함)
+#
+# 2018.10.1 발견사항
+# 테니스화 : HANGUL -> COMPOUND 로 타입변경, 추가텀의 타입도 COMPOUND 로 타입변경
+#
+아디다스테니스화50%세일무료배송	아디다스 <HANGUL>	테니스화 <COMPOUND> 테니스 <COMPOUND> 신발 <COMPOUND>	50 <NUMBER>	50% <UNIT>	세일 <HANGUL>	무료 <HANGUL>	배송 <HANGUL>
+
+################################################################################
+# 2018.10.1 다나와 요청사항
+# 단위 X 단위 앞 뒤로 괄호 등의 기호가 있는경우 단위 X 단위 모델명으로 추출되는현상 수정
+#
+서랍장(22.6x18.8cm)	서랍장 <HANGUL>	22.6 <NUMBER>	18.8 <NUMBER>	18.8cm <UNIT>
+
+
+################################################################################
+# 2019.06.26 버그사항 수정
+# 토크나이저 수준에서 타입분류가 되지 않아 한글 분석이 되지 않는 버그 수정
+
+18v충전배터리	18 <NUMBER>	v <ALPHA> 18v <MODEL_NAME>	충전 <HANGUL>	배터리 <HANGUL>
+
+#

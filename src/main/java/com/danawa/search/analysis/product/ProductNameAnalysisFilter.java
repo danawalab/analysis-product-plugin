@@ -66,13 +66,15 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		super(input);
 	}
 
-	protected ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary, AnalyzerOption analyzerOption) {
+	public ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary, AnalyzerOption analyzerOption) {
 		super(input);
 		this.extractor = extractor;
-		this.dictionary = dictionary;
-		this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
-		this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
-		this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+		if (dictionary != null) {
+			this.dictionary = dictionary;
+			this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
+			this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
+			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+		}
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
 		this.analyzerOption = analyzerOption;
 		additionalTermAttribute.init(this);
@@ -297,10 +299,12 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 	public void testInit() {
 		termList = new ArrayList<>();
-		this.dictionary = tokenAttribute.dictionary();
-		this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
-		this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
-		this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+		if (dictionary != null) {
+			this.dictionary = tokenAttribute.dictionary();
+			this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
+			this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
+			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+		}
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
 		this.analyzerOption = new AnalyzerOption();
 		this.extractor = new KoreanWordExtractor(dictionary);
@@ -379,41 +383,54 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				// 엔트리를 출력할때 오프셋 순서대로 정렬하여 출력한다.
 				RuleEntry entry = null;
 				while ((entry = termList.get(0)) == null) { termList.remove(0); }
-				termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
-				offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
-				typeAttribute.setType(entry.type);
-				token = entry.makeTerm(null);
 
-				if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
-					tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
-				} else {
-					tokenAttribute.rmState(TokenInfoAttribute.STATE_TERM_STOP);
-				}
-				if (analyzerOption.useSynonym()) {
-					if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
-						List<Object> synonyms = new ArrayList<>();
-						CharSequence[] wordSynonym = synonymDictionary.map().get(token);
-						logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
-						if (synonymAttribute.getSynonyms() != null) {
-							synonyms.addAll(synonymAttribute.getSynonyms());
-						}
-						if (wordSynonym != null) {
-							synonyms.addAll(Arrays.asList(wordSynonym));
-						}
-						//
-						// 동의어는 한번 더 분석해 준다.
-						// 단 단위명은 더 분석하지 않는다.
-						if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
-							List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
-							if (synonymsExt != null) {
-								synonyms = (List<Object>) synonymsExt;
-							}
-						}
-						synonymAttribute.setSynonyms(synonyms);
+				List<RuleEntry> subEntryList = entry.subEntry;
+				logger.trace("SUB:{}", subEntryList);
+
+				if (subEntryList == null || subEntryList.size() == 0) {
+					termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
+					offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
+					typeAttribute.setType(entry.type);
+					token = entry.makeTerm(null);
+					if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
+						tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
+					} else {
+						tokenAttribute.rmState(TokenInfoAttribute.STATE_TERM_STOP);
 					}
+					if (analyzerOption.useSynonym()) {
+						if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
+							List<Object> synonyms = new ArrayList<>();
+							CharSequence[] wordSynonym = synonymDictionary.map().get(token);
+							logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
+							if (synonymAttribute.getSynonyms() != null) {
+								synonyms.addAll(synonymAttribute.getSynonyms());
+							}
+							if (wordSynonym != null) {
+								synonyms.addAll(Arrays.asList(wordSynonym));
+							}
+							//
+							// 동의어는 한번 더 분석해 준다.
+							// 단 단위명은 더 분석하지 않는다.
+							if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
+								List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
+								if (synonymsExt != null) {
+									synonyms = (List<Object>) synonymsExt;
+								}
+							}
+							synonymAttribute.setSynonyms(synonyms);
+						}
+					}
+					ret = true;
+					termList.remove(0);
+				} else {
+					RuleEntry subEntry = subEntryList.get(0);
+					termAttribute.copyBuffer(subEntry.buf, subEntry.start, subEntry.length);
+					offsetAttribute.setOffset(subEntry.startOffset, subEntry.endOffset);
+					typeAttribute.setType(subEntry.type);
+					token = subEntry.makeTerm(null);
+					ret = true;
+					subEntryList.remove(0);
 				}
-				ret = true;
-				termList.remove(0);
 				break;
 			}
 		} // LOOP

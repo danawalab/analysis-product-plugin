@@ -1,0 +1,58 @@
+################################################################################
+#
+# 모델명 샘플 작성규칙
+#
+# 각 텀끼리는 탭문자 구분, 타입은 스페이스구분
+# 모델명 등 additionalTerm 은 스페이스구분
+#
+# ※ 예시 (Tab:4space 에서 잘 보입니다)
+# 
+# abc-123	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
+#        Tab   Space   Tab Space    Space   Space
+#
+################################################################################
+# 2016.5.13 다나와 장혁준 주임 요청사항
+# https://fastcat.zendesk.com/agent/tickets/249
+# 영문자1byte+숫자1byte가 특수문자 앞에 있을 경우 따로 분리하지 않고, 붙여서 분석하듯이,
+# 특수문자뒤의 "영문자1byte+숫자1byte"도 붙여서 분석되도록 한다.
+
+
+1b-12345	1b <ALPHANUM>	12345 <MODEL_NAME> 1b-12345 <MODEL_NAME>
+b1/a2s	b1 <ALPHANUM>	a <ALPHA>	2 <NUMBER>	s <ALPHA>	a2s <ALPHANUM> b1/a2s <MODEL_NAME>
+c9-123567	c9 <ALPHANUM>	123567 <MODEL_NAME> c9-123567 <MODEL_NAME>
+d9-b	d9 <ALPHANUM>	b <ALPHA> d9-b <MODEL_NAME>
+d8-1	d8 <ALPHANUM>	1 <NUMBER> d8-1 <MODEL_NAME>
+1b/a2s	1b <ALPHANUM>	a <ALPHA>	2 <NUMBER>	s <ALPHA>	a2s <ALPHANUM> 1b/a2s <MODEL_NAME>
+9c-abcdef	9c <ALPHANUM>	abcdef <ALPHA> 9c-abcdef <MODEL_NAME>
+8a/b	8a <ALPHANUM>	b <ALPHA> 8a/b <MODEL_NAME>
+7b-3	7b <ALPHANUM>	3 <NUMBER> 7b-3 <MODEL_NAME>
+AKSO-1X	AKSO <ALPHA>	1X <ALPHANUM> AKSO-1X <MODEL_NAME>
+AKSO-1G	AKSO <ALPHA>	1G <ALPHANUM> AKSO-1G <MODEL_NAME>
+1A-B2C3D4	1A <ALPHANUM>	B <ALPHA>	2 <NUMBER>	C <ALPHA>	3 <NUMBER>	D <ALPHA>	4 <NUMBER>	B2C3D4 <ALPHANUM> 1A-B2C3D4 <MODEL_NAME>
+I7-4700MQ (2.4GHZ)	I7 <ALPHANUM>	4700 <NUMBER>	MQ <ALPHA> I7-4700MQ <MODEL_NAME>	2.4GHZ <UNIT>
+Z9PE-D8 WS STCOM	Z <ALPHA>	9 <NUMBER>	PE <ALPHA>	D8 <ALPHANUM> Z9PE-D8 <MODEL_NAME>	WS <ALPHA>	STCOM <ALPHA>
+어답터/DC/AC/출력1.5V/2V/3V/4.5V/5V/7.5V/9V/600MA/충전기	어답터 <HANGUL>	DC <ALPHA>	AC <ALPHA> DC/AC <MODEL_NAME>	출력 <HANGUL>	1.5 <NUMBER>	V <ALPHA>	2V <ALPHANUM>	3V <ALPHANUM>	4.5 <NUMBER>	V <ALPHA>	5V <ALPHANUM>	7.5 <NUMBER>	V <ALPHA>	9V <ALPHANUM>	600 <NUMBER>	MA <ALPHA> 1.5V/2V/3V/4.5V/5V/7.5V/9V/600MA <MODEL_NAME>	충전기 <HANGUL>
+
+
+a1-b2	a1 <ALPHANUM>	b2 <ALPHANUM> a1-b2 <MODEL_NAME>
+z4	z4 <MODEL_NAME>
+123abc.b9	123 <NUMBER>	abc <ALPHA>	b9 <ALPHANUM> 123abc.b9 <MODEL_NAME>
+abc123-a9	abc <ALPHA>	123 <NUMBER>	a9 <ALPHANUM> abc123-a9 <MODEL_NAME>
+
+################################################################################
+# 2017.6.5 다나와 요청사항
+# 10cmx12cm -> 10 cmx 12cm 등으로 잘못 분해되는경우
+# & 기호로 연결된 모델명 인식하지 못하는 경우
+
+10cmx12cm	10cm <UNIT>	12cm <UNIT>
+100mmx120mm	100mm <UNIT>	120mm <UNIT>
+100mmx120mmx300mm	100mm <UNIT>	120mm <UNIT>	300mm <UNIT>
+5cmx5cm	5cm <UNIT>	5cm <UNIT>
+A&B	A&B <MODEL_NAME>
+I&U	I&U <MODEL_NAME>
+G&B	G&B <MODEL_NAME>
+M&A	M&A <MODEL_NAME>
+
+아디다스테니스화50%세일무료배송	아디다스 <HANGUL>	테니스화 <COMPOUND> 테니스 <COMPOUND> 신발 <COMPOUND>	50% <UNIT>	세일 <HANGUL>	무료 <HANGUL>	배송 <HANGUL>
+
+서랍장(22.6x18.8cm)	서랍장 <HANGUL>	22.6 <NUMBER>	18.8cm <UNIT>
