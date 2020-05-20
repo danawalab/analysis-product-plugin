@@ -14,7 +14,7 @@
 # 특수문자
 # 특수문자는 색인 검색시 삭제 
 # "-", "/" 만 인식 +는 기본적으로 미포함
-abcde1234#	abcde <ALPHA>	1234 <NUMBER> abcde1234 <MODEL_NAME>
+abcde1234#	abcde1234 <MODEL_NAME>	abcde <ALPHA>	1234 <NUMBER>
 a-1	a-1 <MODEL_NAME>
 1-a	1-a <MODEL_NAME>
 a#b	a <ALPHA>	b <ALPHA>
@@ -24,7 +24,8 @@ a/b	a/b <MODEL_NAME>
 1-	1 <NUMBER>
 c+	c <ALPHA>
 # + 는 기본적으로 미포함되지만 pa++ 는 사전에 존재하므로 HANGUL 로 뽑힘
-pa++	pa++ <HANGUL>
+# pa++	pa++ <HANGUL>
+pa++	pa <ALPHA>
 
 #1-2. 삭제된 특수문자로 구분되어 형태소 분리가 된다.
 abcde#1234	abcde <ALPHA>	1234 <NUMBER>
@@ -36,23 +37,23 @@ abc#abc	abc <ALPHA>	abc <ALPHA>
 # 허용되는 특수문자 단독 형태소로 존재할 수 있다.
 # ※ 취소된 규칙임, + 는 분석시 제외함
 air+	air <ALPHA>
-b923#	b <ALPHA>	923 <NUMBER> b923 <MODEL_NAME>
+b923#	b923 <MODEL_NAME>	b <ALPHA>	923 <NUMBER>
 
 # 특정 규칙이 존재할 경우 특수문자를 사용될 수 있다.
 A-4	A-4 <MODEL_NAME>
-AB-1	AB <ALPHA>	1 <NUMBER> AB-1 <MODEL_NAME>
-a/1/b	a <ALPHA>	1 <NUMBER>	b <ALPHA> a/1/b <MODEL_NAME>
+AB-1	AB-1 <MODEL_NAME>	AB <ALPHA>	1 <NUMBER>
+a/1/b	a/1/b <MODEL_NAME>	a <ALPHA>	1 <NUMBER>	b <ALPHA>
 
 ################################################################################
 # 모델명
 # 영문+숫자 조합인 경우 모델명으로 인식되어 전체 한단어로 한번 더 인식해준다.
-abc123	abc <ALPHA>	123 <NUMBER> abc123 <MODEL_NAME>
-abc-123	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
+abc123	abc123 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER> 
+abc-123	abc-123 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER> 
 
 ################################################################################
 # 영문 + 숫자
 # 영문은 영문끼리 숫자는 숫자끼리 분리된다.
-abc123d4efg56	abc <ALPHA>	123 <NUMBER>	d <ALPHA>	4 <NUMBER>	efg <ALPHA>	56 <NUMBER> abc123d4efg56 <MODEL_NAME>
+abc123d4efg56	abc123d4efg56 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>	d <ALPHA>	4 <NUMBER>	efg <ALPHA>	56 <NUMBER>
 
 # 영문숫자 패턴인 경우 1byte 이하의 구성인 경우는 영문+숫자 한단어로 판단 
 a4	a4 <MODEL_NAME>

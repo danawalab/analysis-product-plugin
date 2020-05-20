@@ -976,11 +976,6 @@ public class ProductNameParsingRule {
 							mergeSubQueue(entry, subQueue);
 							if(subQueue.size() > 1) {
 								entry.subEntry = subQueue;
-								// 엘라스틱서치에서 AdditionalTerm 을 표현해 줄 수 없으므로 일반추출 가능하도록 만들어줌
-								RuleEntry e = entry.clone();
-								e.subEntry = new ArrayList<>();
-								e.synonym = null;
-								subQueue.add(0, e);
 							}
 							logger.trace("entry:{} / subQueue:{}", entry, entry.subEntry);
 							logger.trace("## Q[{}] : {}", qinx, queue);
@@ -1227,7 +1222,7 @@ public class ProductNameParsingRule {
 								logger.trace("additionalTerm : {} / base:{} / start:{} / length:{}", term, baseOffset, entry.start, entry.length);
 								List synonyms = null;
 								//일반 추가텀의 동의어 처리.
-								if(option.useSynonym() && synonymDictionary.containsKey(term)) {
+								if(option.useSynonym() && synonymDictionary != null && synonymDictionary.containsKey(term)) {
 									synonyms = new ArrayList<>();
 									synonyms.addAll(Arrays.asList(synonymDictionary.get(term)));
 									List synonymsExt = synonymExtract(synonyms);

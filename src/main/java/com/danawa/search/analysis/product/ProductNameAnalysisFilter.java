@@ -387,51 +387,85 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				List<RuleEntry> subEntryList = entry.subEntry;
 				logger.trace("SUB:{}", subEntryList);
 
-				if (subEntryList == null || subEntryList.size() == 0) {
-					termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
-					offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
-					typeAttribute.setType(entry.type);
-					token = entry.makeTerm(null);
-					if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
-						tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
-					} else {
-						tokenAttribute.rmState(TokenInfoAttribute.STATE_TERM_STOP);
-					}
-					if (analyzerOption.useSynonym()) {
-						if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
-							List<Object> synonyms = new ArrayList<>();
-							CharSequence[] wordSynonym = synonymDictionary.map().get(token);
-							logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
-							if (synonymAttribute.getSynonyms() != null) {
-								synonyms.addAll(synonymAttribute.getSynonyms());
-							}
-							if (wordSynonym != null) {
-								synonyms.addAll(Arrays.asList(wordSynonym));
-							}
-							//
-							// 동의어는 한번 더 분석해 준다.
-							// 단 단위명은 더 분석하지 않는다.
-							if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
-								List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
-								if (synonymsExt != null) {
-									synonyms = (List<Object>) synonymsExt;
-								}
-							}
-							synonymAttribute.setSynonyms(synonyms);
+				// 분기. 색인시에는 모델명을 일반텀으로 추출, 질의시에는 추가텀으로 추출
+				// 색인시에는 오프셋이 앞으로 갈수 없으므로 일반텀으로 추출한다
+
+				if (analyzerOption.isForDocument()) {
+					if (entry.buf != null) {
+						termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
+						offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
+						typeAttribute.setType(entry.type);
+						token = entry.makeTerm(null);
+						if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
+							tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
+						} else {
+							tokenAttribute.rmState(TokenInfoAttribute.STATE_TERM_STOP);
 						}
+						if (analyzerOption.useSynonym()) {
+							if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
+								List<Object> synonyms = new ArrayList<>();
+								CharSequence[] wordSynonym = synonymDictionary.map().get(token);
+								logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
+								if (synonymAttribute.getSynonyms() != null) {
+									synonyms.addAll(synonymAttribute.getSynonyms());
+								}
+								if (wordSynonym != null) {
+									synonyms.addAll(Arrays.asList(wordSynonym));
+								}
+								//
+								// 동의어는 한번 더 분석해 준다.
+								// 단 단위명은 더 분석하지 않는다.
+								if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
+									List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
+									if (synonymsExt != null) {
+										synonyms = (List<Object>) synonymsExt;
+									}
+								}
+								synonymAttribute.setSynonyms(synonyms);
+							}
+						}
+						if (subEntryList == null) {
+							termList.remove(0);
+						} else {
+							// 서브엔트리가 존재하는 경우 출력한 버퍼를 null 처리 하고 서브엔트리를 처리하도록 한다.
+							entry.buf = null;
+						}
+						ret = true;
+					} else if (subEntryList.size() > 0) {
+						RuleEntry subEntry = subEntryList.get(0);
+						termAttribute.copyBuffer(subEntry.buf, subEntry.start, subEntry.length);
+						offsetAttribute.setOffset(subEntry.startOffset, subEntry.endOffset);
+						typeAttribute.setType(subEntry.type);
+						token = subEntry.makeTerm(null);
+						ret = true;
+						subEntryList.remove(0);
+					} else if (subEntryList.size() == 0) {
+						termList.remove(0);
 					}
-					ret = true;
-					termList.remove(0);
+					break;
 				} else {
-					RuleEntry subEntry = subEntryList.get(0);
-					termAttribute.copyBuffer(subEntry.buf, subEntry.start, subEntry.length);
-					offsetAttribute.setOffset(subEntry.startOffset, subEntry.endOffset);
-					typeAttribute.setType(subEntry.type);
-					token = subEntry.makeTerm(null);
-					ret = true;
-					subEntryList.remove(0);
+
 				}
-				break;
+
+				// if (subEntryList != null) {
+				// 	while(subEntryList.size() > 0) {
+				// 		RuleEntry nextEntry = subEntryList.get(0);
+				// 		logger.trace("ADD-ENTRY:{}", nextEntry);
+				// 		// if(nextEntry.type != ProductNameTokenizer.MODEL_NAME) {
+				// 		// 	break;
+				// 		// }
+				// 		if(nextEntry.type == ProductNameTokenizer.MODEL_NAME) {
+				// 			subEntryList.remove(0);
+				// 			continue;
+				// 		}
+				// 		//모델명으로 추가된 단어들 (첫머리를 뗀 나머지 모델명 등)
+				// 		if(additionalTermAttribute != null) {
+				// 			additionalTermAttribute.addAdditionalTerm(nextEntry.makeTerm(null).toString(), 
+				// 				nextEntry.type, null, 0, nextEntry.startOffset, nextEntry.endOffset);
+				// 		}
+				// 		subEntryList.remove(0);
+				// 	}
+				// }
 			}
 		} // LOOP
 		return ret;

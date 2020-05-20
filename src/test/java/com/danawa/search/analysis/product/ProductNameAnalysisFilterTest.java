@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Properties;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
-import com.danawa.search.analysis.dict.TagProbDictionary;
 import com.danawa.util.CharVector;
 import com.danawa.util.TestUtil;
 
@@ -26,7 +25,6 @@ import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
-import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.common.logging.Loggers;
 import org.junit.Before;
@@ -63,6 +61,7 @@ public class ProductNameAnalysisFilterTest {
 		str = "확인중 브랜드,레저,스포츠,자전거 전기자전거|바퀴$66cm(26인치)|기어$7단|프레임 재질$알루미늄|변속레버$시마노 썸 시프터|무게$27.5kg|최고속도$32km/h(24km/h 제한)|출력$350W|배터리$36V 10Ah 리튬이온 벡셀 퀀텀 클래식 4696201 확인중 4696201 스포츠/레저>자전거>자전거브랜드>기타브랜드";
 		str = "N6WFL9005 세컨스킨 치렝스, 치마레깅스 패션,여성,하의,의류 스커트|무늬$무지|라인 형태$H라인|길이$기본(무릎) 뉴 나일론 밍크기모 치깅스 N6WFL9005 5029179 색상: 블랙 세컨스킨 5029179 의류>여성 브랜드의류>스커트 세컨스킨";
 		str = "abcde1234#";
+		str = "pa++";
 		// str = "아름다운이땅에 금수강산에 단군할아버지가터잡으시고홍익인간뜻으로나라세우니대대손손훌륭한인물도많아고구려세운동명왕백제온조왕알에서나온혁거세만주벌판달려라광개토대왕신라장군이사부백결선생떡방아      삼천궁녀의자왕황산벌의계백맞서싸운관창역사는흐른다말목자른김유신통일문무왕원효대사해골물혜초천축국바다의왕자장보고발해대조영귀주대첩강감찬서희거란족무단정치정중부화포최무선죽림칠현김부식지눌국사  조계종의천천태종대마도정벌이종무일편단심정몽주목화씨는문익점해동공자최충삼국유사일연역사는흐른다황금을보기를돌같이하라최영장군의말씀받들자황희정승맹사성과학장영실신숙주와한명회역사는안다십만양병이율곡주리이퇴계신사임당오죽헌잘싸운다곽재우조헌김시민나라구한이순신태정태세문단세사육신과생육신몸바쳐서논개행주치마권율역사는흐른다번쩍번쩍홍길동의적임꺽정대쪽같은삼학사어사박문수삼년공부한석봉단원풍속도방랑시인김삿갓 지도김정호영조대왕신문고정조규장각목민심서정약용녹두장군전봉준순교김대건서화가무황진이못살겠다홍경래삼일천하김옥균안중근은애국이완용은매국역사는흐른다 별헤는밤윤동주종두지석영삼십삼인손병희만세만세유관순도산안창호 어린이날방정환이수일과심순애장군의아들김두한날자꾸나이상황소그림중섭역사는흐른다";
 		try {
 			reader = new StringReader(str);
@@ -123,6 +122,8 @@ public class ProductNameAnalysisFilterTest {
 		AnalyzerOption option = null;
 		String str = "";
 		str = "abcde1234#";
+		// str = "pa++";
+		str = "abc123";
 		try {
 			option = new AnalyzerOption();
 			reader = new StringReader(str);
@@ -260,6 +261,7 @@ public class ProductNameAnalysisFilterTest {
 		BufferedReader reader = null;
 		ProductNameAnalyzer analyzer = null;
 		try {
+			ProductNameDictionary dictionary = TestUtil.loadBaseOnlyDictionary();
 			stream = getClass().getResourceAsStream(testFile);
 			reader = new BufferedReader(new InputStreamReader(stream));
 			for(String rline="";(rline=reader.readLine())!=null;) {
@@ -276,15 +278,15 @@ public class ProductNameAnalysisFilterTest {
                 }
 				option.useStopword(true);
 				option.useSynonym(true);
-				analyzer = new ProductNameAnalyzer(null, option);
+				analyzer = new ProductNameAnalyzer(dictionary, option);
 				TokenStream tokenStream = analyzer.tokenStream("", input);
-				TypeAttribute typeAttribute = tokenStream.getAttribute(TypeAttribute.class);
-				TokenInfoAttribute termAttribute = tokenStream.getAttribute(TokenInfoAttribute.class);
-				SynonymAttribute synonymAttribute = tokenStream.getAttribute(SynonymAttribute.class);
-				AdditionalTermAttribute additionalTermAttribute = tokenStream.getAttribute(AdditionalTermAttribute.class);
+				TypeAttribute typeAttribute = tokenStream.addAttribute(TypeAttribute.class);
+				CharTermAttribute termAttribute = tokenStream.addAttribute(CharTermAttribute.class);
+				SynonymAttribute synonymAttribute = tokenStream.addAttribute(SynonymAttribute.class);
+				AdditionalTermAttribute additionalTermAttribute = tokenStream.addAttribute(AdditionalTermAttribute.class);
 				
 				logger.debug("--------------------------------------------------------------------------------");
-				logger.debug("test for {}", testdata[0]);
+				logger.debug("test for {}{}", "", testdata);
 				logger.debug("--------------------------------------------------------------------------------");
 				
 				int inx=0;

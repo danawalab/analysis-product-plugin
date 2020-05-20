@@ -96,7 +96,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		// 단어사이에 구분자로 올 수 있는 기호들, 사용자단어에 들어가는 기호는 삭제해야 한다.
 		',', '|', '[', ']', '<', '>', '{', '}' };
 
-	protected final CharTermAttribute charAttribute = addAttribute(CharTermAttribute.class);
+	// private final CharTermAttribute charAttribute = addAttribute(CharTermAttribute.class);
 	private final TokenInfoAttribute tokenAttribute = addAttribute(TokenInfoAttribute.class);
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
@@ -379,24 +379,25 @@ public class ProductNameTokenizer extends Tokenizer {
 				} else {
 					tokenAttribute.addState(TokenInfoAttribute.STATE_INPUT_FINISHED);
 				}
-				if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
-					// FULL-TERM, 테스트 후 (공백포함여부, 유니코드포함여부) TokenInfoAttribute 에 입력.
-					ret = true;
-					for (int inx = 0; inx < readLength; inx++) {
-						char ch = buffer[inx];
-						String type = getType(ch);
-						if (!(type != WHITESPACE && (type == ALPHA || type == NUMBER || type == SYMBOL))) {
-							ret = false;
-						}
-					}
-					if (ret) {
-						tokenAttribute.ref(buffer, 0, readLength);
-						tokenAttribute.posTag(null);
-						offsetAttribute.setOffset(0, readLength);
-						typeAttribute.setType(FULL_STRING);
-						break;
-					}
-				}
+				// FIXME:임시주석. 테스트를 위해 주석처리함.
+				// if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
+				// 	// FULL-TERM, 테스트 후 (공백포함여부, 유니코드포함여부) TokenInfoAttribute 에 입력.
+				// 	ret = true;
+				// 	for (int inx = 0; inx < readLength; inx++) {
+				// 		char ch = buffer[inx];
+				// 		String type = getType(ch);
+				// 		if (!(type != WHITESPACE && (type == ALPHA || type == NUMBER))) {
+				// 			ret = false;
+				// 		}
+				// 	}
+				// 	if (ret) {
+				// 		tokenAttribute.ref(buffer, 0, readLength);
+				// 		tokenAttribute.posTag(null);
+				// 		offsetAttribute.setOffset(0, readLength);
+				// 		typeAttribute.setType(FULL_STRING);
+				// 		break;
+				// 	}
+				// }
 			} else {
 				if (entry == null) {
 					////////////////////////////////////////////////////////////////////////////////
