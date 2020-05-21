@@ -30,7 +30,7 @@ public class KoreanWordExtractorTest {
 	@Test public void testUserDictionary() {
 		if (TestUtil.launchForBuild()) { return; }
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (propFile == null) { return; }
+		if (!propFile.exists()) { return; }
 		Properties prop = TestUtil.readProperties(propFile);
 		ProductNameDictionary commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
 		SetDictionary userDictionary = commonDictionary.getDictionary("user", SetDictionary.class);
@@ -44,7 +44,7 @@ public class KoreanWordExtractorTest {
 	@Test public void testExtractorSimple() {
 		if (TestUtil.launchForBuild()) { return; }
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (propFile == null) { return; }
+		if (!propFile.exists()) { return; }
 		Properties prop = TestUtil.readProperties(propFile);
 		ProductNameDictionary commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
 		KoreanWordExtractor extractor = new KoreanWordExtractor(commonDictionary);

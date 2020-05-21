@@ -651,7 +651,7 @@ public class ProductNameParsingRule {
 										String unitStr = number.toString() + unitCandidate.toString();
 										e1 = new RuleEntry( unitStr.toCharArray(), 0, unitStr.length(),
 											e0.startOffset, e0.endOffset + unitCandidate .length(), UNIT);
-										e0.subEntry.add(e1);
+										e0.subEntry.add(0, e1);
 										logger.trace("E0:{}/E1:{}", e0,e1);
 										//동의어를 사용할 경우에만.
 										if (option.useSynonym()) {
@@ -1125,6 +1125,13 @@ public class ProductNameParsingRule {
 		for (int qinx = 0; qinx < queue.size(); qinx++) {
 			//modifiable 을 특별 용도로 사용한다.
 			e0 = queue.get(qinx);
+			testEntry(e0, null);
+			if (e0.subEntry != null) {
+				for (int inx = 0; inx < e0.subEntry.size(); inx++) {
+					RuleEntry subEntry = e0.subEntry.get(inx);
+					testEntry(subEntry, e0);
+				}
+			}
 			if(e0.subEntry !=null && e0.subEntry.size() > 0) {
 				logger.trace("subEntry:{}", e0.subEntry);
 				e0.modifiable = true;
@@ -1356,7 +1363,9 @@ public class ProductNameParsingRule {
 			entry.type = NUMBER;
 			CharVector entryStr = new CharVector( entry.makeTerm(null).toString().replace(",", ""));
 			if(entry.length != entryStr.length()) {
-				additionalTermAttribute.addAdditionalTerm(entryStr.toString(), NUMBER, null, 0, entry.startOffset, entry.endOffset);
+				// additionalTermAttribute.addAdditionalTerm(entryStr.toString(), NUMBER, null, 0, entry.startOffset, entry.endOffset);
+				int inx = parent.subEntry.indexOf(entry);
+				parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
 			}
 		} else if(entry.type == null) {
 			entry.type = ProductNameTokenizer.UNCATEGORIZED;
@@ -1648,7 +1657,8 @@ public class ProductNameParsingRule {
 									clone.length = buf.length;
 									clone.startOffset = e1.startOffset;
 									clone.endOffset = e2.endOffset;
-									subQueue.add(inx + 2, clone);
+									logger.trace("TRANS-MERGE:{}", clone);
+									subQueue.add(clone);
 								}
 							}
 						}
@@ -1994,7 +2004,12 @@ public class ProductNameParsingRule {
 		}
 
 		@Override public int compareTo(RuleEntry entry) {
-			return this.startOffset - entry.startOffset;
+			int ret = 0;
+			ret = this.startOffset - entry.startOffset;
+			if (ret == 0) {
+				ret = entry.endOffset - this.endOffset;
+			}
+			return ret;
 		}
 	}
 }

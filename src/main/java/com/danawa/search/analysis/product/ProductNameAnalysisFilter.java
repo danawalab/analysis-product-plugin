@@ -437,6 +437,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						offsetAttribute.setOffset(subEntry.startOffset, subEntry.endOffset);
 						typeAttribute.setType(subEntry.type);
 						token = subEntry.makeTerm(null);
+						if (entry.synonym != null && analyzerOption.useSynonym()) {
+							synonymAttribute.setSynonyms(Arrays.asList(entry.synonym));
+						}
 						ret = true;
 						subEntryList.remove(0);
 					} else if (subEntryList.size() == 0) {

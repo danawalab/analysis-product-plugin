@@ -45,7 +45,7 @@ public class ProductNameAnalysisFilterTest {
 	@Test public void testFilter() {
 		if (TestUtil.launchForBuild()) { return; }
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (propFile == null) { return; }
+		if (!propFile.exists()) { return; }
 
 		Properties prop = TestUtil.readProperties(propFile);
 		ProductNameDictionary dictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
@@ -117,13 +117,11 @@ public class ProductNameAnalysisFilterTest {
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		ProductNameAnalysisFilter tstream = null;
-		ProductNameDictionary dictionary = TestUtil.loadBaseOnlyDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		KoreanWordExtractor extractor = null;
 		AnalyzerOption option = null;
 		String str = "";
-		str = "abcde1234#";
-		// str = "pa++";
-		str = "abc123";
+		str = "1TB";
 		try {
 			option = new AnalyzerOption();
 			reader = new StringReader(str);
@@ -185,10 +183,10 @@ public class ProductNameAnalysisFilterTest {
 			ProductNameAnalysisFilter.class);
 
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (propFile == null) { return; }
+		if (!propFile.exists()) { return; }
 
 		File textFile = TestUtil.getFileByProperty("SYSPROP_SAMPLE_TEXT_PATH");
-		if (textFile == null) { return; }
+		if (!textFile.exists()) { return; }
 
 		Properties prop = TestUtil.readProperties(propFile);
 		ProductNameDictionary dictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
@@ -261,7 +259,7 @@ public class ProductNameAnalysisFilterTest {
 		BufferedReader reader = null;
 		ProductNameAnalyzer analyzer = null;
 		try {
-			ProductNameDictionary dictionary = TestUtil.loadBaseOnlyDictionary();
+			ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 			stream = getClass().getResourceAsStream(testFile);
 			reader = new BufferedReader(new InputStreamReader(stream));
 			for(String rline="";(rline=reader.readLine())!=null;) {

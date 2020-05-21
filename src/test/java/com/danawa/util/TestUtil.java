@@ -1,12 +1,20 @@
 package com.danawa.util;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.net.URL;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
+import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
+import com.danawa.search.analysis.dict.SourceDictionary;
+import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
+import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.ProductNameAnalysisFilter;
 import com.danawa.search.analysis.product.ProductNameTokenizerFactory;
 
@@ -91,20 +99,89 @@ public final class TestUtil {
 		ctx.updateLoggers();
 	}
 
-	public static final ProductNameDictionary loadBaseOnlyDictionary() {
-		ProductNameDictionary ret = null;
-		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		String key;
+	private static void loadTagProbSource(final TagProbDictionary dictionary, final File file) {
+		BufferedReader reader = null;
 		try {
-			Properties prop = TestUtil.readProperties(propFile);
-			key = "analysis.product.dictionary.basePath";
-			File baseFile = new File(String.valueOf(prop.get(key)));
-			key = "analysis.product.dictionary.filePath.product";
-			File dictFile = new File(baseFile, String.valueOf(prop.get(key)));
-			TagProbDictionary baseDict = new TagProbDictionary(dictFile, true);
+			reader = new BufferedReader(new FileReader(file));
+			for (String line; (line = reader.readLine()) != null;) {
+				dictionary.addSourceEntry(line);
+			}
+		} catch (final Exception e) {
+			logger.error("", e);
+		} finally {
+			try { reader.close(); } catch (final Exception ignore) { }
+		}
+	}
+
+	private static void loadTagProbByFileName (TagProbDictionary dictionary, File file) {
+		BufferedReader reader = null;
+		try {
+			Set<CharSequence> entrySet = new HashSet<>();
+			String fileName = file.getName();
+			String[] parts = fileName.split("\\.");
+			String posName = parts[1];
+			String probType = parts[2];
+			PosTag posTag = null;
+			try {
+				posTag = PosTag.valueOf(posName);
+			} catch (Exception e) {
+				logger.error("Undefined pos tag = {}", posName);
+				throw e;
+			}
+			double prob = TagProb.getProb(probType);
+
+			reader = new BufferedReader(new FileReader(file));
+			for (String line; (line = reader.readLine()) != null;) {
+				if (line.startsWith("#") || line.startsWith("//") || line.length() == 0) { continue; }
+				CharVector cv = new CharVector(line);
+				if (dictionary.ignoreCase()) { cv.ignoreCase(); }
+				entrySet.add(cv);
+			}
+			dictionary.appendPosTagEntry(entrySet, posTag, prob);
+		} catch (final Exception e) {
+			logger.error("", e);
+		} finally {
+			try { reader.close(); } catch (final Exception ignore) { }
+		}
+	}
+
+	public static final void loadSourceDict(SourceDictionary<?> dict, File file) {
+		BufferedReader reader = null;
+		try {
+			reader = new BufferedReader(new FileReader(file));
+			for (String line; (line = reader.readLine()) != null;) {
+				dict.addEntry(line, new String[] {});
+			}
+		} catch (final Exception e) {
+			logger.error("", e);
+		} finally {
+			try { reader.close(); } catch (final Exception ignore) { }
+		}
+	}
+
+	public static final ProductNameDictionary loadTestDictionary() {
+		ProductNameDictionary ret = null;
+		try {
+			File dictDir = TestUtil.getFileByRoot(TestUtil.class,
+				TagProbDictionary.class.getPackage().getName().replaceAll("[.]", "/"));
+
+			TagProbDictionary baseDict = new TagProbDictionary(true);
+			loadTagProbSource(baseDict, new File(dictDir, "0.lnpr_morp.txt"));
+			loadTagProbSource(baseDict, new File(dictDir, "words-prob.txt"));
+			loadTagProbByFileName(baseDict, new File(dictDir, "01.N.P11.txt"));
+			loadTagProbByFileName(baseDict, new File(dictDir, "02.N.MIN.txt"));
+			loadTagProbByFileName(baseDict, new File(dictDir, "03.N.LOW.txt"));
+
+			SetDictionary unitDict = new SetDictionary();
+			loadSourceDict(unitDict, new File(dictDir, "99.Unit.txt"));
+
+			SynonymDictionary unitSynDict = new SynonymDictionary();
+			loadSourceDict(unitSynDict, new File(dictDir, "99.Unit-Synonym.txt"));
+
 			ret = new ProductNameDictionary(baseDict);
 			ret.addDictionary(ProductNameAnalysisFilter.DICT_USER, new SetDictionary());
-		} catch (Exception e) {
+			ret.addDictionary(ProductNameAnalysisFilter.DICT_UNIT, unitDict);
+		} catch (final Exception e) {
 			logger.debug("ERROR LOADING BASE DICTIONARY : {}", e.getMessage());
 		}
 		return ret;

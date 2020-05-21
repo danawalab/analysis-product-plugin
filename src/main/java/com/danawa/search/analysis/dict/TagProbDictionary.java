@@ -23,22 +23,22 @@ import org.elasticsearch.common.logging.Loggers;
 public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequence>>, ReadableDictionary {
     private static Logger logger = Loggers.getLogger(TagProbDictionary.class, "");
 
-	// private boolean ignoreCase;
+	private boolean ignoreCase;
 	private Map<CharSequence, List<TagProb>> probMap;
 	private Map<CharSequence, PreResult<CharSequence>> preMap;
 
 	public TagProbDictionary(boolean ignoreCase) {
-		// this.ignoreCase = ignoreCase;
+		this.ignoreCase = ignoreCase;
 		probMap = new HashMap<CharSequence, List<TagProb>>();
 	}
 
 	public TagProbDictionary(Map<CharSequence, List<TagProb>> probMap, boolean ignoreCase) {
-		// this.ignoreCase = ignoreCase;
+		this.ignoreCase = ignoreCase;
 		this.probMap = new HashMap<CharSequence, List<TagProb>>(probMap);
 	}
 
 	public TagProbDictionary(File file, boolean ignoreCase) {
-		// this.ignoreCase = ignoreCase;
+		this.ignoreCase = ignoreCase;
 		if (!file.exists()) {
 			probMap = new HashMap<CharSequence, List<TagProb>>();
 			logger.error("사전파일이 존재하지 않습니다. file={}", file.getAbsolutePath());
@@ -53,6 +53,10 @@ public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequ
 		} finally {
 			try { is.close(); } catch (Exception ignore) { }
 		}
+	}
+
+	public boolean ignoreCase() {
+		return ignoreCase;
 	}
 
 	public void setPreMap(Map<CharSequence, PreResult<CharSequence>> preMap) {
@@ -88,6 +92,78 @@ public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequ
 		while (iterator.hasNext()) {
 			CharSequence key = iterator.next();
 			putAndReplaceProbMap(key, tagProb);
+		}
+	}
+
+	public void addSourceEntry(String line) {
+		addSourceEntry(probMap, line, ignoreCase);
+	}
+
+	public static void addSourceEntry(
+		Map<CharSequence, List<TagProb>> probMap,
+		String line, boolean ignoreCase) {
+		if (line.startsWith("#") || line.startsWith("//") || line.length() == 0) {
+			return;
+		}
+		String[] tmp = line.split("\t");
+		if (tmp.length != 3) { return; }
+
+		PosTag posTag = null;
+		if (tmp[1].startsWith("N")) {
+			posTag = PosTag.N;
+		} else if (tmp[1].startsWith("V")) {
+			posTag = PosTag.V;
+		} else if (tmp[1].startsWith("M")) {
+			posTag = PosTag.M;
+		} else if (tmp[1].startsWith("IC")) {
+			posTag = PosTag.IC;
+		} else if (tmp[1].startsWith("J")) {
+			posTag = PosTag.J;
+		} else if (tmp[1].startsWith("E")) {
+			posTag = PosTag.E;
+		} else if (tmp[1].startsWith("XPN")) {
+			posTag = PosTag.XPN;
+		} else {
+			return;
+		}
+		
+		CharVector key = new CharVector(tmp[0].trim());
+		if (ignoreCase) {
+			key.ignoreCase();
+		}
+		double prob = Double.parseDouble(tmp[2].trim());
+		if (key.length() == 1) {
+			// 한글자는 확률이 높아도 막는다.2014-2-3 swsong
+			if (posTag == PosTag.N) {
+				if (prob > -13) {
+					prob = TagProb.MIN_PROB;
+				}
+			} else {
+				// 명사가 아닌 한글자는 버린다.
+				return;
+			}
+		}
+		List<TagProb> tagProbList = probMap.get(key);
+		TagProb tagProb = new TagProb(posTag, prob);
+		if (tagProbList == null) {
+			tagProbList = new ArrayList<TagProb>(1);
+			probMap.put(key, tagProbList);
+			tagProbList.add(tagProb);
+		} else {
+			if (tagProbList.contains(tagProb)) {
+				for (int i = 0; i < tagProbList.size(); i++) {
+					TagProb tagProb2 = tagProbList.get(i);
+					if (tagProb2.posTag() == tagProb.posTag()) {
+						if (tagProb2.prob() < tagProb.prob()) {
+							tagProbList.remove(i);
+							tagProbList.add(tagProb);
+							break;
+						}
+					}
+				}
+			} else {
+				tagProbList.add(tagProb);
+			}
 		}
 	}
 

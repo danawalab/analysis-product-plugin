@@ -63,13 +63,13 @@ b4	b4 <MODEL_NAME>
 # 단위명
 
 # 단위명 사전에 등록되어 있는 단위명 앞에 숫자 형태소가 있을경우 한단어 판단
-500gb	500 <NUMBER>	500gb <UNIT>
+500gb	500gb <UNIT>	500 <NUMBER>
 
 # 단위명일 경우 단위명을 제외한 숫자도 제공되어야함
-1024gb	1024 <NUMBER>	1024gb <UNIT>
+1024gb	1024gb <UNIT>	1024 <NUMBER>
 
 # 단위명 동의어도 확장이 되어야함. (단위명 동의어)
-1,024gb	1,024 <NUMBER> 1024 <NUMBER>	1,024gb <UNIT> 1024gb <UNIT>
+1,024gb	1,024gb <UNIT>	1024gb <UNIT>	1,024 <NUMBER>	1024 <NUMBER>
 
 ################################################################################
 # 신조어
@@ -95,23 +95,23 @@ b4	b4 <MODEL_NAME>
 123456	123456 <MODEL_NAME>
 
 # 숫자+’특수문자 (-,/)’ + 숫자 조합은 모델명으로 인식하고 추출시 특수문자도 인식하여 같이 추출 해준다.
-123-456	123 <NUMBER>	456 <NUMBER>	123456 <MODEL_NAME> 123-456 <MODEL_NAME>
+123-456	123-456 <MODEL_NAME>	123456 <MODEL_NAME>	123 <NUMBER>	456 <NUMBER>
 
 # 예외특수문자가 아닌 경우 마지막 남아있는 특수문자는 모델명 추출시 제외
-123-456/	123 <NUMBER>	456 <NUMBER>	123456 <MODEL_NAME> 123-456 <MODEL_NAME>
-abc-123-	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
+123-456/	123-456 <MODEL_NAME>	123456 <MODEL_NAME>	123 <NUMBER>	456 <NUMBER>
+abc-123-	abc-123 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>
 
 
 # 영문 + ‘특수문자(-,/)’ + 영문 + 숫자 조합 경우 첫 영문 형태소를 제외한 모델명도 추출
-nt-ok123	nt <ALPHA>	ok <ALPHA>	ntok <ALPHA>	123 <NUMBER> ok123 <MODEL_NAME> nt-ok123 <MODEL_NAME>
-ma-9999aa	ma <ALPHA>	9999 <NUMBER>	aa <ALPHA> 9999aa <MODEL_NAME> ma-9999aa <MODEL_NAME>
-abc-a123cc9	abc <ALPHA>	a <ALPHA>	abca <ALPHA>	123 <NUMBER>	cc <ALPHA>	9 <NUMBER> a123cc9 <MODEL_NAME> abc-a123cc9 <MODEL_NAME>
-ab-ab1	ab <ALPHA>	ab <ALPHA>	abab <ALPHA>	1 <NUMBER> ab1 <MODEL_NAME> ab-ab1 <MODEL_NAME>
+nt-ok123	nt-ok123 <MODEL_NAME>	ntok <ALPHA>	nt <ALPHA>	ok123 <MODEL_NAME>	ok <ALPHA>	123 <NUMBER>
+ma-9999aa	ma-9999aa <MODEL_NAME>	ma <ALPHA>	9999aa <MODEL_NAME>	9999 <NUMBER>	aa <ALPHA>
+abc-a123cc9	abc-a123cc9 <MODEL_NAME>	abca <ALPHA>	abc <ALPHA>	a123cc9 <MODEL_NAME>	a <ALPHA>	123 <NUMBER>	cc <ALPHA>	9 <NUMBER>
+ab-ab1	ab-ab1 <MODEL_NAME>	abab <ALPHA>	ab <ALPHA>	ab1 <MODEL_NAME>	ab <ALPHA>	1 <NUMBER> 
 
 ################################################################################
 
 # 영문은 영문끼리 숫자는 숫자끼리
-abc123def456	abc <ALPHA>	123 <NUMBER>	def <ALPHA>	456 <NUMBER> abc123def456 <MODEL_NAME>
+abc123def456	abc123def456 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>	def <ALPHA>	456 <NUMBER>
 
 # 1byte 이하의 구성인 경우 영문+숫자 : 한단어 판단
 a1	a1 <MODEL_NAME>
@@ -120,16 +120,16 @@ a1	a1 <MODEL_NAME>
 a1b	a1b <MODEL_NAME>
 
 # 2byte 이상의 구성인 경우 영문/숫자 분리
-ab1	ab <ALPHA>	1 <NUMBER> ab1 <MODEL_NAME>
+ab1	ab1 <MODEL_NAME>	ab <ALPHA>	1 <NUMBER>
 
 # 2byte 이상의 구성인 경우 영문/숫자 분리
-a12c	a <ALPHA>	12 <NUMBER>	c <ALPHA> a12c <MODEL_NAME>
+a12c	a12c <MODEL_NAME>	a <ALPHA>	12 <NUMBER>	c <ALPHA>
 
 # 특수문자 제거 후 특수문자 앞뒤로 분리
-abc-123	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
-abc12d-e34	abc <ALPHA>	12 <NUMBER>	d <ALPHA>	e <ALPHA>	de <ALPHA>	34 <NUMBER> abc12d-e34 <MODEL_NAME>
+abc-123	abc-123 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>
+abc12d-e34	abc12d-e34 <MODEL_NAME>	abc <ALPHA>	12 <NUMBER>	de <ALPHA>	d <ALPHA>	e <ALPHA>	34 <NUMBER>
 a-1	a-1 <MODEL_NAME>
-abc/def	abc <ALPHA>	def <ALPHA>	abcdef <ALPHA> abc/def <MODEL_NAME>
+abc/def	abc/def <MODEL_NAME>	abcdef <ALPHA>	abc <ALPHA>	def <ALPHA>
 
 # 예외 특수문자 인식 (+) // 사라진 규칙, 현재는 문자만 인식.
 air+	air <ALPHA>
@@ -138,38 +138,38 @@ air+	air <ALPHA>
 에어+	에어 <HANGUL>
 
 # 모델명 인식 (영문, 영문숫자 조합인 경우 – 추후 모델명 필드 매칭을 위함)
-abc123d	abc <ALPHA>	123 <NUMBER>	d <ALPHA> abc123d <MODEL_NAME>
-u43f	u <ALPHA>	43 <NUMBER>	f <ALPHA> u43f <MODEL_NAME>
-zd360-gd60k	zd <ALPHA>	360 <NUMBER>	gd <ALPHA>	60 <NUMBER>	k <ALPHA> zd360-gd60k <MODEL_NAME>
-23en43v	23 <NUMBER>	en <ALPHA>	43 <NUMBER>	v <ALPHA> 23en43v <MODEL_NAME>
-sd550-pd6ok	sd <ALPHA>	550 <NUMBER>	pd <ALPHA>	6 <NUMBER>	ok <ALPHA> sd550-pd6ok <MODEL_NAME>
-27ea53vq	27 <NUMBER>	ea <ALPHA>	53 <NUMBER>	vq <ALPHA> 27ea53vq <MODEL_NAME>
-15nd530-px7dk	15 <NUMBER>	nd <ALPHA>	530 <NUMBER>	px <ALPHA>	7 <NUMBER>	dk <ALPHA> 15nd530-px7dk <MODEL_NAME>
-abc123d-ef456	abc <ALPHA>	123 <NUMBER>	d <ALPHA>	ef <ALPHA>	def <ALPHA>	456 <NUMBER> abc123d-ef456 <MODEL_NAME>
+abc123d	abc123d <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>	d <ALPHA>
+u43f	u43f <MODEL_NAME>	u <ALPHA>	43 <NUMBER>	f <ALPHA>
+zd360-gd60k	zd360-gd60k <MODEL_NAME>	zd <ALPHA>	360 <NUMBER>	gd <ALPHA>	60 <NUMBER>	k <ALPHA>
+23en43v	23en43v <MODEL_NAME>	23 <NUMBER>	en <ALPHA>	43 <NUMBER>	v <ALPHA>
+sd550-pd6ok	sd550-pd6ok <MODEL_NAME>	sd <ALPHA>	550 <NUMBER>	pd <ALPHA>	6 <NUMBER>	ok <ALPHA>
+27ea53vq	27ea53vq <MODEL_NAME>	27 <NUMBER>	ea <ALPHA>	53 <NUMBER>	vq <ALPHA>
+15nd530-px7dk	15nd530-px7dk <MODEL_NAME>	15 <NUMBER>	nd <ALPHA>	530 <NUMBER>	px <ALPHA>	7 <NUMBER>	dk <ALPHA>
+abc123d-ef456	abc123d-ef456 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>	def <ALPHA>	d <ALPHA>	ef <ALPHA>	456 <NUMBER>
 A-4	A-4 <MODEL_NAME>
-AB-1	AB <ALPHA>	1 <NUMBER> AB-1 <MODEL_NAME>
-abc123	abc <ALPHA>	123 <NUMBER> abc123 <MODEL_NAME>
-abc-123	abc <ALPHA>	123 <NUMBER> abc-123 <MODEL_NAME>
-abc123d4efg56	abc <ALPHA>	123 <NUMBER>	d <ALPHA>	4 <NUMBER>	efg <ALPHA>	56 <NUMBER> abc123d4efg56 <MODEL_NAME>
+AB-1	AB-1 <MODEL_NAME>	AB <ALPHA>	1 <NUMBER>
+abc123	abc123 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>
+abc-123	abc-123 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>
+abc123d4efg56	abc123d4efg56 <MODEL_NAME>	abc <ALPHA>	123 <NUMBER>	d <ALPHA>	4 <NUMBER>	efg <ALPHA>	56 <NUMBER>
 a4	a4 <MODEL_NAME>
 b4	b4 <MODEL_NAME>
-gx1	gx <ALPHA>	1 <NUMBER> gx1 <MODEL_NAME>
-rs833gsme1v	rs <ALPHA>	833 <NUMBER>	gsme <ALPHA>	1 <NUMBER>	v <ALPHA> rs833gsme1v <MODEL_NAME>
-베가lte-a	베가 <HANGUL>	lte <ALPHA>	a <ALPHA>	ltea <ALPHA> lte-a <MODEL_NAME>
-r-f874hbsw	r <ALPHA>	f <ALPHA>	rf <ALPHA>	874 <NUMBER>	hbsw <ALPHA> f874hbsw <MODEL_NAME> r-f874hbsw <MODEL_NAME>
-md760kh/a	md <ALPHA>	760 <NUMBER>	kh <ALPHA>	a <ALPHA>	kha <ALPHA> md760kh/a <MODEL_NAME>
+gx1	gx1 <MODEL_NAME>	gx <ALPHA>	1 <NUMBER>
+rs833gsme1v	rs833gsme1v <MODEL_NAME>	rs <ALPHA>	833 <NUMBER>	gsme <ALPHA>	1 <NUMBER>	v <ALPHA>
+베가lte-a	베가 <HANGUL>	lte-a <MODEL_NAME>	ltea <ALPHA>	lte <ALPHA>	a <ALPHA>
+r-f874hbsw	r-f874hbsw <MODEL_NAME>	rf <ALPHA>	r <ALPHA>	f874hbsw <MODEL_NAME>	f <ALPHA>	874 <NUMBER>	hbsw <ALPHA>
+md760kh/a	md760kh/a <MODEL_NAME>	md <ALPHA>	760 <NUMBER>	kha <ALPHA>	kh <ALPHA>	a <ALPHA>
 k5	k5 <MODEL_NAME>
 
 # 질의어 특수문자 제거
-abcde1234#	abcde <ALPHA>	1234 <NUMBER> abcde1234 <MODEL_NAME>
+abcde1234#	abcde1234 <MODEL_NAME>	abcde <ALPHA>	1234 <NUMBER>
 abcde#1234	abcde <ALPHA>	1234 <NUMBER>
 Air+	Air <ALPHA>
 타이탄 a.e.	타이탄 <HANGUL>	a.e <MODEL_NAME>
-u560-g.ah30k	u <ALPHA>	560 <NUMBER>	g <ALPHA>	ah <ALPHA>	30 <NUMBER>	k <ALPHA> u560-g.ah30k <MODEL_NAME>
+u560-g.ah30k	u560-g.ah30k <MODEL_NAME>	u <ALPHA>	560 <NUMBER>	g <ALPHA>	ah <ALPHA>	30 <NUMBER>	k <ALPHA>
 
 # 단위명 인식 (현재 테스트케이스에는 단위명 동의어는 TB,테라,테라바이트 만 적용되어 있음)
 
-1TB	1 <NUMBER>	1TB <UNIT> 1테라 1테라바이트
+1TB	1TB <UNIT>	1 <NUMBER>	1테라 1테라바이트
 1개	1 <NUMBER>	1개 <UNIT>
 
 # 5글자 이상인 숫자는 모델명으로

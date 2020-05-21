@@ -68,7 +68,7 @@ public class ProductNameTokenizerTest {
 	public void testTokenizer() throws Exception {
 		if (TestUtil.launchForBuild()) { return; }
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (propFile == null) { return; }
+		if (!propFile.exists()) { return; }
 
 		Properties prop = TestUtil.readProperties(propFile);
 		ProductNameDictionary dictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
