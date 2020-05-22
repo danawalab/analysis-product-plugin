@@ -431,6 +431,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							entry.buf = null;
 						}
 						ret = true;
+						break;
 					} else if (subEntryList.size() > 0) {
 						RuleEntry subEntry = subEntryList.get(0);
 						termAttribute.copyBuffer(subEntry.buf, subEntry.start, subEntry.length);
@@ -440,12 +441,12 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						if (entry.synonym != null && analyzerOption.useSynonym()) {
 							synonymAttribute.setSynonyms(Arrays.asList(entry.synonym));
 						}
-						ret = true;
 						subEntryList.remove(0);
+						ret = true;
+						break;
 					} else if (subEntryList.size() == 0) {
 						termList.remove(0);
 					}
-					break;
 				} else {
 
 				}

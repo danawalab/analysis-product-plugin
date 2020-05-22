@@ -24,8 +24,8 @@ a/b	a/b <MODEL_NAME>
 1-	1 <NUMBER>
 c+	c <ALPHA>
 # + 는 기본적으로 미포함되지만 pa++ 는 사전에 존재하므로 HANGUL 로 뽑힘
-# pa++	pa++ <HANGUL>
-pa++	pa <ALPHA>
+# pa++	pa <ALPHA>
+pa++	pa++ <HANGUL>
 
 #1-2. 삭제된 특수문자로 구분되어 형태소 분리가 된다.
 abcde#1234	abcde <ALPHA>	1234 <NUMBER>
@@ -169,14 +169,14 @@ u560-g.ah30k	u560-g.ah30k <MODEL_NAME>	u <ALPHA>	560 <NUMBER>	g <ALPHA>	ah <ALPH
 
 # 단위명 인식 (현재 테스트케이스에는 단위명 동의어는 TB,테라,테라바이트 만 적용되어 있음)
 
-1TB	1TB <UNIT>	1 <NUMBER>	1테라 1테라바이트
-1개	1 <NUMBER>	1개 <UNIT>
+1TB	1TB <UNIT>	1 <NUMBER> 1테라 1테라바이트
+1개	1개 <UNIT>	1 <NUMBER>
 
 # 5글자 이상인 숫자는 모델명으로
 #1234567	1234567 <MODEL_NAME>
 
 # 숫자+’특수문자 (-,/)’ + 숫자 조합은 모델명으로 인식하고 추출시 특수문자도 인식하여 같이 추출 해준다.
-123-456	123 <NUMBER>	456 <NUMBER>	123456 <MODEL_NAME> 123-456 <MODEL_NAME>
+123-456	123-456 <MODEL_NAME>	123 <NUMBER>	456 <NUMBER>	123456 <MODEL_NAME> 
 123/456	123 <NUMBER>	456 <NUMBER>
 
 # 예외특수문자가 아닌 경우 마지막 남아있는 특수문자는 모델명 추출시 제외

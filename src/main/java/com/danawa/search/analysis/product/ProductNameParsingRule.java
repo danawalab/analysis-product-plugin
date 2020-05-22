@@ -630,10 +630,8 @@ public class ProductNameParsingRule {
 											char[] ubuf = new char[e0.length + units[inx].length()];
 											CharVector unitInx = CharVector.valueOf(units[inx]);
 											System.arraycopy(e0.buf, e0.start, ubuf, 0, e0.length);
-											System.arraycopy(unitInx.array(),
-													unitInx.offset(), ubuf,
-													e0.length,
-													units[inx].length());
+											System.arraycopy(unitInx.array(), unitInx.offset(), ubuf,
+												e0.length, units[inx].length());
 											synonyms[inx] = new CharVector(ubuf);
 										}
 									}
@@ -690,6 +688,7 @@ public class ProductNameParsingRule {
 								} else {
 									e0.type = UNIT;
 								}
+								logger.trace("E0:{} / SYN:{}", e0, synonyms);
 								queue.remove(qinx + 1);
 							}
 						} else {
@@ -785,6 +784,9 @@ public class ProductNameParsingRule {
 					if(e0.length == 0 || e1.length == 0) {
 						//끊어주는 역할. (분리어로 분리된 경우)
 						//두번 볼 것 없이 바로 끊어준다.
+						typeContinuousMerge = typeContinuous;
+						typeContinuous = 0;
+						isContinue = false;
 					} else if(e0.start == e1.start + e1.length && (
 						//특수문자는 연달아 나올수 없다.
 						(e0.type!=SYMBOL && (isAlphaNumPrev || e1.type == UNIT_ALPHA || (e1.type == SYMBOL && typeContinuous > 0))) ||
@@ -1362,7 +1364,7 @@ public class ProductNameParsingRule {
 		} else if(entry.type == NUMBER_TRANS) {
 			entry.type = NUMBER;
 			CharVector entryStr = new CharVector( entry.makeTerm(null).toString().replace(",", ""));
-			if(entry.length != entryStr.length()) {
+			if(entry.length != entryStr.length() && parent != null) {
 				// additionalTermAttribute.addAdditionalTerm(entryStr.toString(), NUMBER, null, 0, entry.startOffset, entry.endOffset);
 				int inx = parent.subEntry.indexOf(entry);
 				parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
@@ -1547,6 +1549,7 @@ public class ProductNameParsingRule {
 			}
 			
 			logger.trace("subQueue : {}", subQueue);
+			List<RuleEntry> tmpList = new ArrayList<>();
 			
 			for (int inx = 0; inx < subQueue.size(); inx++) {
 				e0 = subQueue.get(inx);
@@ -1658,7 +1661,8 @@ public class ProductNameParsingRule {
 									clone.startOffset = e1.startOffset;
 									clone.endOffset = e2.endOffset;
 									logger.trace("TRANS-MERGE:{}", clone);
-									subQueue.add(clone);
+									tmpList.add(clone);
+									// subQueue.add(clone);
 								}
 							}
 						}
@@ -1671,7 +1675,8 @@ public class ProductNameParsingRule {
 					//단위명과 숫자를 구분해준다.
 					logger.trace("subList:{}{}","",e0.subEntry);
 					e1 = e0.subEntry.remove(0);
-					subQueue.add(inx, e1);
+					tmpList.add(e1);
+					// subQueue.add(inx, e1);
 					e0.start += e1.length;
 					e0.length -= e1.length;
 					e0.synonym = null;
@@ -1707,9 +1712,12 @@ public class ProductNameParsingRule {
 					e0.type = MODEL_NAME;
 				}
 			}
+			if (tmpList.size() > 0) {
+				subQueue.addAll(tmpList);
+			}
+			////////////////////////////////////////////////////////////////////////////////
+			Collections.sort(subQueue);
 		}
-		////////////////////////////////////////////////////////////////////////////////
-		Collections.sort(subQueue);
 		return settable;
 	}
 	

@@ -36,6 +36,7 @@ public final class TestUtil {
 	public static final String LOG_LEVEL_INFO = Level.INFO.name();
 	public static final String LOG_LEVEL_DEBUG = Level.DEBUG.name();
 	public static final String LOG_LEVEL_TRACE = Level.TRACE.name();
+	public static final String HIGH = "HIGH";
 
 	public static final String T = "true";
 	public static final String F = "false";
@@ -145,20 +146,6 @@ public final class TestUtil {
 		}
 	}
 
-	public static final void loadSourceDict(SourceDictionary<?> dict, File file) {
-		BufferedReader reader = null;
-		try {
-			reader = new BufferedReader(new FileReader(file));
-			for (String line; (line = reader.readLine()) != null;) {
-				dict.addEntry(line, new String[] {});
-			}
-		} catch (final Exception e) {
-			logger.error("", e);
-		} finally {
-			try { reader.close(); } catch (final Exception ignore) { }
-		}
-	}
-
 	public static final ProductNameDictionary loadTestDictionary() {
 		ProductNameDictionary ret = null;
 		try {
@@ -172,15 +159,22 @@ public final class TestUtil {
 			loadTagProbByFileName(baseDict, new File(dictDir, "02.N.MIN.txt"));
 			loadTagProbByFileName(baseDict, new File(dictDir, "03.N.LOW.txt"));
 
-			SetDictionary unitDict = new SetDictionary();
-			loadSourceDict(unitDict, new File(dictDir, "99.Unit.txt"));
+			SetDictionary userDict = new SetDictionary(true);
+			userDict.loadSource(new File(dictDir, "09.User.txt"));
 
-			SynonymDictionary unitSynDict = new SynonymDictionary();
-			loadSourceDict(unitSynDict, new File(dictDir, "99.Unit-Synonym.txt"));
+			SetDictionary unitDict = new SetDictionary(true);
+			unitDict.loadSource(new File(dictDir, "99.Unit.txt"));
+
+			SynonymDictionary unitSynDict = new SynonymDictionary(true);
+			unitSynDict.loadSource(new File(dictDir, "99.Unit-Synonym.txt"));
+
+			logger.debug("UNITSYN:{} / {}", new File(dictDir, "99.Unit-Synonym.txt").exists(), unitSynDict.map().keySet());
 
 			ret = new ProductNameDictionary(baseDict);
-			ret.addDictionary(ProductNameAnalysisFilter.DICT_USER, new SetDictionary());
+			ret.appendAdditionalNounEntry(userDict.set(), HIGH);
+			ret.addDictionary(ProductNameAnalysisFilter.DICT_USER, userDict);
 			ret.addDictionary(ProductNameAnalysisFilter.DICT_UNIT, unitDict);
+			ret.addDictionary(ProductNameAnalysisFilter.DICT_UNIT_SYNONYM, unitSynDict);
 		} catch (final Exception e) {
 			logger.debug("ERROR LOADING BASE DICTIONARY : {}", e.getMessage());
 		}
