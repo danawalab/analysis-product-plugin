@@ -8,10 +8,10 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
+import com.danawa.search.analysis.dict.CompoundDictionary;
 import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
-import com.danawa.search.analysis.dict.SourceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
 import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
@@ -162,19 +162,28 @@ public final class TestUtil {
 			SetDictionary userDict = new SetDictionary(true);
 			userDict.loadSource(new File(dictDir, "09.User.txt"));
 
+			CompoundDictionary compDict = new CompoundDictionary(true);
+			compDict.loadSource(new File(dictDir, "compound.txt"));
+			compDict.addEntry("테니스화", new Object[] { "테니스,신발" });
+
+			SynonymDictionary synonymDict = new SynonymDictionary(true);
+			synonymDict.loadSource(new File(dictDir, "10.Synonym.txt"));
+
 			SetDictionary unitDict = new SetDictionary(true);
 			unitDict.loadSource(new File(dictDir, "99.Unit.txt"));
 
 			SynonymDictionary unitSynDict = new SynonymDictionary(true);
 			unitSynDict.loadSource(new File(dictDir, "99.Unit-Synonym.txt"));
 
-			logger.debug("UNITSYN:{} / {}", new File(dictDir, "99.Unit-Synonym.txt").exists(), unitSynDict.map().keySet());
-
 			ret = new ProductNameDictionary(baseDict);
 			ret.appendAdditionalNounEntry(userDict.set(), HIGH);
+			ret.appendAdditionalNounEntry(synonymDict.getWordSet(), HIGH);
 			ret.addDictionary(ProductNameAnalysisFilter.DICT_USER, userDict);
+			ret.addDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, synonymDict);
 			ret.addDictionary(ProductNameAnalysisFilter.DICT_UNIT, unitDict);
 			ret.addDictionary(ProductNameAnalysisFilter.DICT_UNIT_SYNONYM, unitSynDict);
+			ret.addDictionary(ProductNameAnalysisFilter.DICT_COMPOUND, compDict);
+
 		} catch (final Exception e) {
 			logger.debug("ERROR LOADING BASE DICTIONARY : {}", e.getMessage());
 		}

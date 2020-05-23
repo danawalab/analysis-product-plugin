@@ -309,19 +309,19 @@ M&A	M&A <MODEL_NAME>
 # 2018.10.1 발견사항
 # 테니스화 : HANGUL -> COMPOUND 로 타입변경, 추가텀의 타입도 COMPOUND 로 타입변경
 #
-아디다스테니스화50%세일무료배송	아디다스 <HANGUL>	테니스화 <COMPOUND> 테니스 <COMPOUND> 신발 <COMPOUND>	50 <NUMBER>	50% <UNIT>	세일 <HANGUL>	무료 <HANGUL>	배송 <HANGUL>
+아디다스테니스화50%세일무료배송	아디다스 <HANGUL>	테니스화 <COMPOUND>	테니스 <COMPOUND>	신발 <COMPOUND>	50% <UNIT>	50 <NUMBER>	세일 <HANGUL>	무료 <HANGUL>	배송 <HANGUL>
 
 ################################################################################
 # 2018.10.1 다나와 요청사항
 # 단위 X 단위 앞 뒤로 괄호 등의 기호가 있는경우 단위 X 단위 모델명으로 추출되는현상 수정
 #
-서랍장(22.6x18.8cm)	서랍장 <HANGUL>	22.6 <NUMBER>	18.8 <NUMBER>	18.8cm <UNIT>
+서랍장(22.6x18.8cm)	서랍장 <HANGUL>	22.6 <NUMBER>	18.8cm <UNIT>	18.8 <NUMBER>
 
 
 ################################################################################
 # 2019.06.26 버그사항 수정
 # 토크나이저 수준에서 타입분류가 되지 않아 한글 분석이 되지 않는 버그 수정
 
-18v충전배터리	18 <NUMBER>	v <ALPHA> 18v <MODEL_NAME>	충전 <HANGUL>	배터리 <HANGUL>
+18v충전배터리	18v <MODEL_NAME>	18 <NUMBER>	v <ALPHA>	충전 <HANGUL>	배터리 <HANGUL>
 
 #

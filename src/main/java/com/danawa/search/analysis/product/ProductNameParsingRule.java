@@ -673,7 +673,7 @@ public class ProductNameParsingRule {
 								logger.trace("E0:{} / SYN:{}", e0, synonyms);
 								queue.remove(qinx + 1);
 							}
-						} else {
+						} else if (e1.buf.length > e1.start + unitCandidate.length()) {
 							char tempch2 = e1.buf[e1.start + unitCandidate.length()];
 							// 단위명이 영문이며, 단위명 자투리도 영문인 경우 모델명으로 인식 예:1024mmcc
 							// ※ 2017년 6월 변경사항 : 단위명 사이의 x 에 대한 예외규칙 추가
@@ -1121,6 +1121,25 @@ public class ProductNameParsingRule {
 			} else {
 				e0.subEntry = null;
 				e0.modifiable = false;
+			}
+
+			if (option.isForDocument()) {
+				CharVector token = e0.makeTerm(null);
+				if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
+					typeAttribute.setType(COMPOUND);
+					//복합명사 분리는 색인시에만 수행. 쿼리시에는 분해하지 않고, 표시만.
+					// 2017-11-10 swsong 복합명사 분리를 검색, 색인 모두 수행한다.
+					// 공백있는 단어가 검색이 안되는 문제가 있어서 추가텀을 T or (A1 and A2 and A3 ..) 하여 검색하게 된다
+					CharSequence[] compounds = compoundDictionary.get(token);
+					for (CharSequence word : compounds) {
+						CharVector cv = CharVector.valueOf(word);
+						RuleEntry entry = new RuleEntry(cv.array(), cv.offset(), cv.length(), e0.startOffset, e0.endOffset, ProductNameTokenizer.COMPOUND);
+						if (e0.subEntry == null) { e0.subEntry = new ArrayList<>(); }
+						e0.subEntry.add(entry);
+					}
+					if (e0.subEntry != null) { Collections.sort(e0.subEntry); }
+					e0.type = ProductNameTokenizer.COMPOUND;
+				}
 			}
 		}
 		
