@@ -101,7 +101,8 @@ public class ProductNameAnalysisFilterTest {
 		KoreanWordExtractor extractor = null;
 		AnalyzerOption option = null;
 		String str = "";
-		str = "1tb";
+		str = "abc12d-e34";
+		str = "10cmx12cm";
 		try {
 			option = new AnalyzerOption();
 			option.useSynonym(true);
