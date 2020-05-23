@@ -62,7 +62,6 @@ public final class TestUtil {
 		File ret = null;
 		String path = getSystemProperty(key);
 		if (path != null) { ret = new File(path); }
-		if (ret != null && !ret.exists()) {ret = null; }
 		return ret;
 	}
 
@@ -74,13 +73,11 @@ public final class TestUtil {
 			ret = new File(url.getFile());
 			ret = new File(ret.getParentFile(), fileName);
 		} catch (Exception ignore) { }
-		if (!ret.exists()) {ret = null; }
 		return ret;
 	}
 
 	public static final File getFileByRoot(Class<?> cls, String path) {
 		File ret = new File(ResourceResolver.getResourceRoot(cls), path);
-		if (!ret.exists()) {ret = null; }
 		return ret;
 	}
 
@@ -149,8 +146,10 @@ public final class TestUtil {
 	public static final ProductNameDictionary loadTestDictionary() {
 		ProductNameDictionary ret = null;
 		try {
-			File dictDir = TestUtil.getFileByRoot(TestUtil.class,
+			File dictDir = getFileByRoot(TestUtil.class,
 				TagProbDictionary.class.getPackage().getName().replaceAll("[.]", "/"));
+			logger.debug("DICTDIR:{}", getFileByRoot(TestUtil.class,"."));
+			logger.debug("DICTDIR:{}", dictDir);
 
 			TagProbDictionary baseDict = new TagProbDictionary(true);
 			loadTagProbSource(baseDict, new File(dictDir, "0.lnpr_morp.txt"));

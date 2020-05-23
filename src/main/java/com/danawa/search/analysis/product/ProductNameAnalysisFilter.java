@@ -5,13 +5,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.danawa.search.analysis.dict.CompoundDictionary;
 import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
-import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
 import com.danawa.search.analysis.product.ProductNameParsingRule.RuleEntry;
 import com.danawa.util.CharVector;
 
@@ -19,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.PosTagAttribute;
 import org.apache.lucene.analysis.tokenattributes.StopwordAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
@@ -45,7 +42,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private final CharTermAttribute termAttribute = addAttribute(CharTermAttribute.class);
 	private final TokenInfoAttribute tokenAttribute = addAttribute(TokenInfoAttribute.class);
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
-	private final PosTagAttribute posTagAttribute = addAttribute(PosTagAttribute.class);
 	private final AdditionalTermAttribute additionalTermAttribute = addAttribute(AdditionalTermAttribute.class);
 	private final StopwordAttribute stopwordAttribute = addAttribute(StopwordAttribute.class);
 	private final SynonymAttribute synonymAttribute = addAttribute(SynonymAttribute.class);
@@ -53,15 +49,11 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private SynonymAttribute tokenSynonymAttribute;
 	private AnalyzerOption analyzerOption;
 	
-	private Entry entry;
 	private KoreanWordExtractor extractor;
-	private int baseOffset;
-	//private int termIncrementCount; // 한글분석시 여러개의 텀으로 나누어지기 때문에, 증가된 텀갯수만큼 뒤의 텀 position에 더해주어야한다.
 	
 	private SynonymDictionary synonymDictionary;
 	private SpaceDictionary spaceDictionary;
 	private SetDictionary stopDictionary;
-	private CompoundDictionary compoundDictionary;
 	private ProductNameDictionary dictionary;
 	
 	public ProductNameAnalysisFilter(TokenStream input) {
@@ -125,6 +117,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			parsingRule = new ProductNameParsingRule(extractor, dictionary, analyzerOption, 
 				offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);
 		}
+		synonymAttribute.setSynonyms(null);
 		while (true) {
 // 임시코드. 테스트시 무한루프에 의한 프리징 방지
 // try { Thread.sleep(300); } catch (Exception ignore) { }
@@ -195,21 +188,13 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 				if (analyzerOption.isForDocument()) {
 					if (entry.buf != null) {
-////////////////////////////////////////////////////////////////////////////////
-						// termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
-						// offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
-						// typeAttribute.setType(entry.type);
-						// token = entry.makeTerm(null);
-						// if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
-						// 	tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
-						// } else {
-						// 	tokenAttribute.rmState(TokenInfoAttribute.STATE_TERM_STOP);
-						// }
 						token = applyEntry(entry);
-////////////////////////////////////////////////////////////////////////////////
 						if (analyzerOption.useSynonym()) {
+							List<Object> synonyms = new ArrayList<>();
+							if (entry.synonym != null && analyzerOption.useSynonym()) {
+								synonyms.addAll(Arrays.asList(entry.synonym));
+							}
 							if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
-								List<Object> synonyms = new ArrayList<>();
 								CharSequence[] wordSynonym = synonymDictionary.map().get(token);
 								logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
 								if (synonymAttribute.getSynonyms() != null) {
@@ -226,6 +211,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 										synonyms = (List<Object>) synonymsExt;
 									}
 								}
+							}
+							if (synonyms.size() > 0) {
 								synonymAttribute.setSynonyms(synonyms);
 							}
 						}
@@ -239,13 +226,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						break;
 					} else if (subEntryList.size() > 0) {
 						RuleEntry subEntry = subEntryList.get(0);
-						// termAttribute.copyBuffer(subEntry.buf, subEntry.start, subEntry.length);
-						// offsetAttribute.setOffset(subEntry.startOffset, subEntry.endOffset);
-						// typeAttribute.setType(subEntry.type);
-						// token = subEntry.makeTerm(null);
 						token = applyEntry(subEntry);
-						if (entry.synonym != null && analyzerOption.useSynonym()) {
-							synonymAttribute.setSynonyms(Arrays.asList(entry.synonym));
+						if (subEntry.synonym != null && analyzerOption.useSynonym()) {
+							synonymAttribute.setSynonyms(Arrays.asList(subEntry.synonym));
 						}
 						subEntryList.remove(0);
 						ret = true;
@@ -328,9 +311,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	public void reset() throws IOException {
 		super.reset();
 		additionalTermAttribute.init(this);
-		entry = null;
 		offset = 0;
-		baseOffset = 0;
 		prevOffset = 0;
 		currentOffset = 0;
 		lastOffset = 0;

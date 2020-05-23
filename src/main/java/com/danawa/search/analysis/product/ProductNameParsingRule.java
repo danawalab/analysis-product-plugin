@@ -19,7 +19,6 @@ import com.danawa.util.CharVector;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.PosTagAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttributeImpl;
@@ -32,9 +31,6 @@ import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
  * + 영문은 모델명 규칙에 더 가까우며, (구현됨) 변형숫자 + 단위명 은 단위명 규칙에 더 가깝다. (폐기) 중간에 숫자만 똑 떼어가는
  * 경우도 있으므로 앞, 뒤 속성 등을 유지하기 위해 큐가 필요하다. (구현됨) 유사어 속성도 같이 변경 되어야 한다.
  * 
- * FIXME:현재 단일버퍼에서의 처리만 가능하다. 따라서 charsRef 의 local-offset 기반이 아닌 OffsetAttribute
- * 의 global-offset 기반 처리가 필요함.
- * 
  * @author lupfeliz
  */
 public class ProductNameParsingRule {
@@ -44,11 +40,8 @@ public class ProductNameParsingRule {
 	private KoreanWordExtractor extractor;
 	private AnalyzerOption option;
 	private TypeAttribute typeAttribute;
-	private SynonymAttribute synonymAttribute;
 	private int start;
-	private int position;
 	private int lastPosition;
-	private int baseOffset;
 	private List<RuleEntry> queue;
 	private SetDictionary unitDictionary;
 	private SpaceDictionary spaceDictionary;
@@ -60,8 +53,6 @@ public class ProductNameParsingRule {
 	private OffsetAttribute offsetAttribute;
 	private AdditionalTermAttribute additionalTermAttribute;
 	private CharVector term;
-	private int subLength;
-	private int fullLength;
 
 	private ProductNameParsingRule() { }
 
@@ -96,9 +87,7 @@ public class ProductNameParsingRule {
 		clone.offsetAttribute = offsetAttribute;
 		clone.additionalTermAttribute = additionalTermAttribute;
 		clone.start = 0;
-		clone.position = 0;
 		clone.lastPosition = 0;
-		clone.baseOffset = 0;
 		clone.queue = new ArrayList<>();
 		clone.unitDictionary = this.unitDictionary;
 		clone.spaceDictionary = this.spaceDictionary;
@@ -107,8 +96,6 @@ public class ProductNameParsingRule {
 		clone.userDictionary = this.userDictionary;
 		clone.compoundDictionary = this.compoundDictionary;
 		clone.term = null;
-		clone.subLength = 0;
-		clone.fullLength = 0;
 		return clone;
 	}
 	
@@ -116,15 +103,12 @@ public class ProductNameParsingRule {
 		return queue;
 	}
 	
-	public void addEntry(CharSequence cv, PosTagAttribute posTagAttribute, String type, boolean modifiable) {
-		addEntry(cv, posTagAttribute, type, modifiable, false);
+	public void addEntry(CharSequence cv, String type, boolean modifiable) {
+		addEntry(cv, type, modifiable, false);
 	}
 	
-	public void addEntry(CharSequence cv, PosTagAttribute posTagAttribute, String type, boolean modifiable, boolean sequencial) {
+	public void addEntry(CharSequence cv, String type, boolean modifiable, boolean sequencial) {
 		PosTag posTag = null;
-		if (posTagAttribute != null) {
-			posTag = posTagAttribute.posTag();
-		}
 		logger.trace("term:{}/tag:{}/type:{}/{}~{}", cv, posTag, type, offsetAttribute.startOffset(), offsetAttribute.endOffset());
 		boolean doAdd = true;
 		if (sequencial && queue.size() > 0) {
@@ -187,7 +171,6 @@ public class ProductNameParsingRule {
 		if (queue.size() > 0) {
 			this.term = queue.get(0).makeTerm(null);
 			start = term.offset();
-			position = start;
 			int last = queue.size() - 1;
 			lastPosition = queue.get(last).start + queue.get(last).length;
 		}
@@ -197,15 +180,10 @@ public class ProductNameParsingRule {
 		return queue.size();
 	}
 	
-	public boolean hasNext(CharVector token) {
-		return hasNext(token, true, true);
-	}
-
 	public boolean processRule(List<RuleEntry> queue, boolean fullExtract) {
 		String type = null;
 		String typePrev = null;
 		logger.trace("queue:{}", queue);
-		baseOffset = offsetAttribute.startOffset();
 		RuleEntry e0, e1, e2, e3, et;
 		e0 = e1 = e2 = e3 = et = null;
 		CharVector eTerm;
@@ -670,7 +648,7 @@ public class ProductNameParsingRule {
 								} else {
 									e0.type = UNIT;
 								}
-								logger.trace("E0:{} / SYN:{}", e0, synonyms);
+								logger.trace("E0:{} / SYN:{}", e0, e0.synonym);
 								queue.remove(qinx + 1);
 							}
 						} else if (e1.buf.length > e1.start + unitCandidate.length()) {
@@ -1127,7 +1105,7 @@ public class ProductNameParsingRule {
 				CharVector token = e0.makeTerm(null);
 				if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
 					typeAttribute.setType(COMPOUND);
-					//복합명사 분리는 색인시에만 수행. 쿼리시에는 분해하지 않고, 표시만.
+					// 복합명사 분리는 색인시에만 수행. 쿼리시에는 분해하지 않고, 표시만.
 					// 2017-11-10 swsong 복합명사 분리를 검색, 색인 모두 수행한다.
 					// 공백있는 단어가 검색이 안되는 문제가 있어서 추가텀을 T or (A1 and A2 and A3 ..) 하여 검색하게 된다
 					CharSequence[] compounds = compoundDictionary.get(token);
@@ -1144,145 +1122,7 @@ public class ProductNameParsingRule {
 		}
 		
 		logger.trace("5th process complete / queue:{}", queue);
-		position = lastPosition;
-		this.fullLength = queue.size();
 		return true;
-	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public boolean hasNext(CharVector token, boolean fullExtract, boolean setOffset) {
-		
-		if (position < lastPosition) {
-			if (!processRule(queue, fullExtract)) {
-				return false;
-			}
-		}
-		
-		while (true) {
-			if (queue.size() > 0) {
-				RuleEntry entry = queue.get(0);
-				logger.trace("fetch entry : {} / {}", entry, entry.subEntry);
-				
-				List<RuleEntry> subEntryList = entry.subEntry;
-				
-				// 질의어에서는 단위명의 숫자만을 뽑지는 않는다. (검색의 정확도를 위해)
-				// 역으로는 뽑아야 한다. (1,204 를 검색할 경우 1,024gb 를 포함해야 하지만 1,024gb 를 검색했을 때 1,024 가 검색되지는 않는다.
-				if ((entry.type == UNIT || entry.type == UNIT_ALPHA) && option.isForQuery()) {
-					if (subEntryList.size() > 0 && (subEntryList.get(0).type == NUMBER || 
-						subEntryList.get(0).type == NUMBER_TRANS)) {
-						subEntryList.remove(0);
-					}
-				}
-				
-				if (subEntryList != null) {
-					int subEntrySize = subEntryList.size();
-					// subEntry 가 없는 경우는 반드시 출력 시키기 위해.
-					if (!entry.modifiable) {
-						testEntry(entry, null);
-						applyEntry(entry, token, typeAttribute, synonymAttribute, true);
-						queue.remove(0);
-						logger.trace("return token : {}", token);
-						return true;
-					} else if (subEntrySize > 0) {
-						if (this.subLength == 0) {
-							this.subLength = subEntrySize;
-						}
-						RuleEntry subEntry = subEntryList.remove(0);
-						testEntry(subEntry, entry);
-						applyEntry(subEntry, token, typeAttribute, synonymAttribute, true);
-						logger.trace("subEntry:{}", subEntry);
-						logger.trace("offset:{}~{}", offsetAttribute.startOffset(), offsetAttribute.endOffset());
-						if (subEntryList.size() == 0 && (entry.type == UNIT || entry.type == UNIT_ALPHA)) {
-							entry.modifiable = false;
-						}
-						if ((entry.type == UNIT || entry.type == UNIT_ALPHA) && subEntry.type == UNIT) {
-							if (additionalTermAttribute != null) {
-								additionalTermAttribute.addAdditionalTerm(subEntry.makeTerm(null).toString(), 
-									UNIT, subEntry.synonym == null ? null : Arrays.asList(subEntry.synonym),
-									0, subEntry.startOffset, subEntry.endOffset);
-							}
-							continue;
-						}
-						logger.trace("return token : {}", token);
-						
-						while (subEntryList.size() > 0) {
-							RuleEntry nextEntry = subEntryList.get(0);
-							if (nextEntry.type != MODEL_NAME) {
-								break;
-							}
-							// 모델명으로 추가된 단어들 (첫머리를 뗀 나머지 모델명 등)
-							// additionalTermAttribute.addAdditionalTerm(nextEntry.makeTerm(null).toString(),
-							//		MODEL_NAME, null, 0, nextEntry.start, nextEntry.start + nextEntry.length);
-							if (additionalTermAttribute != null) {
-								additionalTermAttribute.addAdditionalTerm(nextEntry.makeTerm(null).toString(), 
-								MODEL_NAME, null, 0, nextEntry.startOffset, nextEntry.endOffset);
-							}
-							subEntryList.remove(0);
-							subLength--;
-						}
-						
-						if (subEntryList.size() == 0) {
-							if (entry.modifiable) {
-								int start = entry.start;
-								int end = start + entry.length;
-								CharVector term = entry.makeTerm(null);
-								logger.trace("additionalTerm : {} / base:{} / start:{} / length:{}", term, baseOffset, entry.start, entry.length);
-								List synonyms = null;
-								// 일반 추가텀의 동의어 처리.
-								if (option.useSynonym() && synonymDictionary != null && synonymDictionary.containsKey(term)) {
-									synonyms = new ArrayList<>();
-									synonyms.addAll(Arrays.asList(synonymDictionary.get(term)));
-									List synonymsExt = synonymExtract(synonyms);
-									if (synonymsExt != null) {
-										synonyms = synonymsExt;
-									}
-									logger.trace("synonym:{}{}", "", synonyms);
-								}
-								if (additionalTermAttribute != null) {
-									additionalTermAttribute.addAdditionalTerm(term.toString(), entry.type, synonyms, subLength, start, end);
-								}
-								queue.remove(0);
-								this.subLength = 0;
-							} else {
-								this.subLength = 0;
-								logger.trace("entry:{}", entry);
-								return true;
-							}
-						}
-						return true;
-					}
-				}
-				queue.remove(0);
-				
-				if (queue.size() == 1 && queue.get(0).type == FULL_STRING) {
-					RuleEntry fEntry = queue.remove(0);
-					int start = fEntry.start;
-					int end = start + fEntry.length;
-					CharVector term = fEntry.makeTerm(null);
-					logger.trace("additionalTerm : {} / base:{} / start:{} / length:{}", term, baseOffset, fEntry.start, fEntry.length);
-					List synonyms = null;
-					
-					if (option.useSynonym() && synonymDictionary.containsKey(term)) {
-						synonyms = new ArrayList<>();
-						synonyms.addAll(Arrays.asList(synonymDictionary.get(term)));
-						List synonymsExt = synonymExtract(synonyms);
-						if (synonymsExt != null) {
-							synonyms = synonymsExt;
-						}
-					}
-					if (additionalTermAttribute != null) {
-						additionalTermAttribute.addAdditionalTerm(term.toString(), fEntry.type, synonyms, fullLength - 1, start, end);
-					}
-				}
-				
-				logger.trace("entry type:{} / modifiable:{} / subEntry:{} / token:{}", entry.type, entry.modifiable, subEntryList, token);
-				testEntry(entry, null);
-				applyEntry(entry, token, typeAttribute, synonymAttribute, setOffset);
-				logger.trace("return token : {}", token);
-				return true;
-			}
-			return false;
-		}
 	}
 	
 	private int split(RuleEntry entry, List<RuleEntry> queue, int baseInx) {
@@ -1350,7 +1190,6 @@ public class ProductNameParsingRule {
 				break;
 			}
 		}
-		
 		return ret;
 	}
 	
@@ -1807,37 +1646,37 @@ public class ProductNameParsingRule {
 		return new RuleEntry(cv.array(), cv.offset(), cv.length(), startOffset, endOffset, type);
 	}
 	
-	private void applyEntry(RuleEntry entry, CharVector token, TypeAttribute typeAttribute, SynonymAttribute synonymAttribute, boolean setOffset) {
-		token.init(entry.buf, entry.start, entry.length);
-		token.ignoreCase();
-		typeAttribute.setType(entry.type);
-		if(entry.synonym!=null) {
-			if(option.useSynonym()) {
-				synonymAttribute.setSynonyms(Arrays.asList(entry.synonym));
-			} else {
-				synonymAttribute.setSynonyms(null);
-			}
-		}
-		//복합명사 분해는 색인시에만 적용한다. 쿼리시에는 적용하지 않음.
-		if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
-			typeAttribute.setType(COMPOUND);
-			//복합명사 분리는 색인시에만 수행. 쿼리시에는 분해하지 않고, 표시만.
-			// 2017-11-10 swsong 복합명사 분리를 검색, 색인 모두 수행한다.
-			// 공백있는 단어가 검색이 안되는 문제가 있어서 추가텀을 T or (A1 and A2 and A3 ..) 하여 검색하게 된다
-			if(additionalTermAttribute != null) {
-				CharSequence[] compounds = compoundDictionary.get(token);
-				for (CharSequence word : compounds) {
-					additionalTermAttribute.addAdditionalTerm(word.toString(), COMPOUND, null, 0, entry.start, entry.start + entry.length);
-				}
-			}
-		}
-		logger.trace("token:{} / start:{} / end:{} / lstart:{} / length:{}", token,
-			entry.startOffset, entry.endOffset, entry.start, entry.length);
+	// private void applyEntry(RuleEntry entry, CharVector token, TypeAttribute typeAttribute, SynonymAttribute synonymAttribute, boolean setOffset) {
+	// 	token.init(entry.buf, entry.start, entry.length);
+	// 	token.ignoreCase();
+	// 	typeAttribute.setType(entry.type);
+	// 	if(entry.synonym!=null) {
+	// 		if(option.useSynonym()) {
+	// 			synonymAttribute.setSynonyms(Arrays.asList(entry.synonym));
+	// 		} else {
+	// 			synonymAttribute.setSynonyms(null);
+	// 		}
+	// 	}
+	// 	//복합명사 분해는 색인시에만 적용한다. 쿼리시에는 적용하지 않음.
+	// 	if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
+	// 		typeAttribute.setType(COMPOUND);
+	// 		//복합명사 분리는 색인시에만 수행. 쿼리시에는 분해하지 않고, 표시만.
+	// 		// 2017-11-10 swsong 복합명사 분리를 검색, 색인 모두 수행한다.
+	// 		// 공백있는 단어가 검색이 안되는 문제가 있어서 추가텀을 T or (A1 and A2 and A3 ..) 하여 검색하게 된다
+	// 		if(additionalTermAttribute != null) {
+	// 			CharSequence[] compounds = compoundDictionary.get(token);
+	// 			for (CharSequence word : compounds) {
+	// 				additionalTermAttribute.addAdditionalTerm(word.toString(), COMPOUND, null, 0, entry.start, entry.start + entry.length);
+	// 			}
+	// 		}
+	// 	}
+	// 	logger.trace("token:{} / start:{} / end:{} / lstart:{} / length:{}", token,
+	// 		entry.startOffset, entry.endOffset, entry.start, entry.length);
 		
-		if (setOffset) {
-			offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
-		}
-	}
+	// 	if (setOffset) {
+	// 		offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
+	// 	}
+	// }
 	
 	public List<List<CharVector>> synonymExtract(List<?> synonyms) {
 		ProductNameParsingRule parsingRule = this.clone(
@@ -1888,10 +1727,10 @@ public class ProductNameParsingRule {
 								if (spaceDictionary != null && spaceDictionary.containsKey(cv)) {
 									CharSequence[] splits = spaceDictionary.get(cv);
 									for (CharSequence sp : splits) {
-										parsingRule.addEntry(sp, null, null, false);
+										parsingRule.addEntry(sp, null, false);
 									}
 								} else {
-									parsingRule.addEntry(cv, null, null, false);
+									parsingRule.addEntry(cv, null, false);
 								}
 							}
 						} else {
@@ -1899,10 +1738,10 @@ public class ProductNameParsingRule {
 							if (spaceDictionary != null && spaceDictionary.containsKey(synonymCV)) {
 								CharSequence[] splits = spaceDictionary.get(synonymCV);
 								for (CharSequence sp : splits) {
-									parsingRule.addEntry(sp, null, null, false);
+									parsingRule.addEntry(sp, null, false);
 								}
 							} else {
-								parsingRule.addEntry(synonymCV, null, null, false);
+								parsingRule.addEntry(synonymCV, null, false);
 							}
 							break;
 						}
@@ -1910,17 +1749,26 @@ public class ProductNameParsingRule {
 					}
 
 					if (parsingRule.queueSize() > 0) {
-						logger.trace("SYNONYM-QUEUE:{}", parsingRule.getQueue());
+						List<RuleEntry> entryList = parsingRule.getQueue();
+						logger.trace("SYNONYM-QUEUE:{}", entryList);
 						parsingRule.init();
+						parsingRule.processRule(entryList, false);
 						CharVector token = new CharVector();
-						while (parsingRule != null && parsingRule.hasNext(token, false, false)) {
-							extracted.add(token.clone());
-
+						while (entryList.size() > 0) {
+							entryList.remove(0).makeTerm(token);
+							extracted.add(token);
 							if(sb.length() > 0) {
 								sb.append("`");
 							}
 							sb.append(token.toString());
 						}
+						// while (parsingRule != null && parsingRule.hasNext(token, false, false)) {
+						// 	extracted.add(token.clone());
+						// 	// if(sb.length() > 0) {
+						// 	// 	sb.append("`");
+						// 	// }
+						// 	// sb.append(token.toString());
+						// }
 					}
 				}
 			}
