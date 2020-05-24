@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Properties;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.CharVector;
 import com.danawa.util.TestUtil;
 
@@ -227,7 +228,7 @@ public class ProductNameAnalysisFilterTest {
 		assertTrue(true);
 	}
 
-	@Test public void testRuleForDocument() throws Exception {
+	@Test public void testRuleForIndex() throws Exception {
 		if (TestUtil.launchForBuild()) { return; }
 
 		TestUtil.setLogLevel(TestUtil.LOG_LEVEL_DEBUG, 
@@ -236,8 +237,20 @@ public class ProductNameAnalysisFilterTest {
 			ProductNameAnalysisFilter.class);
 
 		String testFile = "./model_name_sample.txt";
-		boolean isForQuery = false;
-		testRule(testFile, isForQuery);
+		testRule(testFile, false);
+		assertTrue(true);
+	}
+
+	@Test public void testRuleForQuery() throws Exception {
+		if (TestUtil.launchForBuild()) { return; }
+
+		TestUtil.setLogLevel(TestUtil.LOG_LEVEL_DEBUG, 
+			ProductNameTokenizer.class, 
+			ProductNameParsingRule.class,
+			ProductNameAnalysisFilter.class);
+
+		String testFile = "./model_name_sample_for_query.txt";
+		testRule(testFile, true);
 		assertTrue(true);
 	}
 

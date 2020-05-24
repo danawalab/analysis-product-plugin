@@ -1,4 +1,4 @@
-package com.danawa.search.analysis.dict;
+package com.danawa.search.analysis.korean;
 
 /**
  * 기분석 리스트. 분리어와 기분석을 함께 처리가능.

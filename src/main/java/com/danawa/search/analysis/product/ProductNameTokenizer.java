@@ -5,7 +5,8 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
-import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
+import com.danawa.search.analysis.korean.KoreanWordExtractor.ExtractedEntry;
+import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
@@ -44,6 +45,16 @@ public class ProductNameTokenizer extends Tokenizer {
 	public static final String MAKER = "<MAKER>";
 	public static final String BRAND = "<BRAND>";
 	public static final String COMPOUND = "<COMPOUND>";
+	
+	public static final String DICT_UNIT_SYNONYM = "unit_synonym";
+	public static final String DICT_UNIT = "unit";
+	public static final String DICT_SPACE = "space";
+	public static final String DICT_SYNONYM = "synonym";
+	public static final String DICT_STOP = "stop";
+	public static final String DICT_USER = "user";
+	public static final String DICT_COMPOUND= "compound";
+	public static final String DICT_MAKER = "maker";
+	public static final String DICT_BRAND = "brand";
 
 	public static final int MAX_UNIT_LENGTH = 5;
 
@@ -99,7 +110,7 @@ public class ProductNameTokenizer extends Tokenizer {
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
 
-	private Entry entry;
+	private ExtractedEntry entry;
 	private char[] buffer;
 	private char[] workBuffer;
 	private int position;
@@ -280,7 +291,23 @@ public class ProductNameTokenizer extends Tokenizer {
 		return ret;
 	}
 
-	protected static boolean containsChar(char[] array, char c) {
+	public static boolean isAlphaNum(CharVector cv) {
+		boolean ret = true;
+		if (cv.length() == 0) {
+			return false;
+		}
+		for (int inx = 0; inx < cv.length(); inx++) {
+			String type = ProductNameTokenizer.getType(cv.array()[cv.offset() + inx]);
+			if (!(type == ProductNameTokenizer.ALPHA || type == ProductNameTokenizer.NUMBER)) {
+				ret = false;
+				break;
+			}
+		}
+		return ret;
+	}
+	
+
+	public static boolean containsChar(char[] array, char c) {
 		// 문자소지여부확인
 		for (char ch : array) {
 			if (ch == c) {
@@ -290,7 +317,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		return false;
 	}
 
-	protected static boolean containsChar(char[] array, char[] buf, int length) {
+	public static boolean containsChar(char[] array, char[] buf, int length) {
 		// 여러개 문자중 하나라도 소지하고 있는지 확인
 		for (char ch : array) {
 			if (!containsChar(array, ch)) {

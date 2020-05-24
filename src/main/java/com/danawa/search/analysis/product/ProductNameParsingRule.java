@@ -8,12 +8,13 @@ import java.util.List;
 import java.util.Set;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
-import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
-import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
+import com.danawa.search.analysis.korean.KoreanWordExtractor.ExtractedEntry;
+import com.danawa.search.analysis.korean.KoreanWordExtractor;
+import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
@@ -66,13 +67,13 @@ public class ProductNameParsingRule {
 		this.offsetAttribute = offsetAttribute;
 		this.additionalTermAttribute = additionalTermAttribute;
 		if (dictionary != null) {
-			unitDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT, SetDictionary.class);
-			synonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, SynonymDictionary.class);
-			unitSynonymDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_UNIT_SYNONYM, SynonymDictionary.class);
-			spaceDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_SPACE, SpaceDictionary.class);
-			userDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_USER, SetDictionary.class);
-			compoundDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_COMPOUND, CompoundDictionary.class);
-			stopDictionary = dictionary.getDictionary(ProductNameAnalysisFilter.DICT_STOP, SetDictionary.class);
+			unitDictionary = dictionary.getDictionary(DICT_UNIT, SetDictionary.class);
+			synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
+			unitSynonymDictionary = dictionary.getDictionary(DICT_UNIT_SYNONYM, SynonymDictionary.class);
+			spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
+			userDictionary = dictionary.getDictionary(DICT_USER, SetDictionary.class);
+			compoundDictionary = dictionary.getDictionary(DICT_COMPOUND, CompoundDictionary.class);
+			stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		}
 		queue = new ArrayList<>();
 	}
@@ -1135,7 +1136,7 @@ public class ProductNameParsingRule {
 		for (int inx = 0; inx < entry.length; inx++) {
 			char ch = entry.buf[entry.start + inx];
 			ctype = getType(ch);
-			if(ptype!=null && ptype != ctype) {
+			if (ptype != null && ptype != ctype) {
 				RuleEntry entryClone = entry.clone();
 				entryClone.start = entry.start + st;
 				entryClone.length = inx - st;
@@ -1145,7 +1146,7 @@ public class ProductNameParsingRule {
 				entryClone.endOffset = offsetStarts + st + entryClone.length;
 				entryClone.modifiable = true;
 				logger.trace("add splited entry : ({}) : {}~{}", entryClone, entryClone.start, entryClone.length);
-				if(entryClone.type != ProductNameTokenizer.WHITESPACE) {
+				if (entryClone.type != ProductNameTokenizer.WHITESPACE) {
 					queue.add(baseInx + addInx, entryClone);
 					addInx++;
 				}
@@ -1158,9 +1159,9 @@ public class ProductNameParsingRule {
 			}
 			ptype = ctype;
 		}
-		if(addInx >= 0 && st < entry.length) {
+		if (addInx >= 0 && st < entry.length) {
 			RuleEntry entryClone = entry.clone();
-			if(ptype == null) {
+			if (ptype == null) {
 				ptype = ctype;
 			}
 			entryClone.start = entry.start + st;
@@ -1174,73 +1175,57 @@ public class ProductNameParsingRule {
 			queue.add(baseInx + addInx, entryClone);
 			addInx++;
 		}
-		
 		return addInx;
 	}
 	
-	private boolean isAlphaNum(CharVector cv) {
-		boolean ret = true;
-		if(cv.length() == 0) {
-			return false;
-		}
-		for (int inx = 0; inx < cv.length(); inx++) {
-			String type = ProductNameTokenizer.getType(cv.array()[cv.offset()+inx]);
-			if(!(type == ProductNameTokenizer.ALPHA || type == ProductNameTokenizer.NUMBER)) {
-				ret = false;
-				break;
-			}
-		}
-		return ret;
-	}
-	
-	private void testEntry (RuleEntry entry, RuleEntry parent) {
-		if((parent==null || parent.type == MODEL_NAME) && entry.type == NUMBER && entry.length >= 5) {
+	private void testEntry(RuleEntry entry, RuleEntry parent) {
+		if ((parent == null || parent.type == MODEL_NAME) && entry.type == NUMBER && entry.length >= 5) {
 			entry.type = MODEL_NAME;
-		} else if(entry.type == UNIT_ALPHA) {
+		} else if (entry.type == UNIT_ALPHA) {
 			entry.type = UNIT;
-		} else if(entry.type == NUMBER_TRANS) {
+		} else if (entry.type == NUMBER_TRANS) {
 			entry.type = NUMBER;
-			CharVector entryStr = new CharVector( entry.makeTerm(null).toString().replace(",", ""));
-			if(entry.length != entryStr.length() && parent != null) {
+			CharVector entryStr = new CharVector(entry.makeTerm(null).toString().replace(",", ""));
+			if (entry.length != entryStr.length() && parent != null) {
 				// additionalTermAttribute.addAdditionalTerm(entryStr.toString(), NUMBER, null, 0, entry.startOffset, entry.endOffset);
 				int inx = parent.subEntry.indexOf(entry);
 				parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
 			}
-		} else if(entry.type == null) {
+		} else if (entry.type == null) {
 			entry.type = ProductNameTokenizer.UNCATEGORIZED;
 		}
 	}
 	
-	private boolean mergeSubQueue(RuleEntry entry, List<RuleEntry>subQueue) {
+	private boolean mergeSubQueue(RuleEntry entry, List<RuleEntry> subQueue) {
 		RuleEntry e0, e1, e2, e3, e4;
 		e0 = e1 = e2 = null;
 		boolean settable = true;
-		
-		if(entry.type == MODEL_NAME) {
-			if(subQueue.size() == 2) {
-			//모델명이 2블럭이며, 1글자씩이 붙어서 나온 것이면 붙여서만 출력 한다.
+
+		if (entry.type == MODEL_NAME) {
+			if (subQueue.size() == 2) {
+				// 모델명이 2블럭이며, 1글자씩이 붙어서 나온 것이면 붙여서만 출력 한다.
 				e0 = subQueue.get(0);
 				e1 = subQueue.get(1);
 				if (e0.length == 1 && e1.length == 1) {
 					subQueue.clear();
-				} else if(e1.type == SYMBOL) {
+				} else if (e1.type == SYMBOL) {
 					entry.length -= e1.length;
 					entry.endOffset -= e1.length;
 					entry.type = e0.type;
 				}
-			} else if(subQueue.size() == 3) {
+			} else if (subQueue.size() == 3) {
 				e0 = subQueue.get(0);
 				e1 = subQueue.get(1);
 				e2 = subQueue.get(2);
 				if (e0.length == 1 && e1.length == 1 && e2.length == 1) {
-				//모델명이 3블럭이며, 가운데 기호가 있는 경우, 붙여서만 출력함.
+					// 모델명이 3블럭이며, 가운데 기호가 있는 경우, 붙여서만 출력함.
 					if ((e0.type == ALPHA || e0.type == NUMBER)
 						&& (e2.type == ALPHA || e2.type == NUMBER)) {
-						if(e1.type == SYMBOL) {
-							if(e1.buf[e1.start] != '+') {
+						if (e1.type == SYMBOL) {
+							if (e1.buf[e1.start] != '+') {
 								subQueue.clear();
 							}
-						} else if(e0.type == e2.type) {
+						} else if (e0.type == e2.type) {
 							e0.length += e1.length + e2.length;
 							e0.endOffset = e2.endOffset;
 							subQueue.remove(2);
@@ -1249,7 +1234,7 @@ public class ProductNameParsingRule {
 					}
 				}
 			}
-			
+
 			int continuous = 0;
 			
 			logger.trace("subQueue : {}", subQueue);
@@ -1258,38 +1243,38 @@ public class ProductNameParsingRule {
 			// 교차된 영 숫자는 분리하지 않는다.
 			for (int inx = 0; inx <= subQueue.size(); inx++) {
 				e0 = null;
-				if(inx < subQueue.size()) {
+				if (inx < subQueue.size()) {
 					e0 = subQueue.get(inx);
 				}
-				//1바이트씩 교차되어 나타나는 영문, 숫자들 1a2b3c....
-				if(e0 != null && e0.length == 1 && (e0.type == ALPHA || e0.type == NUMBER)) {
+				// 1바이트씩 교차되어 나타나는 영문, 숫자들 1a2b3c....
+				if (e0 != null && e0.length == 1 && (e0.type == ALPHA || e0.type == NUMBER)) {
 					logger.trace("e0:{} / {}:{}", e0, inx, continuous);
 					continuous++;
-				} else if(continuous > 1) {
+				} else if (continuous > 1) {
 					
 					boolean frontMatch = inx > 0 && (inx - continuous) > 0;
-					if(frontMatch) {
+					if (frontMatch) {
 						e1 = subQueue.get(inx - continuous - 1);
-						if (!(e1.type == SYMBOL && e1.length == 1)) {// && e1.buf[e1.start] == '-')) 
+						if (!(e1.type == SYMBOL && e1.length == 1)) {
 							frontMatch = false;
 						}
 					}
 					
 					boolean rearMatch = inx > 0 && inx < subQueue.size();
 					
-					if(rearMatch) {
+					if (rearMatch) {
 						e1 = subQueue.get(inx);
-						if(!(e1.type == SYMBOL && e1.length == 1)) {// && e1.buf[e1.start] == '-')) 
+						if (!(e1.type == SYMBOL && e1.length == 1)) {
 							rearMatch = false;
 						}
 					}
 					
-					if(inx < subQueue.size()) {
+					if (inx < subQueue.size()) {
 						logger.trace("inx:{}/{} / continuous:{} / fmatch:{} / rmatch:{} / entry:{}", inx, subQueue.size(), continuous, frontMatch, rearMatch, subQueue.get(inx));
 					}
 
 					//
-					//2016.05.13 추가규칙. 
+					// 2016.05.13 추가규칙.
 					// 다음과 같은 규칙으로 변경
 					/**
 					 * 1b-12345	(1b 1 b 12345 1b-12345) -> I/Q(1b 12345 1b-12345)
@@ -1309,17 +1294,17 @@ public class ProductNameParsingRule {
 					 * 어답터/DC/AC/출력1.5V/2V/3V/4.5V/5V/7.5V/9V/600MA/충전기	(어답터 DC AC DCAC DC/AC 출력 1.5 V 2 V 2V 3 V 3V 4.5 V 5 V 5V 7.5 V 9 V 9V 600 MA 1.5V/2V/3V/4.5V/5V/7.5V/9V/600MA 충전기) -> I(어답터 DC AC DCAC DC/AC 출력 1.5 V 2V 3V 4.5 V 5V 7.5 V 9V 600 MA 1.5V/2V/3V/4.5V/5V/7.5V/9V/600MA 충전기)/Q(어답터 DC AC DC/AC 출력 1.5 V 2V 3V 4.5 V 5V 7.5 V 9V 600 MA 1.5V/2V/3V/4.5V/5V/7.5V/9V/600MA 충전기)
 					 */
 					
-					//색인전용 규칙으로 되어 있던 텀 병합 루틴을 질의용으로도 사용하고, 분리된 글자를 지우지 않던 기존 규칙을 다시 취소함.
-					//영숫자 앞 혹은 뒤에 특수문자로 연결되어 있다면.
+					// 색인전용 규칙으로 되어 있던 텀 병합 루틴을 질의용으로도 사용하고, 분리된 글자를 지우지 않던 기존 규칙을 다시 취소함.
+					// 영숫자 앞 혹은 뒤에 특수문자로 연결되어 있다면.
 					if ((inx - continuous == 0 && rearMatch)
-							|| (frontMatch && inx == subQueue.size())
-							|| frontMatch && rearMatch) {
+						|| (frontMatch && inx == subQueue.size())
+						|| frontMatch && rearMatch) {
 						int pos = inx - continuous;
 						e1 = subQueue.get(pos).clone();
 						e1.length += continuous - 1;
-						//붙여서 출력해주기 위해 subentry 들을 삭제.
-						//2016.05.13 교차영숫자 체크를 전구간으로 확대하되 3글자 이하에서만 체크하도록 함.
-						//if (pos == 0 || !option.isForDocument()) 
+						// 붙여서 출력해주기 위해 subentry 들을 삭제.
+						// 2016.05.13 교차영숫자 체크를 전구간으로 확대하되 3글자 이하에서만 체크하도록 함.
+						// if (pos == 0 || !option.isForDocument())
 						if (continuous < 3) {
 							for (int subInx = 0; subInx < continuous; subInx++) {
 								// 2016.05.13 규칙에 의해 변경됨. 교차영숫자 머징 후 분리된글자는 삭제
@@ -1338,11 +1323,11 @@ public class ProductNameParsingRule {
 						
 						e1.type = ALPHANUM;
 						e1.endOffset += e1.length - 1;
-						if(frontMatch && rearMatch) {
+						if (frontMatch && rearMatch) {
 							subQueue.add(pos + continuous, e1);
-						} else if(frontMatch) {
+						} else if (frontMatch) {
 							subQueue.add(pos + continuous, e1);
-						} else if(rearMatch) {
+						} else if (rearMatch) {
 							subQueue.add(pos, e1);
 						}
 						logger.trace("entry : {}", e1);
@@ -1371,17 +1356,16 @@ public class ProductNameParsingRule {
 					&& (e1.type == ALPHA && e2.type == NUMBER && (e1.start + e1.length == e2.start))
 					&& (e1.length == 1 && e2.length == 1)
 					&& (e4 == null || (e4.type == SYMBOL && e2.start + e2.length == e4.start)))) {
-					
+
 					if (logger.isTraceEnabled()) {
 						logger.trace("================================================================================");
 						logger.trace("entry : {}{} // I:{} / C:{} / F:{} / R:{} / Q:{}", e1.makeTerm(null), e2.makeTerm(null), inx);
-						logger.trace("================================================================================");
+						logger.trace( "================================================================================");
 					}
 					
 					e1.length++;
 					e1.type = ALPHANUM;
 					subQueue.remove(inx + 1);
-					
 				}
 			}
 			
@@ -1390,29 +1374,29 @@ public class ProductNameParsingRule {
 			
 			for (int inx = 0; inx < subQueue.size(); inx++) {
 				e0 = subQueue.get(inx);
-				if(e0.type == SYMBOL) {
+				if (e0.type == SYMBOL) {
 					char c = e0.buf[e0.start];
-					if(c == '-' || c == '_' || c == '/') {
-						//모델명 중 영문 특수문자(-/) 숫자 조합인 경우 첫 영문 형태소를 제외한 모델명도 추출
-						//모델명이 모두 추가텀으로 바뀌어야 하기 때문에 이 쪽은 모두 추가텀으로 돌리도록 한다.
-						//2014.09.02 특수규칙. 영숫자가 번갈아 가며 나온 경우 (ALPHANUM) 와 겹치는 규칙이 있으므로
-						//체크해서 지워준다. 
-						if(option.isForDocument()) {
-							if(inx == 1 && inx + 2 < subQueue.size()) {
+					if (c == '-' || c == '_' || c == '/') {
+						// 모델명 중 영문 특수문자(-/) 숫자 조합인 경우 첫 영문 형태소를 제외한 모델명도 추출
+						// 모델명이 모두 추가텀으로 바뀌어야 하기 때문에 이 쪽은 모두 추가텀으로 돌리도록 한다.
+						// 2014.09.02 특수규칙. 영숫자가 번갈아 가며 나온 경우 (ALPHANUM) 와 겹치는 규칙이 있으므로
+						// 체크해서 지워준다.
+						if (option.isForDocument()) {
+							if (inx == 1 && inx + 2 < subQueue.size()) {
 								e1 = subQueue.get(inx - 1);
 								e2 = subQueue.get(inx + 1);
 								e3 = subQueue.get(inx + 2);
 								e4 = subQueue.get(subQueue.size() - 1);
-								if(!(e4.start == e2.start && e4.type == ALPHANUM)) {
+								if (!(e4.start == e2.start && e4.type == ALPHANUM)) {
 									if (e1.length > 0 && e2.start > (e1.start + e1.length)
-										&& e3.start == (e2.start + e2.length)	
+										&& e3.start == (e2.start + e2.length)
 										&& e1.type == ALPHA
 										&& ((e2.type == ALPHA && e3.type == NUMBER) 
 										|| (e2.type == NUMBER && e3.type == ALPHA))) {
 										RuleEntry newEntry = new RuleEntry(e2.buf, e2.start, e4.start + e4.length - e2.start, e2.startOffset, e4.endOffset, MODEL_NAME);
 										logger.trace("QUEUE : {}", subQueue);
 										logger.trace("NEW-ENTRY : {}", newEntry);
-										subQueue.add(newEntry);
+										tmpList.add(newEntry);
 									}
 								} else {
 									logger.trace("remove duplicated term : {}", e4);
@@ -1424,9 +1408,9 @@ public class ProductNameParsingRule {
 							e1 = subQueue.get(inx - 1);
 							e2 = subQueue.get(inx + 1);
 							if (option.isForDocument()) {
-								//색인때에만
-								//모델명 중 숫자블럭 사이, 혹은 문자블럭 사이에 특수문자 가 있다면
-								//각각의 숫자, 혹은 문자 와 특수문자를 제거한 조합도 출력한다.
+								// 색인때에만
+								// 모델명 중 숫자블럭 사이, 혹은 문자블럭 사이에 특수문자 가 있다면
+								// 각각의 숫자, 혹은 문자 와 특수문자를 제거한 조합도 출력한다.
 								int checkLevel = 0;
 								if (e2.startOffset == e1.endOffset + 1) {
 									if (e1.type == MODEL_NAME || e1.type == ALPHANUM) {
@@ -1455,7 +1439,7 @@ public class ProductNameParsingRule {
 										int e1Length = 0;
 										for (int sinx = e1.length; sinx > 0; sinx--) {
 											if (getType(e1.buf[e1.start + sinx - 1]) == e1Type) {
-												e1Length ++;
+												e1Length++;
 											} else {
 												break;
 											}
@@ -1469,8 +1453,8 @@ public class ProductNameParsingRule {
 										e1 = e3;
 										int e2Length = 0;
 										for (int sinx = 0; sinx < e2.length; sinx++) {
-											if(getType(e2.buf[e2.start + sinx]) == e2Type) {
-												e2Length ++;
+											if (getType(e2.buf[e2.start + sinx]) == e2Type) {
+												e2Length++;
 											} else {
 												break;
 											}
@@ -1483,8 +1467,8 @@ public class ProductNameParsingRule {
 										checkLevel = 3;
 									}
 								}
-								if(checkLevel == 3) {
-									//원본변형이 일어나기 때문에 버퍼는 따로 잡아 주어야 한다.
+								if (checkLevel == 3) {
+									// 원본변형이 일어나기 때문에 버퍼는 따로 잡아 주어야 한다.
 									RuleEntry clone = e1.clone();
 									char[] buf = new char[e1.length + e2.length];
 									System.arraycopy(e1.buf, e1.start, buf, 0, e1.length);
@@ -1496,30 +1480,28 @@ public class ProductNameParsingRule {
 									clone.endOffset = e2.endOffset;
 									logger.trace("TRANS-MERGE:{} / {} / {}", clone, e0, e1);
 									tmpList.add(clone);
-									// subQueue.add(clone);
 								}
 							}
 						}
 					}
-					//개별 특수문자는 모두 제거한다.
+					// 개별 특수문자는 모두 제거한다.
 					subQueue.remove(inx);
 					inx--;
 				} else if (e0.type == UNIT_ALPHA) {
-					//단위명이었지만 규칙에 의해 모델명으로 전환되는 경우. 
-					//단위명과 숫자를 구분해준다.
-					logger.trace("subList:{}{}","",e0.subEntry);
+					// 단위명이었지만 규칙에 의해 모델명으로 전환되는 경우.
+					// 단위명과 숫자를 구분해준다.
+					logger.trace("subList:{}{}", "", e0.subEntry);
 					e1 = e0.subEntry.remove(0);
 					tmpList.add(e1);
-					// subQueue.add(inx, e1);
 					e0.start += e1.length;
 					e0.length -= e1.length;
 					e0.synonym = null;
 					e0.type = ALPHA;
-				} else if(e0.type == ALPHA) {
-					//강제분해 등으로 붙지 못한 영문자 끼리 이어준다.
-					if(inx+1 < subQueue.size()) {
+				} else if (e0.type == ALPHA) {
+					// 강제분해 등으로 붙지 못한 영문자 끼리 이어준다.
+					if (inx + 1 < subQueue.size()) {
 						e1 = subQueue.get(inx + 1);
-						if(e1.startOffset == e0.endOffset + 1 && e1.type == ALPHA) {
+						if (e1.startOffset == e0.endOffset + 1 && e1.type == ALPHA) {
 							e0.length += e1.length;
 							e0.endOffset = e1.endOffset;
 							subQueue.remove(inx + 1);
@@ -1535,11 +1517,11 @@ public class ProductNameParsingRule {
 				e1 = subQueue.get(1);
 				logger.trace("TERM:{}/{}", e1.start, e1.length);
 				String finalType = getType(e1.buf[e1.start + e1.length - 1]);
-				//모델명 맨 앞의 두바이트가 타입이 틀리고 뒤에 기호가 나오면 붙여준다.
-				if ( e1.start == e0.start + e0.length &&
-						e0.length == 1 && e1.length == 1 && finalType == SYMBOL
-						&& ((e0.type == NUMBER && e1.type == ALPHA)
-						|| (e0.type == ALPHA && e1.type == NUMBER))) {
+				// 모델명 맨 앞의 두바이트가 타입이 틀리고 뒤에 기호가 나오면 붙여준다.
+				if (e1.start == e0.start + e0.length &&
+					e0.length == 1 && e1.length == 1 && finalType == SYMBOL
+					&& ((e0.type == NUMBER && e1.type == ALPHA)
+					|| (e0.type == ALPHA && e1.type == NUMBER))) {
 					subQueue.remove(1);
 					e0.length += e1.length;
 					e0.endOffset = e0.startOffset + e0.length + e1.length;
@@ -1555,9 +1537,9 @@ public class ProductNameParsingRule {
 		return settable;
 	}
 	
-	private RuleEntry mergeQueue(int qinx, int typeContinuous, List<RuleEntry>queue, List<RuleEntry>subQueue) {
+	private RuleEntry mergeQueue(int qinx, int typeContinuous, List<RuleEntry> queue, List<RuleEntry> subQueue) {
 		int removeInx = qinx - typeContinuous;
-		if(removeInx < 0) {
+		if (removeInx < 0) {
 			removeInx = 0;
 			typeContinuous--;
 		}
@@ -1571,12 +1553,12 @@ public class ProductNameParsingRule {
 			return null;
 		}
 		
-		logger.trace("queue[{}]={}", removeInx + typeContinuous -1, queue.get(removeInx + typeContinuous -1));
+		logger.trace("queue[{}]={}", removeInx + typeContinuous - 1, queue.get(removeInx + typeContinuous - 1));
 		
 		RuleEntry entry = queue.get(removeInx).clone();
 		logger.trace("ENTRY-CLONE:{}", entry);
-		//클로닝 되기 때문에 동의어를 반드시 삭제 해 주어야 한다.
-		if(entry.type == UNIT_ALPHA) {
+		// 클로닝 되기 때문에 동의어를 반드시 삭제 해 주어야 한다.
+		if (entry.type == UNIT_ALPHA) {
 			entry.synonym = null;
 		}
 		entry.length = 0;
@@ -1584,16 +1566,16 @@ public class ProductNameParsingRule {
 		String type = entry.type;
 		for (; typeContinuous > 0; typeContinuous--) {
 			RuleEntry subEntry = queue.remove(removeInx);
-			logger.trace("pop entry:{}/{}:{}[{}~{}] / {}",subEntry, subEntry.start, subEntry.length, subEntry.startOffset, subEntry.endOffset, subEntry.synonym);
+			logger.trace("pop entry:{}/{}:{}[{}~{}] / {}", subEntry, subEntry.start, subEntry.length, subEntry.startOffset, subEntry.endOffset, subEntry.synonym);
 			if (type != subEntry.type) { type = null; }
 			int start = subEntry.start;
 			int length = subEntry.length;
 			int endOffset = subEntry.endOffset;
-			if(subQueue!=null) {
-				if(subEntry.type == UNIT_ALPHA) {
-					//단위명이었지만 규칙에 의해 모델명으로 전환되는 경우. 
-					//단위명과 숫자를 구분해준다.
-					logger.trace("subList:{}{}","",subEntry.subEntry);
+			if (subQueue != null) {
+				if (subEntry.type == UNIT_ALPHA) {
+					// 단위명이었지만 규칙에 의해 모델명으로 전환되는 경우.
+					// 단위명과 숫자를 구분해준다.
+					logger.trace("subList:{}{}", "", subEntry.subEntry);
 					RuleEntry number = subEntry.subEntry.remove(0);
 					subQueue.add(number);
 					subEntry.start += number.length;
@@ -1612,21 +1594,21 @@ public class ProductNameParsingRule {
 			entry.endOffset = endOffset;
 		}
 		entry.type = type;
-		queue.add(removeInx,entry);
+		queue.add(removeInx, entry);
 		return entry;
 	}
 	
 	private boolean findUnit(CharVector key, String type) {
-		//영문의 경우에만 줄여가면서 단위명 체크를 시도한다.
+		// 영문의 경우에만 줄여가면서 단위명 체크를 시도한다.
 		key.ignoreCase();
-		if(type==ALPHA) {
-			//단위명으로 5글자 이상 보지 않는다.
-			if(key.length() > MAX_UNIT_LENGTH) {
+		if (type == ALPHA) {
+			// 단위명으로 5글자 이상 보지 않는다.
+			if (key.length() > MAX_UNIT_LENGTH) {
 				key.length(MAX_UNIT_LENGTH);
 			}
 			for (int len = key.length(); len >= 0; len--) {
 				key.length(len);
-				if(unitDictionary!=null && unitDictionary.set().contains(key)) {
+				if (unitDictionary != null && unitDictionary.set().contains(key)) {
 					logger.trace("found unit : {}", key);
 					return true;
 				}
@@ -1634,7 +1616,7 @@ public class ProductNameParsingRule {
 			key.length(key.length() - 1);
 			return false;
 		} else {
-			if(unitDictionary!=null && unitDictionary.set().contains(key)) {
+			if (unitDictionary != null && unitDictionary.set().contains(key)) {
 				logger.trace("found unit : {}", key);
 				return true;
 			}
@@ -1642,7 +1624,7 @@ public class ProductNameParsingRule {
 		return false;
 	}
 	
-	private RuleEntry makeEntry (CharVector cv, String type, int startOffset, int endOffset) {
+	private RuleEntry makeEntry(CharVector cv, String type, int startOffset, int endOffset) {
 		return new RuleEntry(cv.array(), cv.offset(), cv.length(), startOffset, endOffset, type);
 	}
 	
@@ -1680,7 +1662,7 @@ public class ProductNameParsingRule {
 	
 	public List<List<CharVector>> synonymExtract(List<?> synonyms) {
 		ProductNameParsingRule parsingRule = this.clone(
-				new TypeAttributeImpl(), null, this.offsetAttribute, null);
+			new TypeAttributeImpl(), null, this.offsetAttribute, null);
 		parsingRule.option = new AnalyzerOption();
 		parsingRule.option.useSynonym(false);
 		parsingRule.option.useStopword(true);
@@ -1692,9 +1674,9 @@ public class ProductNameParsingRule {
 			logger.trace("synonym:{}", synonymObj);
 
 			List<CharVector> synonymTokens = new ArrayList<>(1);
-			if(synonymObj instanceof CharVector) {
+			if (synonymObj instanceof CharVector) {
 				CharVector synonymCV = (CharVector) synonymObj;
-				//유사어가 공백이 포함된 여러어절로 구성되어 있을 경우 처리.
+				// 유사어가 공백이 포함된 여러어절로 구성되어 있을 경우 처리.
 				if (synonymCV.hasWhitespaces()) {
 					String[] terms = synonymCV.toString().split(" ");
 					for (String term : terms) {
@@ -1708,22 +1690,22 @@ public class ProductNameParsingRule {
 			}
 
 			List<CharVector> extracted = new ArrayList<>();
-			//어절별로 처리한다. 하나의 어절에서 여러 단어가 나올수 있다.
+			// 어절별로 처리한다. 하나의 어절에서 여러 단어가 나올수 있다.
 			StringBuilder sb = new StringBuilder();
-			for(CharVector synonymCV : synonymTokens) {
+			for (CharVector synonymCV : synonymTokens) {
 				logger.trace("TRACING SYNONYM : {}", synonymCV);
 				extractor.setInput(synonymCV.array(), synonymCV.offset(), synonymCV.length());
-				Entry cvEntry = extractor.extract();
+				ExtractedEntry cvEntry = extractor.extract();
 				if (cvEntry != null) {
-					//분석된 동의어에서 분석된 단어들은 차후 AND 조건으로 이어져야 한다.
-					while(cvEntry != null) {
+					// 분석된 동의어에서 분석된 단어들은 차후 AND 조건으로 이어져야 한다.
+					while (cvEntry != null) {
 						CharVector cv = synonymCV.clone();
 						cv.offset(cv.offset() + cvEntry.offset());
 						cv.length(cvEntry.column());
 						if (cv.length() < synonymCV.length()) {
 							cv = cv.trim();
 							if (cv.length() > 0) {
-								//NOTE! 동의어를 모델명분석을 하는편과 하지 않는 편 어느쪽이 더 분석결과가 나은지 비교할 것.
+								// NOTE! 동의어를 모델명분석을 하는편과 하지 않는 편 어느쪽이 더 분석결과가 나은지 비교할 것.
 								if (spaceDictionary != null && spaceDictionary.containsKey(cv)) {
 									CharSequence[] splits = spaceDictionary.get(cv);
 									for (CharSequence sp : splits) {
@@ -1734,7 +1716,7 @@ public class ProductNameParsingRule {
 								}
 							}
 						} else {
-							//분리어체크.
+							// 분리어체크.
 							if (spaceDictionary != null && spaceDictionary.containsKey(synonymCV)) {
 								CharSequence[] splits = spaceDictionary.get(synonymCV);
 								for (CharSequence sp : splits) {
@@ -1757,7 +1739,7 @@ public class ProductNameParsingRule {
 						while (entryList.size() > 0) {
 							entryList.remove(0).makeTerm(token);
 							extracted.add(token);
-							if(sb.length() > 0) {
+							if (sb.length() > 0) {
 								sb.append("`");
 							}
 							sb.append(token.toString());
@@ -1776,8 +1758,8 @@ public class ProductNameParsingRule {
 			if (extracted != null && extracted.size() > 0) {
 				logger.trace("SYNONYM-EXTRACTED:{}", extracted);
 				String idString = sb.toString();
-				if(!dupSet.contains(idString)) {
-					if(result == null) {
+				if (!dupSet.contains(idString)) {
+					if (result == null) {
 						result = new ArrayList<>();
 					}
 					result.add(extracted);
@@ -1824,7 +1806,7 @@ public class ProductNameParsingRule {
 		}
 		
 		public CharVector makeTerm(CharVector cv, int start, int length) {
-			if(cv == null) {
+			if (cv == null) {
 				cv = new CharVector();
 			}
 			cv.init(buf, start, length);
@@ -1832,7 +1814,7 @@ public class ProductNameParsingRule {
 		}
 		
 		public RuleEntry clone() {
-			RuleEntry entry = new RuleEntry(buf,start,length,startOffset, endOffset, type);
+			RuleEntry entry = new RuleEntry(buf, start, length, startOffset, endOffset, type);
 			entry.synonym = synonym;
 			entry.subEntry = subEntry;
 			return entry;

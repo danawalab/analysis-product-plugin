@@ -5,7 +5,8 @@ import java.util.Properties;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
-import com.danawa.search.analysis.product.KoreanWordExtractor.Entry;
+import com.danawa.search.analysis.korean.KoreanWordExtractor;
+import com.danawa.search.analysis.korean.KoreanWordExtractor.ExtractedEntry;
 import com.danawa.util.CharVector;
 import com.danawa.util.TestUtil;
 
@@ -52,7 +53,7 @@ public class KoreanWordExtractorTest {
 		str = "/F20005W_F10011M_F20246W_247W_251W_FMS10";
 		char[] buf = str.toCharArray();
 		if (extractor.setInput(buf, 0, buf.length) != -1) {
-			Entry entry = extractor.extract();
+			ExtractedEntry entry = extractor.extract();
 			while (entry != null) {
 				logger.debug(">> {}", entry.toDetailString(buf));
 				entry = entry.next();

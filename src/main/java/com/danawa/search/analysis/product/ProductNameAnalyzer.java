@@ -1,6 +1,7 @@
 package com.danawa.search.analysis.product;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.analysis.korean.KoreanWordExtractor;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Tokenizer;

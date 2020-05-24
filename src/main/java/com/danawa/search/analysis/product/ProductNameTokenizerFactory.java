@@ -12,14 +12,14 @@ import com.danawa.search.analysis.dict.CustomDictionary;
 import com.danawa.search.analysis.dict.Dictionary;
 import com.danawa.search.analysis.dict.InvertMapDictionary;
 import com.danawa.search.analysis.dict.MapDictionary;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
-import com.danawa.search.analysis.dict.PreResult;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SourceDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
+import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
+import com.danawa.search.analysis.korean.PreResult;
 import com.danawa.util.ContextStore;
 import com.danawa.util.ResourceResolver;
 

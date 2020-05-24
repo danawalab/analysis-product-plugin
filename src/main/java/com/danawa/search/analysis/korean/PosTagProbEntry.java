@@ -1,4 +1,4 @@
-package com.danawa.search.analysis.dict;
+package com.danawa.search.analysis.korean;
 
 import java.io.Serializable;
 
@@ -61,6 +61,10 @@ public class PosTagProbEntry implements Serializable {
 		}
 
 		return false;
+	}
+
+	public enum PosTag {
+		SOE, UNK, N, V, M, IC, J, E, EP, X, ALPHA/* 영문 */, XPN, EOE, GUESS, DIGIT, SYMBOL
 	}
 
 	public static class TagProb implements Serializable {

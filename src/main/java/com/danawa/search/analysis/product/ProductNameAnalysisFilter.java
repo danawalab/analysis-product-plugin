@@ -5,11 +5,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
+import com.danawa.search.analysis.korean.KoreanWordExtractor;
+import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
 import com.danawa.search.analysis.product.ProductNameParsingRule.RuleEntry;
 import com.danawa.util.CharVector;
 
@@ -25,19 +26,11 @@ import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.elasticsearch.common.logging.Loggers;
 
+import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
+
 public class ProductNameAnalysisFilter extends TokenFilter {
 
 	private static final Logger logger = Loggers.getLogger(ProductNameAnalysisFilter.class, "");
-	
-	public static final String DICT_UNIT_SYNONYM = "unit_synonym";
-	public static final String DICT_UNIT = "unit";
-	public static final String DICT_SPACE = "space";
-	public static final String DICT_SYNONYM = "synonym";
-	public static final String DICT_STOP = "stop";
-	public static final String DICT_USER = "user";
-	public static final String DICT_COMPOUND= "compound";
-	public static final String DICT_MAKER = "maker";
-	public static final String DICT_BRAND = "brand";
 	
 	private final CharTermAttribute termAttribute = addAttribute(CharTermAttribute.class);
 	private final TokenInfoAttribute tokenAttribute = addAttribute(TokenInfoAttribute.class);
@@ -47,7 +40,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private final SynonymAttribute synonymAttribute = addAttribute(SynonymAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
 	private SynonymAttribute tokenSynonymAttribute;
-	private AnalyzerOption analyzerOption;
+	private AnalyzerOption option;
 	
 	private KoreanWordExtractor extractor;
 	
@@ -70,7 +63,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		}
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
-		this.analyzerOption = analyzerOption;
+		this.option = analyzerOption;
 		additionalTermAttribute.init(this);
 		termList = new ArrayList<>();
 		super.clearAttributes();
@@ -101,12 +94,11 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		}
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
-		this.analyzerOption = new AnalyzerOption();
+		this.option = new AnalyzerOption();
 		this.extractor = new KoreanWordExtractor(dictionary);
 
-		analyzerOption.useSynonym(true);
-		analyzerOption.useStopword(true);
-		// analyzerOption.setForDocument();
+		option.useSynonym(true);
+		option.useStopword(true);
 	}
 
 	public final boolean incrementToken() throws IOException {
@@ -114,7 +106,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		// FIXME : 큐 마지막에 ASCII 텀이 남아 있다면 모델명규칙 등을 위해 남겨 두어야 함.
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
 		if (parsingRule == null) {
-			parsingRule = new ProductNameParsingRule(extractor, dictionary, analyzerOption, 
+			parsingRule = new ProductNameParsingRule(extractor, dictionary, option, 
 				offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);
 		}
 		synonymAttribute.setSynonyms(null);
@@ -186,12 +178,12 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				// 분기. 색인시에는 모델명을 일반텀으로 추출, 질의시에는 추가텀으로 추출
 				// 색인시에는 오프셋이 앞으로 갈수 없으므로 일반텀으로 추출한다
 
-				if (analyzerOption.isForDocument()) {
+				if (option.isForDocument()) {
 					if (entry.buf != null) {
 						token = applyEntry(entry);
-						if (analyzerOption.useSynonym()) {
+						if (option.useSynonym()) {
 							List<Object> synonyms = new ArrayList<>();
-							if (entry.synonym != null && analyzerOption.useSynonym()) {
+							if (entry.synonym != null && option.useSynonym()) {
 								synonyms.addAll(Arrays.asList(entry.synonym));
 							}
 							if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
@@ -227,7 +219,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					} else if (subEntryList.size() > 0) {
 						RuleEntry subEntry = subEntryList.get(0);
 						token = applyEntry(subEntry);
-						if (subEntry.synonym != null && analyzerOption.useSynonym()) {
+						if (subEntry.synonym != null && option.useSynonym()) {
 							synonymAttribute.setSynonyms(Arrays.asList(subEntry.synonym));
 						}
 						subEntryList.remove(0);
@@ -269,7 +261,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
 		typeAttribute.setType(entry.type);
 		token = entry.makeTerm(null);
-		if (analyzerOption.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
+		if (option.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
 			tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
 		} else {
 			tokenAttribute.rmState(TokenInfoAttribute.STATE_TERM_STOP);

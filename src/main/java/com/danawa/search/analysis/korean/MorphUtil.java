@@ -1,4 +1,4 @@
-package com.danawa.search.analysis.product;
+package com.danawa.search.analysis.korean;
 
 public class MorphUtil {
 

@@ -1,7 +1,7 @@
 package org.apache.lucene.analysis.tokenattributes;
 
-import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
 import com.danawa.util.CharVector;
 
 import org.apache.lucene.util.AttributeImpl;

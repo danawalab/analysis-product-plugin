@@ -1,4 +1,4 @@
-package com.danawa.search.analysis.product;
+package com.danawa.search.analysis.korean;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,15 +8,17 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 
-import com.danawa.search.analysis.dict.PosTag;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
-import com.danawa.search.analysis.dict.PosTagProbEntry;
-import com.danawa.search.analysis.dict.PreResult;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
+import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
+import com.danawa.search.analysis.product.AnalyzeExceedException;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
+
+
+import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
 
 public class KoreanWordExtractor {
 	private static Logger logger = Loggers.getLogger(KoreanWordExtractor.class, "");
@@ -36,16 +38,16 @@ public class KoreanWordExtractor {
 	// boolean hasRemnant;
 	boolean isUnicode;
 
-	private PriorityQueue<Entry> queue = new PriorityQueue<Entry>(8, new Comparator<Entry>() {
+	private PriorityQueue<ExtractedEntry> queue = new PriorityQueue<ExtractedEntry>(8, new Comparator<ExtractedEntry>() {
 		@Override
-		public int compare(Entry o1, Entry o2) {
+		public int compare(ExtractedEntry o1, ExtractedEntry o2) {
 			return (int) (o2.totalScore() - o1.totalScore());
 		}
 	});
 	
 	private static final int QUEUE_MAX = 200;
 	private static final int RESULT_MAX = 10;
-	private List<Entry> result = new ArrayList<>();
+	private List<ExtractedEntry> result = new ArrayList<>();
 
 	protected char[] source;
 	protected int offset;
@@ -114,7 +116,7 @@ public class KoreanWordExtractor {
 	/*
 	 * 음절을 조합하여 사전에서 찾아준다. 찾은 단어와 tag는 table에 저장한다.
 	 */
-	private Entry doSegment() {
+	private ExtractedEntry doSegment() {
 		CharVector cv = new CharVector(source, offset, length);
 		// 길이가 1~2 단어는 완전매칭이 아니면 UNK이다.
 		if (length == 1) {
@@ -122,18 +124,18 @@ public class KoreanWordExtractor {
 			// 조사이면 전체 조사로.
 			List<TagProb> tag = koreanDict.find(cv);
 			if (tag != null) {
-				return new Entry(length - 1, length, tag.get(0), offset);
+				return new ExtractedEntry(length - 1, length, tag.get(0), offset);
 			}
 			if (isDigit(cv)) {
-				return new Entry(length - 1, length, TagProb.DIGIT, offset);
+				return new ExtractedEntry(length - 1, length, TagProb.DIGIT, offset);
 			} else if (isSymbol(cv)) {
-				return new Entry(length - 1, length, TagProb.SYMBOL, offset);
+				return new ExtractedEntry(length - 1, length, TagProb.SYMBOL, offset);
 			}
-			return new Entry(length - 1, length, TagProb.UNK, offset);
+			return new ExtractedEntry(length - 1, length, TagProb.UNK, offset);
 		}
 		List<TagProb> tag = koreanDict.find(cv);
 		if (tag != null) {
-			return new Entry(length - 1, length, tag.get(0), offset);
+			return new ExtractedEntry(length - 1, length, tag.get(0), offset);
 		}
 		int start = length - 1;
 		for (int row = start; row >= 0; row--) {
@@ -163,7 +165,7 @@ public class KoreanWordExtractor {
 						if (column == length) {
 							// 완전일치시
 							// logger.debug("Exact match {}", cv);
-							return new Entry(row, column, tagList.get(0), offset);
+							return new ExtractedEntry(row, column, tagList.get(0), offset);
 						}
 						PosTagProbEntry chainedEntry = null;
 						for (int i = 0; i < tagList.size(); i++) {
@@ -266,19 +268,19 @@ public class KoreanWordExtractor {
 		try {
 			if (headRow == -1) {
 				// 통째 미등록어.
-				addResult(new Entry(length - 1, length, TagProb.UNK, offset));
+				addResult(new ExtractedEntry(length - 1, length, TagProb.UNK, offset));
 				return;
 			}
 			// 최초 char부터의 단어매칭이 없다면.
 			// 예를들어 "대한민국"분석시 "대한"만 사전에 있어서 "민국"은 결과가 없을경우.
 			if (headRow < length - 1) {
 				// 뒷부분을 미등록어로 처리한다. "대한(N)+민국(UNK)" 이 된다.
-				Entry tail = new Entry(length - 1, length - 1 - headRow, TagProb.UNK, offset);
+				ExtractedEntry tail = new ExtractedEntry(length - 1, length - 1 - headRow, TagProb.UNK, offset);
 				connectAllTo(headRow, tail);
 			} else {
 				connectAllTo(headRow, null);
 			}
-			Entry tail = null;
+			ExtractedEntry tail = null;
 			while ((tail = queue.poll()) != null) {
 				int connectRow = tail.row() - tail.column();
 				if (status[connectRow] > 0) {
@@ -296,7 +298,7 @@ public class KoreanWordExtractor {
 		}
 	}
 
-	private int connectAllTo(int headRow, Entry tail) throws AnalyzeExceedException {
+	private int connectAllTo(int headRow, ExtractedEntry tail) throws AnalyzeExceedException {
 		PosTagProbEntry[] rowData = tabular[headRow];
 		int found = 0;
 		// 최장길이부터 찾는다.
@@ -328,13 +330,13 @@ public class KoreanWordExtractor {
 		return found;
 	}
 
-	private int connectTo(PosTagProbEntry headTagEntry, int headRow, int headColumn, Entry tail) throws AnalyzeExceedException {
+	private int connectTo(PosTagProbEntry headTagEntry, int headRow, int headColumn, ExtractedEntry tail) throws AnalyzeExceedException {
 		// headColumn = -1 이면 앞쪽에 연결될 단어가 없는것이다.
 		if (tail == null) {
 			// 처음
 			int found = 0;
 			while (headTagEntry != null) {
-				Entry headEntry = new Entry(headRow, headColumn, headTagEntry.get(), offset);
+				ExtractedEntry headEntry = new ExtractedEntry(headRow, headColumn, headTagEntry.get(), offset);
 				if (headEntry.row() - headEntry.column() < 0) {
 					addResult(headEntry);
 				} else {
@@ -364,7 +366,7 @@ public class KoreanWordExtractor {
 		int found = 0;
 		while (headTagEntry != null) {
 			if (isConnectableByRule(headTagEntry.get(), headRow, headColumn, tail)) {
-				Entry newTail = modifyAndConnect(headTagEntry.get(), headRow, headColumn, tail);
+				ExtractedEntry newTail = modifyAndConnect(headTagEntry.get(), headRow, headColumn, tail);
 				if (newTail == null) {
 					// null이면 버리는것이므로 다음으로..
 				} else {
@@ -381,7 +383,7 @@ public class KoreanWordExtractor {
 		return found;
 	}
 	
-	protected void addQueue(Entry entry) throws AnalyzeExceedException {
+	protected void addQueue(ExtractedEntry entry) throws AnalyzeExceedException {
 		if (fastResultFound) {
 			return;
 		}
@@ -392,8 +394,8 @@ public class KoreanWordExtractor {
 		}
 	}
 
-	protected void addResult(Entry entry) throws AnalyzeExceedException {
-		Entry e = finalCheck(entry);
+	protected void addResult(ExtractedEntry entry) throws AnalyzeExceedException {
+		ExtractedEntry e = finalCheck(entry);
 		if (e == null) {
 			return;
 		}
@@ -407,7 +409,7 @@ public class KoreanWordExtractor {
 		}
 
 		if (result.size() >= RESULT_MAX) {
-			Entry tmpResult = getHighResult();
+			ExtractedEntry tmpResult = getHighResult();
 			result.clear();
 			if (tmpResult != null) {
 				result.add(tmpResult);
@@ -437,21 +439,21 @@ public class KoreanWordExtractor {
 			for (int inx = offset + length; inx > offset; inx--) {
 				pptype = ptype;
 				ptype = type;
-				type = ProductNameTokenizer.getType(buffer[inx - 1]);
+				type = getType(buffer[inx - 1]);
 				if (logger.isTraceEnabled()) {
 					logger.trace("PP:{}/P:{}/T:{}/C:{} {} [{}/{}/{} | {}/{}/{}]", pptype, ptype, type, buffer[inx - 1],
 						inx - offset,
-						(pptype != null && (pptype != ProductNameTokenizer.ALPHA && pptype != ProductNameTokenizer.NUMBER)),
-						(inx < buffer.length && ptype == ProductNameTokenizer.SYMBOL && buffer[inx] != '&'),
+						(pptype != null && (pptype != ALPHA && pptype != NUMBER)),
+						(inx < buffer.length && ptype == SYMBOL && buffer[inx] != '&'),
 						(type != null), (pptype != null),
-						(inx < buffer.length && ptype == ProductNameTokenizer.SYMBOL && buffer[inx] != '&'),
-						(type != null && (type != ProductNameTokenizer.ALPHA && type != ProductNameTokenizer.NUMBER)));
+						(inx < buffer.length && ptype == SYMBOL && buffer[inx] != '&'),
+						(type != null && (type != ALPHA && type != NUMBER)));
 				}
-				if (((pptype != null && (pptype != ProductNameTokenizer.ALPHA && pptype != ProductNameTokenizer.NUMBER))
-						&& (inx < buffer.length && ptype == ProductNameTokenizer.SYMBOL && buffer[inx] != '&')
+				if (((pptype != null && (pptype != ALPHA && pptype != NUMBER))
+						&& (inx < buffer.length && ptype == SYMBOL && buffer[inx] != '&')
 						&& (type != null))
-						|| ((pptype != null) && (inx < buffer.length && ptype == ProductNameTokenizer.SYMBOL && buffer[inx] != '&')
-							&& (type != null && (type != ProductNameTokenizer.ALPHA && type != ProductNameTokenizer.NUMBER)))) {
+						|| ((pptype != null) && (inx < buffer.length && ptype == SYMBOL && buffer[inx] != '&')
+							&& (type != null && (type != ALPHA && type != NUMBER)))) {
 					logger.trace("LENGTH:{} / {}", length - offset, tabular.length);
 					length = inx - offset;
 					if (length <= tabular.length) {
@@ -466,12 +468,12 @@ public class KoreanWordExtractor {
 				type = null;
 				for (int inx = offset; inx < (offset + length); inx++) {
 					ptype = type;
-					type = ProductNameTokenizer.getType(buffer[inx]);
+					type = getType(buffer[inx]);
 					if (ptype != null && (
-						( (type == ProductNameTokenizer.ALPHA || type == ProductNameTokenizer.NUMBER || type == ProductNameTokenizer.SYMBOL)
-							&& !(ptype == ProductNameTokenizer.ALPHA || ptype == ProductNameTokenizer.NUMBER || ptype == ProductNameTokenizer.SYMBOL) )
-						|| (!(type == ProductNameTokenizer.ALPHA || type == ProductNameTokenizer.NUMBER || type == ProductNameTokenizer.SYMBOL)
-							&& (ptype == ProductNameTokenizer.ALPHA || ptype == ProductNameTokenizer.NUMBER || ptype == ProductNameTokenizer.SYMBOL)) )) {
+						( (type == ALPHA || type == NUMBER || type == SYMBOL)
+							&& !(ptype == ALPHA || ptype == NUMBER || ptype == SYMBOL) )
+						|| (!(type == ALPHA || type == NUMBER || type == SYMBOL)
+							&& (ptype == ALPHA || ptype == NUMBER || ptype == SYMBOL)) )) {
 						length = inx - offset;
 					}
 				}
@@ -503,14 +505,14 @@ public class KoreanWordExtractor {
 		return length;
 	}
 
-	public Entry extract() {
-		Entry e = extract0();
-		Entry last = e.last();
+	public ExtractedEntry extract() {
+		ExtractedEntry e = extract0();
+		ExtractedEntry last = e.last();
 		while (remnantLength > 0) {
 			int len = Math.min(tabular.length, remnantLength);
 			// 자른다.
 			setInput0(source, remnantOffset, len);
-			Entry r = extract0();
+			ExtractedEntry r = extract0();
 			if (r != null) {
 				// 잘못된 데이터. 순서적으로 나올수 없는 조합.
 				if (!(last.offset() + last.column() > r.offset())) {
@@ -524,8 +526,8 @@ public class KoreanWordExtractor {
 		return e;
 	}
 	
-	public Entry extract0() {
-		Entry e = doSegment();
+	public ExtractedEntry extract0() {
+		ExtractedEntry e = doSegment();
 		if (e != null) {
 			return e;
 		}
@@ -536,14 +538,14 @@ public class KoreanWordExtractor {
 		return getBestResult();
 	}
 
-	public List<Entry> getAllResult() {
+	public List<ExtractedEntry> getAllResult() {
 		return result;
 	}
 	
-	private Entry getHighResult() {
-		Entry highEntry = null;
+	private ExtractedEntry getHighResult() {
+		ExtractedEntry highEntry = null;
 		for (int k = 0; k < result.size(); k++) {
-			Entry entry = result.get(k);
+			ExtractedEntry entry = result.get(k);
 			entry = finalCheck(entry);
 			if (entry == null) {
 				continue;
@@ -559,15 +561,15 @@ public class KoreanWordExtractor {
 		return highEntry;
 	}
 
-	public Entry getBestResult() {
-		Entry bestEntry = getHighResult();
+	public ExtractedEntry getBestResult() {
+		ExtractedEntry bestEntry = getHighResult();
 		if (bestEntry == null) {
 			// 통째 미등록어.
-			bestEntry = new Entry(length - 1, length, TagProb.UNK, offset);
+			bestEntry = new ExtractedEntry(length - 1, length, TagProb.UNK, offset);
 			return bestEntry;
 		}
-		Entry prevEntry = null;
-		Entry entry = bestEntry;
+		ExtractedEntry prevEntry = null;
+		ExtractedEntry entry = bestEntry;
 		while (entry != null) {
 			CharVector term = new CharVector(source, entry.row() - entry.column() + 1, entry.column());
 			PreResult<CharSequence> preResult = koreanDict.findPreResult(term);
@@ -582,12 +584,12 @@ public class KoreanWordExtractor {
 				} else {
 					// 분리어 이므로 교체.
 					int startRow = entry.row() - entry.column();
-					Entry first = null;
-					Entry last = null;
+					ExtractedEntry first = null;
+					ExtractedEntry last = null;
 					for (int i = 0; i < resultList.length; i++) {
 						CharSequence cv = resultList[i];
 						startRow += cv.length();
-						Entry entry2 = new Entry(startRow, cv.length(), entry.tagProb());
+						ExtractedEntry entry2 = new ExtractedEntry(startRow, cv.length(), entry.tagProb());
 						if (first == null) {
 							first = entry2;
 							last = first;
@@ -625,7 +627,7 @@ public class KoreanWordExtractor {
 	/*
 	 * 두 PosTag간의 룰기반 접속문법검사
 	 */
-	protected boolean isConnectableByRule(TagProb headTagProb, int headRow, int headColumn, Entry tail) {
+	protected boolean isConnectableByRule(TagProb headTagProb, int headRow, int headColumn, ExtractedEntry tail) {
 		//숫자끼리는 과분석된것이므로 연결해주지 않는다. 제일 긴 숫자가 사용하도록함.
 		if (headTagProb.posTag() == PosTag.DIGIT && tail.tagProb().posTag() == PosTag.DIGIT) {
 			return false;
@@ -667,12 +669,12 @@ public class KoreanWordExtractor {
 	/*
 	 * 두 엔트리를 접속시 합치거나 이어붙이는 로직을 구현한다.
 	 */
-	protected Entry modifyAndConnect(TagProb tagProb, int row, int column, Entry tail) {
-		Entry newEntry = new Entry(row, column, tagProb, offset);
+	protected ExtractedEntry modifyAndConnect(TagProb tagProb, int row, int column, ExtractedEntry tail) {
+		ExtractedEntry newEntry = new ExtractedEntry(row, column, tagProb, offset);
 		return newEntry.next(tail);
 	}
 
-	private Entry finalCheck(Entry headEntry) {
+	private ExtractedEntry finalCheck(ExtractedEntry headEntry) {
 		// 첫글자 조사버림.
 		if (headEntry.posTag() == PosTag.J) {
 			return null;
@@ -680,7 +682,7 @@ public class KoreanWordExtractor {
 
 		int count = 0;
 		if (headEntry.entryCount() >= 2) {
-			Entry current = headEntry;
+			ExtractedEntry current = headEntry;
 			while (current != null) {
 				if (current.column() > 1) {
 					break;
@@ -706,7 +708,7 @@ public class KoreanWordExtractor {
 	/*
 	 * Best 결과를 뽑을때 사용하는 비교로직.
 	 */
-	protected boolean isBetterThan(Entry entry, Entry bestEntry) {
+	protected boolean isBetterThan(ExtractedEntry entry, ExtractedEntry bestEntry) {
 		// 적게 잘린쪽이 우선.
 		// 2014-1-27 처리.. 이렇게 하면 무조건 항상 통 UNK가 나오게 된다.
 
@@ -717,27 +719,27 @@ public class KoreanWordExtractor {
 		return false;
 	}
 
-	static class Entry implements Cloneable {
+	public static class ExtractedEntry implements Cloneable {
 		private int row;
 		private int column;
 		private TagProb tagProb;
-		private Entry next; // 다음 엔트리.
+		private ExtractedEntry next; // 다음 엔트리.
 		private double score; // 최종 score이다. head가 next이후의 score의 합산을 가지고 있게된다.
 		private boolean extracted;
 		private int offset;
 		
-		public Entry(int row, int column, TagProb tagProb) {
+		public ExtractedEntry(int row, int column, TagProb tagProb) {
 			this(row, column, tagProb, (double) 0);
 		}
 
-		public Entry(int row, int column, TagProb tagProb, double scoreAdd) {
+		public ExtractedEntry(int row, int column, TagProb tagProb, double scoreAdd) {
 			this.row = row;
 			this.column = column;
 			this.tagProb = tagProb;
 			this.score += (tagProb.prob() + scoreAdd);
 		}
 		
-		public Entry(int row, int column, TagProb tagProb, int offset) {
+		public ExtractedEntry(int row, int column, TagProb tagProb, int offset) {
 			this.row = row;
 			this.column = column;
 			this.tagProb = tagProb;
@@ -789,7 +791,7 @@ public class KoreanWordExtractor {
 		}
 		
 		public int entryCount() {
-			Entry nextEntry = this;
+			ExtractedEntry nextEntry = this;
 			int count = 0;
 			while (nextEntry != null) {
 				count++;
@@ -802,12 +804,12 @@ public class KoreanWordExtractor {
 			return column;
 		}
 
-		public Entry next() {
+		public ExtractedEntry next() {
 			return next;
 		}
 
-		public Entry last() {
-			Entry l = this;
+		public ExtractedEntry last() {
+			ExtractedEntry l = this;
 			while (true) {
 				if (l.next() == null) {
 					return l;
@@ -817,11 +819,11 @@ public class KoreanWordExtractor {
 			}
 		}
 		
-		public void setNext(Entry next) {
+		public void setNext(ExtractedEntry next) {
 			this.next = next;
 		}
 
-		public Entry next(Entry next) {
+		public ExtractedEntry next(ExtractedEntry next) {
 			this.next = next;
 			if (next != null) {
 				this.score += next.score;
@@ -862,10 +864,10 @@ public class KoreanWordExtractor {
 		}
 
 		@Override
-		public Entry clone() {
-			Entry entry = null;
+		public ExtractedEntry clone() {
+			ExtractedEntry entry = null;
 			try {
-				entry = (Entry) super.clone();
+				entry = (ExtractedEntry) super.clone();
 			} catch (CloneNotSupportedException e) {
 				logger.error("", e);
 			}

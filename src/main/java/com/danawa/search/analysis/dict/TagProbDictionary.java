@@ -14,7 +14,9 @@ import java.util.Set;
 
 import com.danawa.io.DataInput;
 import com.danawa.io.InputStreamDataInput;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
+import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
+import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
+import com.danawa.search.analysis.korean.PreResult;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;

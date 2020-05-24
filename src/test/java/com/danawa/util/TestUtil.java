@@ -9,13 +9,12 @@ import java.util.Properties;
 import java.util.Set;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
-import com.danawa.search.analysis.dict.PosTag;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
-import com.danawa.search.analysis.dict.PosTagProbEntry.TagProb;
-import com.danawa.search.analysis.product.ProductNameAnalysisFilter;
+import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
+import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.ProductNameTokenizerFactory;
 
 import org.apache.logging.log4j.Level;
@@ -25,6 +24,8 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.elasticsearch.common.logging.Loggers;
+
+import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
 
 public final class TestUtil {
 
@@ -177,11 +178,11 @@ public final class TestUtil {
 			ret = new ProductNameDictionary(baseDict);
 			ret.appendAdditionalNounEntry(userDict.set(), HIGH);
 			ret.appendAdditionalNounEntry(synonymDict.getWordSet(), HIGH);
-			ret.addDictionary(ProductNameAnalysisFilter.DICT_USER, userDict);
-			ret.addDictionary(ProductNameAnalysisFilter.DICT_SYNONYM, synonymDict);
-			ret.addDictionary(ProductNameAnalysisFilter.DICT_UNIT, unitDict);
-			ret.addDictionary(ProductNameAnalysisFilter.DICT_UNIT_SYNONYM, unitSynDict);
-			ret.addDictionary(ProductNameAnalysisFilter.DICT_COMPOUND, compDict);
+			ret.addDictionary(DICT_USER, userDict);
+			ret.addDictionary(DICT_SYNONYM, synonymDict);
+			ret.addDictionary(DICT_UNIT, unitDict);
+			ret.addDictionary(DICT_UNIT_SYNONYM, unitSynDict);
+			ret.addDictionary(DICT_COMPOUND, compDict);
 
 		} catch (final Exception e) {
 			logger.debug("ERROR LOADING BASE DICTIONARY : {}", e.getMessage());
