@@ -10,6 +10,7 @@ import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
@@ -105,7 +106,7 @@ public class ProductNameTokenizer extends Tokenizer {
 		// 단어사이에 구분자로 올 수 있는 기호들, 사용자단어에 들어가는 기호는 삭제해야 한다.
 		',', '|', '[', ']', '<', '>', '{', '}' };
 
-	// private final CharTermAttribute charAttribute = addAttribute(CharTermAttribute.class);
+	private final CharTermAttribute termAttribute = addAttribute(CharTermAttribute.class);
 	private final TokenInfoAttribute tokenAttribute = addAttribute(TokenInfoAttribute.class);
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
@@ -117,14 +118,16 @@ public class ProductNameTokenizer extends Tokenizer {
 	private int readLength;
 	private int baseOffset;
 	private int offset;
+	private boolean exportTerm;
 
 	private KoreanWordExtractor extractor;
 
-	protected ProductNameTokenizer(ProductNameDictionary dictionary) {
+	protected ProductNameTokenizer(ProductNameDictionary dictionary, boolean exportTerm) {
 		if (dictionary != null) {
 			extractor = new KoreanWordExtractor(dictionary);
 			tokenAttribute.dictionary(dictionary);
 		}
+		this.exportTerm = exportTerm;
 		init();
 	}
 
@@ -135,7 +138,6 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private void init() {
 		workBuffer = new char[IO_BUFFER_SIZE];
-		// fullTermBuffer = new char[FULL_TERM_LENGTH];
 		position = readLength = baseOffset = offset = 0;
 		super.clearAttributes();
 	}
@@ -262,6 +264,9 @@ public class ProductNameTokenizer extends Tokenizer {
 					tokenAttribute.ref(buffer, entry.offset(), entry.column());
 					tokenAttribute.posTag(entry.posTag());
 					offsetAttribute.setOffset(baseOffset + entry.offset(), baseOffset + entry.offset() + entry.column());
+					if (exportTerm) {
+						termAttribute.copyBuffer(buffer, entry.offset(), entry.column());
+					}
 
 					position = entry.offset() + entry.column();
 					entry = entry.next();

@@ -14,6 +14,8 @@ import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.index.analysis.AnalyzerProvider;
+import org.elasticsearch.index.analysis.TokenFilterFactory;
+import org.elasticsearch.index.analysis.TokenizerFactory;
 import org.elasticsearch.indices.analysis.AnalysisModule.AnalysisProvider;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.AnalysisPlugin;
@@ -24,6 +26,8 @@ import org.elasticsearch.rest.RestHandler;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 
+import java.util.HashMap;
+
 public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin, ActionPlugin {
 
 	private static Logger logger = Loggers.getLogger(AnalysisProductNamePlugin.class, "");
@@ -32,6 +36,18 @@ public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin,
 
 	public AnalysisProductNamePlugin() {
 		logger.trace("init");
+	}
+
+	@Override
+	public Map<String, AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
+		Map<String, AnalysisProvider<TokenFilterFactory>> extra = new HashMap<>();
+		extra.put("product-name_filter", ProductNameAnalysisFilterFactory::new);
+		return extra;
+	}
+
+	@Override
+	public Map<String, AnalysisProvider<TokenizerFactory>> getTokenizers() {
+		return singletonMap("product-name_tokenizer", ProductNameTokenizerFactory::new);
 	}
 
 	@Override

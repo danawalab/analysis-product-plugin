@@ -83,7 +83,7 @@ public class ProductNameTokenizerTest {
 		// str = "1000원";
 		try {
 			reader = new StringReader(str);
-			tokenizer = new ProductNameTokenizer(dictionary);
+			tokenizer = new ProductNameTokenizer(dictionary, false);
 			tokenizer.setReader(reader);
 			TokenInfoAttribute tokenAttribute = tokenizer.addAttribute(TokenInfoAttribute.class);
 			OffsetAttribute offsetAttribute = tokenizer.addAttribute(OffsetAttribute.class);

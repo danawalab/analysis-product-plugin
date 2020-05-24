@@ -24,7 +24,7 @@ public class ProductNameAnalyzer extends Analyzer {
 
 	@Override
 	protected TokenStreamComponents createComponents(String fieldName) {
-		Tokenizer tokenizer = new ProductNameTokenizer(commonDictionary);
+		Tokenizer tokenizer = new ProductNameTokenizer(commonDictionary, false);
 		TokenStream stream = tokenizer;
 		KoreanWordExtractor extractor = new KoreanWordExtractor(commonDictionary);
 		stream = new ProductNameAnalysisFilter(stream, extractor, commonDictionary, option);

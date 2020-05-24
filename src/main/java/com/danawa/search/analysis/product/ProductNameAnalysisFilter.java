@@ -178,7 +178,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				// 분기. 색인시에는 모델명을 일반텀으로 추출, 질의시에는 추가텀으로 추출
 				// 색인시에는 오프셋이 앞으로 갈수 없으므로 일반텀으로 추출한다
 
-				if (option.isForDocument()) {
+				if (!option.useForQuery()) {
 					if (entry.buf != null) {
 						token = applyEntry(entry);
 						if (option.useSynonym()) {
@@ -189,9 +189,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
 								CharSequence[] wordSynonym = synonymDictionary.map().get(token);
 								logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
-								if (synonymAttribute.getSynonyms() != null) {
-									synonyms.addAll(synonymAttribute.getSynonyms());
-								}
+								// if (synonymAttribute.getSynonyms() != null) {
+								// 	synonyms.addAll(synonymAttribute.getSynonyms());
+								// }
 								if (wordSynonym != null) {
 									synonyms.addAll(Arrays.asList(wordSynonym));
 								}

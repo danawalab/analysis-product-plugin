@@ -711,7 +711,7 @@ public class ProductNameParsingRule {
 			// 결합단어로도 추출됨 (AdditionalTerm)
 			// FULL_STRING 은 타입전환을 하지 않는다
 			CharVector cv = e0.makeTerm(null);
-			if (option.isForQuery() && e0.type != FULL_STRING && getType(cv.charAt(0)) == ALPHA) {
+			if (option.useForQuery() && e0.type != FULL_STRING && getType(cv.charAt(0)) == ALPHA) {
 				if (getTermType(cv) == ALPHA) {
 					e0.type = ALPHA;
 				}
@@ -1102,7 +1102,7 @@ public class ProductNameParsingRule {
 				e0.modifiable = false;
 			}
 
-			if (option.isForDocument()) {
+			if (!option.useForQuery()) {
 				CharVector token = e0.makeTerm(null);
 				if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
 					typeAttribute.setType(COMPOUND);
@@ -1381,7 +1381,7 @@ public class ProductNameParsingRule {
 						// 모델명이 모두 추가텀으로 바뀌어야 하기 때문에 이 쪽은 모두 추가텀으로 돌리도록 한다.
 						// 2014.09.02 특수규칙. 영숫자가 번갈아 가며 나온 경우 (ALPHANUM) 와 겹치는 규칙이 있으므로
 						// 체크해서 지워준다.
-						if (option.isForDocument()) {
+						if (!option.useForQuery()) {
 							if (inx == 1 && inx + 2 < subQueue.size()) {
 								e1 = subQueue.get(inx - 1);
 								e2 = subQueue.get(inx + 1);
@@ -1407,7 +1407,7 @@ public class ProductNameParsingRule {
 						if (inx > 0 && inx + 1 < subQueue.size()) {
 							e1 = subQueue.get(inx - 1);
 							e2 = subQueue.get(inx + 1);
-							if (option.isForDocument()) {
+							if (!option.useForQuery()) {
 								// 색인때에만
 								// 모델명 중 숫자블럭 사이, 혹은 문자블럭 사이에 특수문자 가 있다면
 								// 각각의 숫자, 혹은 문자 와 특수문자를 제거한 조합도 출력한다.

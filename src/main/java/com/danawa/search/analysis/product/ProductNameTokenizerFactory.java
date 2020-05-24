@@ -59,14 +59,18 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
-	private ProductNameDictionary commonDictionary;
-
 	private static File baseFile;
 	private static File configFile;
+
+	private ProductNameDictionary commonDictionary;
+	private boolean exportTerm;
 
     public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, final Settings settings) {
 		super(indexSettings, settings, name);
 		logger.debug("ProductNameTokenizerFactory::self {}", this);
+
+		exportTerm = settings.getAsBoolean("export_term", false);
+
 		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
 			commonDictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 		} else {
@@ -78,7 +82,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	@Override
 	public Tokenizer create() {
 		logger.debug("ProductNameTokenizer::create {}", this);
-		return new ProductNameTokenizer(commonDictionary);
+		return new ProductNameTokenizer(commonDictionary, exportTerm);
 	}
 
 	private static File getDictionaryFile(File envBase, Properties prop, String dictionaryId) {
