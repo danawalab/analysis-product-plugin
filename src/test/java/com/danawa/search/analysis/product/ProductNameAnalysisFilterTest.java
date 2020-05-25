@@ -103,6 +103,7 @@ public class ProductNameAnalysisFilterTest {
 		String str = "";
 		str = "abc12d-e34";
 		str = "10cmx12cm";
+		str = "장&장";
 		// str = "멕케이폴로집업";
 		try {
 			option = new AnalyzerOption();

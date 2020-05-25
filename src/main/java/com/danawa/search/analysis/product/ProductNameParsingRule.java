@@ -20,7 +20,6 @@ import com.danawa.util.CharVector;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttributeImpl;
 import org.elasticsearch.common.logging.Loggers;
@@ -59,11 +58,10 @@ public class ProductNameParsingRule {
 
 	public ProductNameParsingRule(KoreanWordExtractor extractor, ProductNameDictionary dictionary,
 		AnalyzerOption option, OffsetAttribute offsetAttribute, TypeAttribute typeAttribute,
-		SynonymAttribute synonymAttribute, ExtraTermAttribute additionalTermAttribute) {
+		ExtraTermAttribute additionalTermAttribute) {
 		this.extractor = extractor;
 		this.option = option;
 		this.typeAttribute = typeAttribute;
-		// this.synonymAttribute = synonymAttribute;
 		this.offsetAttribute = offsetAttribute;
 		this.additionalTermAttribute = additionalTermAttribute;
 		if (dictionary != null) {
@@ -78,13 +76,11 @@ public class ProductNameParsingRule {
 		queue = new ArrayList<>();
 	}
 	
-	public ProductNameParsingRule clone(TypeAttribute typeAttribute, SynonymAttribute synonymAttribute,
-		OffsetAttribute offsetAttribute, ExtraTermAttribute additionalTermAttribute) {
+	public ProductNameParsingRule clone(TypeAttribute typeAttribute, OffsetAttribute offsetAttribute, ExtraTermAttribute additionalTermAttribute) {
 		ProductNameParsingRule clone = new ProductNameParsingRule();
 		clone.extractor = this.extractor;
 		clone.option = this.option;
 		clone.typeAttribute = typeAttribute;
-		// clone.synonymAttribute = synonymAttribute;
 		clone.offsetAttribute = offsetAttribute;
 		clone.additionalTermAttribute = additionalTermAttribute;
 		clone.start = 0;
@@ -168,7 +164,7 @@ public class ProductNameParsingRule {
 		}
 	}
 	
-	public void init() {
+	public void init(List<RuleEntry> queue) {
 		if (queue.size() > 0) {
 			this.term = queue.get(0).makeTerm(null);
 			start = term.offset();
@@ -275,7 +271,7 @@ public class ProductNameParsingRule {
 					if (passFlag) {
 						e1 = queue.get(qinx + linx);
 						cvTmp.init(e0.buf, e0.start, e1.start + e1.length - e0.start);
-						if (spaceDictionary.containsKey(cvTmp)) {
+						if (spaceDictionary != null && spaceDictionary.containsKey(cvTmp)) {
 							CharSequence[] splits = spaceDictionary.get(cvTmp);
 							for (int rinx = qinx + linx - 1; rinx >= qinx; rinx--) {
 								queue.remove(rinx);
@@ -290,7 +286,7 @@ public class ProductNameParsingRule {
 								startOffset += e1.length;
 							}
 							e0 = queue.get(qinx);
-						} else if (compoundDictionary.containsKey(cvTmp)) {
+						} else if (compoundDictionary != null && compoundDictionary.containsKey(cvTmp)) {
 							e0.length = (e1.start + e1.length - e0.start);
 							e0.type = HANGUL;
 							for (int rinx = qinx + linx; rinx > qinx; rinx--) {
@@ -1662,7 +1658,7 @@ public class ProductNameParsingRule {
 	
 	public List<CharSequence> synonymExtract(List<CharSequence> synonyms) {
 		ProductNameParsingRule parsingRule = this.clone(
-			new TypeAttributeImpl(), null, this.offsetAttribute, null);
+			new TypeAttributeImpl(), this.offsetAttribute, null);
 		parsingRule.option = new AnalyzerOption();
 		parsingRule.option.useSynonym(false);
 		parsingRule.option.useStopword(true);
@@ -1732,7 +1728,7 @@ public class ProductNameParsingRule {
 				if (parsingRule.queueSize() > 0) {
 					List<RuleEntry> entryList = parsingRule.getQueue();
 					logger.trace("SYNONYM-QUEUE:{}", entryList);
-					parsingRule.init();
+					parsingRule.init(entryList);
 					parsingRule.processRule(entryList, false);
 					CharVector token = new CharVector();
 					while (entryList.size() > 0) {

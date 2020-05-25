@@ -91,7 +91,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
 		if (parsingRule == null) {
 			parsingRule = new ProductNameParsingRule(extractor, dictionary, option, 
-				offsetAttribute, typeAttribute, synonymAttribute, extraTermAttribute);
+				offsetAttribute, typeAttribute, extraTermAttribute);
 		}
 		synonymAttribute.setSynonyms(null);
 		extraTermAttribute.init(this);
@@ -149,6 +149,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				} // LOOP (incrementToken())
 				// RULE PROCESS
 				if (termList.size() > 0) {
+					parsingRule.init(termList);
 					parsingRule.processRule(termList, true);
 				}
 
