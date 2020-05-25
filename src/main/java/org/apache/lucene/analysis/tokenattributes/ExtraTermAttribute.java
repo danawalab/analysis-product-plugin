@@ -11,7 +11,7 @@ public interface ExtraTermAttribute extends Attribute {
 	public void init(TokenStream tokenStream);
 	
 	public void addAdditionalTerm(String additionalTerm, String type,
-			@SuppressWarnings("rawtypes") List synonyms, int subSize, int start, int end);
+		List<CharSequence> synonyms, int subSize, int start, int end);
 	
 	public int subSize();
 	

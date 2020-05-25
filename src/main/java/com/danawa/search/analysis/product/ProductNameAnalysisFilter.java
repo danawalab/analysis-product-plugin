@@ -166,33 +166,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					if (entry.buf != null) {
 						token = applyEntry(entry);
 						if (option.useSynonym()) {
-							List<CharSequence> synonyms = new ArrayList<>();
-							if (synonymDictionary != null && synonymDictionary.containsKey(token)) {
-								CharSequence[] wordSynonym = synonymDictionary.get(token);
-								logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
-								// if (synonymAttribute.getSynonyms() != null) {
-								// 	synonyms.addAll(synonymAttribute.getSynonyms());
-								// }
-								if (wordSynonym != null) {
-									synonyms.addAll(Arrays.asList(wordSynonym));
-								}
-								// 동의어는 한번 더 분석해 준다.
-								// 단 단위명은 더 분석하지 않는다.
-								if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
-									List<CharSequence> synonymsExt = parsingRule.synonymExtract(synonyms);
-									if (synonymsExt != null) {
-										synonyms = synonymsExt;
-									}
-								}
-							}
-							// 본래 entry 에 있던 동의어는 이미 분석된 동의어 이므로 따로 처리할 필요가 없다.
-							if (entry.synonym != null && option.useSynonym()) {
-								synonyms.addAll(Arrays.asList(entry.synonym));
-							}
-							if (synonyms.size() > 0) {
-								logger.debug("SET-SYNONYM:{}", synonyms);
-								synonymAttribute.setSynonyms(synonyms);
-							}
+							applySynonym(token, entry);
 						}
 						if (subEntryList == null) {
 							termList.remove(0);
@@ -215,7 +189,10 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						termList.remove(0);
 					}
 				} else {
-					applyEntry(entry);
+					token = applyEntry(entry);
+					if (option.useSynonym()) {
+						applySynonym(token, entry);
+					}
 					termList.remove(0);
 					ret = true;
 					break;
@@ -242,6 +219,38 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			}
 		} // LOOP
 		return ret;
+	}
+
+	private void applySynonym(CharVector token, RuleEntry entry) {
+		if (option.useSynonym()) {
+			List<CharSequence> synonyms = new ArrayList<>();
+			if (synonymDictionary != null && synonymDictionary.containsKey(token)) {
+				CharSequence[] wordSynonym = synonymDictionary.get(token);
+				logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
+				// if (synonymAttribute.getSynonyms() != null) {
+				// 	synonyms.addAll(synonymAttribute.getSynonyms());
+				// }
+				if (wordSynonym != null) {
+					synonyms.addAll(Arrays.asList(wordSynonym));
+				}
+				// 동의어는 한번 더 분석해 준다.
+				// 단 단위명은 더 분석하지 않는다.
+				if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
+					List<CharSequence> synonymsExt = parsingRule.synonymExtract(synonyms);
+					if (synonymsExt != null) {
+						synonyms = synonymsExt;
+					}
+				}
+			}
+			// 본래 entry 에 있던 동의어는 이미 분석된 동의어 이므로 따로 처리할 필요가 없다.
+			if (entry.synonym != null && option.useSynonym()) {
+				synonyms.addAll(Arrays.asList(entry.synonym));
+			}
+			if (synonyms.size() > 0) {
+				logger.trace("SET-SYNONYM:{}", synonyms);
+				synonymAttribute.setSynonyms(synonyms);
+			}
+		}
 	}
 
 	private CharVector applyEntry(RuleEntry entry) {

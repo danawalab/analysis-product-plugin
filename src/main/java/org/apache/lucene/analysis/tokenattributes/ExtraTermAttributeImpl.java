@@ -17,8 +17,7 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 	private List<String> additionalTerms = new ArrayList<String>();
 	private List<String> types = new ArrayList<String>();
 	private List<int[]> offsets = new ArrayList<int[]>();
-	@SuppressWarnings("rawtypes")
-	private List synonyms;
+	private List<CharSequence> synonyms;
 	private OffsetAttribute offsetAttribute;
 	private TypeAttribute typeAttribute;
 	private SynonymAttribute synonymAttribute;
@@ -78,8 +77,7 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 		for (int inx = 0; inx < additionalTerms.size(); inx++) {
 			String term = additionalTerms.get(inx);
 			String type = types.get(inx);
-			@SuppressWarnings("rawtypes")
-			List synonyms = this.synonyms;
+			List<CharSequence> synonyms = this.synonyms;
 			int[] offset = offsets.get(inx);
 			int subLength = this.subLength;
 			t.addAdditionalTerm(term, type, synonyms, subLength, offset[0], offset[1]);
@@ -87,7 +85,7 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 	}
 
 	@Override
-	public void addAdditionalTerm(String additionalTerm, String type, @SuppressWarnings("rawtypes") List synonyms,
+	public void addAdditionalTerm(String additionalTerm, String type, List<CharSequence> synonyms,
 			int subLength, int start, int end) {
 		logger.trace("add additional {}", additionalTerm);
 		this.additionalTerms.add(additionalTerm);
