@@ -41,18 +41,18 @@ public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin,
 	@Override
 	public Map<String, AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
 		Map<String, AnalysisProvider<TokenFilterFactory>> extra = new HashMap<>();
-		extra.put("product-name_filter", ProductNameAnalysisFilterFactory::new);
+		extra.put("product_name", ProductNameAnalysisFilterFactory::new);
 		return extra;
 	}
 
 	@Override
 	public Map<String, AnalysisProvider<TokenizerFactory>> getTokenizers() {
-		return singletonMap("product-name_tokenizer", ProductNameTokenizerFactory::new);
+		return singletonMap("product_name", ProductNameTokenizerFactory::new);
 	}
 
 	@Override
 	public Map<String, AnalysisProvider<AnalyzerProvider<? extends Analyzer>>> getAnalyzers() {
-		return singletonMap("product-name", ProductNameAnalyzerProvider::new);
+		return singletonMap("product_name", ProductNameAnalyzerProvider::new);
 	}
 
 	@Override
