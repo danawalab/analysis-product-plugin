@@ -35,7 +35,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private final CharTermAttribute termAttribute = addAttribute(CharTermAttribute.class);
 	private final TokenInfoAttribute tokenAttribute = addAttribute(TokenInfoAttribute.class);
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
-	private final ExtraTermAttribute additionalTermAttribute = addAttribute(ExtraTermAttribute.class);
+	private final ExtraTermAttribute extraTermAttribute = addAttribute(ExtraTermAttribute.class);
 	private final StopwordAttribute stopwordAttribute = addAttribute(StopwordAttribute.class);
 	private final SynonymAttribute synonymAttribute = addAttribute(SynonymAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
@@ -64,7 +64,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		}
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
 		this.option = option;
-		additionalTermAttribute.init(this);
+		extraTermAttribute.init(this);
 		termList = new ArrayList<>();
 		super.clearAttributes();
 		logger.trace("init");
@@ -91,9 +91,11 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
 		if (parsingRule == null) {
 			parsingRule = new ProductNameParsingRule(extractor, dictionary, option, 
-				offsetAttribute, typeAttribute, synonymAttribute, additionalTermAttribute);
+				offsetAttribute, typeAttribute, synonymAttribute, extraTermAttribute);
 		}
 		synonymAttribute.setSynonyms(null);
+		extraTermAttribute.init(this);
+
 		while (true) {
 // 임시코드. 테스트시 무한루프에 의한 프리징 방지
 // try { Thread.sleep(300); } catch (Exception ignore) { }
@@ -193,28 +195,15 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					if (option.useSynonym()) {
 						applySynonym(token, entry);
 					}
+					if (entry.subEntry != null && entry.subEntry.size() > 0) {
+						for (RuleEntry subEntry : entry.subEntry) {
+							extraTermAttribute.addExtraTerm(String.valueOf(subEntry.makeTerm(null)), 
+								subEntry.type, null, 0, subEntry.startOffset, subEntry.endOffset);
+						}
+					}
 					termList.remove(0);
 					ret = true;
 					break;
-					// if (subEntryList != null) {
-					// 	while(subEntryList.size() > 0) {
-					// 		RuleEntry nextEntry = subEntryList.get(0);
-					// 		logger.trace("ADD-ENTRY:{}", nextEntry);
-					// 		// if(nextEntry.type != ProductNameTokenizer.MODEL_NAME) {
-					// 		// 	break;
-					// 		// }
-					// 		if(nextEntry.type == ProductNameTokenizer.MODEL_NAME) {
-					// 			subEntryList.remove(0);
-					// 			continue;
-					// 		}
-					// 		//모델명으로 추가된 단어들 (첫머리를 뗀 나머지 모델명 등)
-					// 		if(additionalTermAttribute != null) {
-					// 			additionalTermAttribute.addAdditionalTerm(nextEntry.makeTerm(null).toString(), 
-					// 				nextEntry.type, null, 0, nextEntry.startOffset, nextEntry.endOffset);
-					// 		}
-					// 		subEntryList.remove(0);
-					// 	}
-					// }
 				}
 			}
 		} // LOOP
@@ -301,7 +290,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 	public void reset() throws IOException {
 		super.reset();
-		additionalTermAttribute.init(this);
+		extraTermAttribute.init(this);
 		offset = 0;
 		prevOffset = 0;
 		currentOffset = 0;

@@ -103,10 +103,10 @@ public class ProductNameAnalysisFilterTest {
 		String str = "";
 		str = "abc12d-e34";
 		str = "10cmx12cm";
-		str = "멕케이폴로집업";
+		// str = "멕케이폴로집업";
 		try {
 			option = new AnalyzerOption();
-			option.useForQuery(false);
+			option.useForQuery(true);
 			option.useSynonym(true);
 			option.useStopword(true);
 			reader = new StringReader(str);

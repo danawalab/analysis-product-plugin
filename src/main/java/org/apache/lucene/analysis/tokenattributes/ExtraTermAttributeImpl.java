@@ -14,7 +14,7 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 
 	private static final Logger logger = Loggers.getLogger(ExtraTermAttributeImpl.class, "");
 
-	private List<String> additionalTerms = new ArrayList<String>();
+	private List<String> extraTerms = new ArrayList<String>();
 	private List<String> types = new ArrayList<String>();
 	private List<int[]> offsets = new ArrayList<int[]>();
 	private List<CharSequence> synonyms;
@@ -37,7 +37,7 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 			}
 		}
 
-		this.additionalTerms.clear();
+		this.extraTerms.clear();
 		this.types.clear();
 		this.offsets.clear();
 		this.subLength = 0;
@@ -45,7 +45,7 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 
 	@Override
 	public void clear() {
-		this.additionalTerms.clear();
+		this.extraTerms.clear();
 		this.types.clear();
 		this.offsets.clear();
 		this.subLength = 0;
@@ -59,8 +59,8 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 
 		if (other instanceof ExtraTermAttributeImpl) {
 			final ExtraTermAttributeImpl o = (ExtraTermAttributeImpl) other;
-			return (this.additionalTerms == null ? o.additionalTerms == null
-					: this.additionalTerms.equals(o.additionalTerms));
+			return (this.extraTerms == null ? o.extraTerms == null
+					: this.extraTerms.equals(o.extraTerms));
 		}
 
 		return false;
@@ -68,27 +68,27 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 
 	@Override
 	public int hashCode() {
-		return (additionalTerms == null) ? 0 : additionalTerms.hashCode();
+		return (extraTerms == null) ? 0 : extraTerms.hashCode();
 	}
 
 	@Override
 	public void copyTo(AttributeImpl target) {
 		ExtraTermAttribute t = (ExtraTermAttribute) target;
-		for (int inx = 0; inx < additionalTerms.size(); inx++) {
-			String term = additionalTerms.get(inx);
+		for (int inx = 0; inx < extraTerms.size(); inx++) {
+			String term = extraTerms.get(inx);
 			String type = types.get(inx);
 			List<CharSequence> synonyms = this.synonyms;
 			int[] offset = offsets.get(inx);
 			int subLength = this.subLength;
-			t.addAdditionalTerm(term, type, synonyms, subLength, offset[0], offset[1]);
+			t.addExtraTerm(term, type, synonyms, subLength, offset[0], offset[1]);
 		}
 	}
 
 	@Override
-	public void addAdditionalTerm(String additionalTerm, String type, List<CharSequence> synonyms,
+	public void addExtraTerm(String extraTerm, String type, List<CharSequence> synonyms,
 			int subLength, int start, int end) {
-		logger.trace("add additional {}", additionalTerm);
-		this.additionalTerms.add(additionalTerm);
+		logger.trace("add extra {}", extraTerm);
+		this.extraTerms.add(extraTerm);
 		this.types.add(type);
 		this.synonyms = synonyms;
 		this.offsets.add(new int[] { start, end });
@@ -101,12 +101,12 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 
 			@Override
 			public boolean hasNext() {
-				return additionalTerms != null && additionalTerms.size() > 0;
+				return extraTerms != null && extraTerms.size() > 0;
 			}
 
 			@Override
 			public String next() {
-				String term = additionalTerms.remove(0);
+				String term = extraTerms.remove(0);
 				String type = types.remove(0);
 				int[] offset = offsets.remove(0);
 				if (offsetAttribute != null) {
@@ -123,14 +123,14 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 
 			@Override
 			public void remove() {
-				additionalTerms.remove(0);
+				extraTerms.remove(0);
 			}
 		};
 	}
 
 	@Override
 	public int size() {
-		return additionalTerms.size();
+		return extraTerms.size();
 	}
 
 	@Override
@@ -139,7 +139,7 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 	}
 
 	public void cloneTo(ExtraTermAttributeImpl target) {
-		target.additionalTerms = this.additionalTerms;
+		target.extraTerms = this.extraTerms;
 		target.types = this.types;
 		target.offsets = this.offsets;
 		target.synonyms = this.synonyms;
@@ -150,7 +150,7 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 
 	@Override
 	public String toString() {
-		return additionalTerms.toString();
+		return extraTerms.toString();
 	}
 
 	@Override
