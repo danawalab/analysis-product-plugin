@@ -92,11 +92,9 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 		return ignoreCase;
 	}
 
-	// 해시코드는 대소문자 구분없이 모두 대문자 기준으로 만들어준다.
 	public int hashCode() {
-		if (hash > 0) {
-			return hash;
-		}
+		// 해시코드는 대소문자 구분없이 모두 대문자 기준으로 만들어준다.
+		if (hash > 0) { return hash; }
 		int h = 0;
 		int off = offset;
 		for (int i = 0; i < length; i++) {
@@ -107,31 +105,6 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 		hash = h;
 		return h;
 	}
-	//     public static int hashCode(byte[] value) {
-    //     int h = 0;
-    //     for (byte v : value) {
-    //         h = 31 * h + (v & 0xff);
-    //     }
-    //     return h;
-	// }
-	//     public static int hashCode(byte[] value) {
-    //     int h = 0;
-    //     int length = value.length >> 1;
-    //     for (int i = 0; i < length; i++) {
-    //         h = 31 * h + getChar(value, i);
-    //     }
-    //     return h;
-	// }
-	//     static char getChar(byte[] val, int index) {
-    //     assert index >= 0 && index < length(val) : "Trusted caller missed bounds check";
-    //     index <<= 1;
-    //     return (char)(((val[index++] & 0xff) << HI_BYTE_SHIFT) |
-    //                   ((val[index]   & 0xff) << LO_BYTE_SHIFT));
-	// }
-	//     static final int hash(Object key) {
-    //     int h;
-    //     return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
-    // }
 
 	public CharVector trim() {
 		while (length > 0 && array[offset] == ' ') {
@@ -156,9 +129,7 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 
 	@Override
 	public boolean equals(Object anObject) {
-		if (this == anObject) {
-			return true;
-		}
+		if (this == anObject) { return true; }
 		if (anObject instanceof CharVector) {
 			CharVector anotherArray = (CharVector) anObject;
 			int n = length;
@@ -185,36 +156,13 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 		return false;
 	}
 
-	// share array reference
 	@Override
 	public CharVector clone() {
+		// share array reference
 		CharVector cv = new CharVector(array, offset, length, ignoreCase);
 		cv.hash = hash;
 		return cv;
 	}
-
-	// public char[] copy(char[] buffer) {
-	//     if (buffer == null) {
-	//         buffer = new char[length];
-	//     }
-	//     System.arraycopy(array, offset, buffer, 0, length);
-	//     return buffer;
-	// }
-
-	// public CharVector copy(CharVector cv) {
-	//     cv.offset = offset;
-	//     cv.length = length;
-	//     cv.array = array;
-	//     cv.hash = hash;
-	//     cv.ignoreCase = ignoreCase;
-	//     return cv;
-	// }
-
-	// public CharVector duplicate() {
-	//     char[] buffer = new char[length];
-	//     copy(buffer);
-	//     return new CharVector(buffer, 0, length, ignoreCase);
-	// }
 
 	@Override
 	public int compareTo(CharSequence cs) {
@@ -244,19 +192,6 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 		return 0;
 	}
 
-	// public int compareTo(char[] key, int offset, int length) {
-	//     int len1 = this.length;
-	//     int len2 = length;
-	//     int len = len1 < len2 ? len1 : len2;
-	//     for (int i = 0; i < len; i++) {
-	//         char ch = charAt(i);
-	//         if (ch != key[offset + i]) {
-	//             return ch - key[offset + i];
-	//         }
-	//     }
-	//     return len1 - len2;
-	// }
-
 	@Override
 	public char charAt(int inx) {
 		char ch = array[offset + inx];
@@ -276,11 +211,6 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 		}
 		return (char) ch;
 	}
-
-	// public void setChar(int inx, char ch) {
-	//     array[offset + inx] = ch;
-	//     hash = 0;
-	// }
 
 	// 내부 공백을 삭제해준다.
 	public CharVector removeWhitespaces() {
@@ -326,6 +256,10 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 		return cv;
 	}
 
+	public List<CharVector> splitByWhitespace() {
+		return splitByWhitespace(this);
+	}
+
 	public static CharVector valueOf(Object o) {
 		CharVector ret;
 		if (o == null) {
@@ -359,7 +293,4 @@ public class CharVector implements CharSequence, Comparable<CharSequence>, Seria
 		}
 		return list;
 	}
-	// public Reader getReader() {
-	//     return new CharArrayReader(array, offset, length);
-	// }
 }

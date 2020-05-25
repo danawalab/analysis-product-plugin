@@ -22,7 +22,7 @@ import com.danawa.util.TestUtil;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
@@ -71,12 +71,11 @@ public class ProductNameAnalysisFilterTest {
 			tokenizer = new ProductNameTokenizer(dictionary, false);
 			extractor = new KoreanWordExtractor(dictionary);
 			option = new AnalyzerOption();
-			option.useForQuery(false);
+			option.useForQuery(true);
 			option.useSynonym(true);
 			option.useStopword(true);
 			tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
 			tokenizer.setReader(reader);
-			tstream.testInit();
 			tstream.reset();
 			CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
 			OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);
@@ -104,8 +103,10 @@ public class ProductNameAnalysisFilterTest {
 		String str = "";
 		str = "abc12d-e34";
 		str = "10cmx12cm";
+		str = "멕케이폴로집업";
 		try {
 			option = new AnalyzerOption();
+			option.useForQuery(false);
 			option.useSynonym(true);
 			option.useStopword(true);
 			reader = new StringReader(str);
@@ -113,36 +114,24 @@ public class ProductNameAnalysisFilterTest {
 			extractor = new KoreanWordExtractor(dictionary);
 			tokenizer.setReader(reader);
 			tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
-			tstream.testInit();
 			tstream.reset();
 			CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
 			OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);
 			TypeAttribute typeAttr = tstream.addAttribute(TypeAttribute.class);
 			SynonymAttribute synAttr = tstream.addAttribute(SynonymAttribute.class);
-			AdditionalTermAttribute addAttr = tstream.addAttribute(AdditionalTermAttribute.class);
+			ExtraTermAttribute addAttr = tstream.addAttribute(ExtraTermAttribute.class);
 			while (tstream.incrementToken()) {
 				logger.debug("TOKEN:{} / {}~{} / {} / [{}|{}]", termAttr, offsetAttr.startOffset(), offsetAttr.endOffset(), typeAttr.type(), synAttr, addAttr);
 
 				if (synAttr != null && synAttr.getSynonyms() != null) {
-					List<?> synonymObj = synAttr.getSynonyms();
+					List<CharSequence> synonymObj = synAttr.getSynonyms();
 					for(int inx3=0 ; inx3 < synonymObj.size(); inx3++) {
 						Object obj = synonymObj.get(inx3);
-						if(obj instanceof CharVector) {
-							logger.debug(" |_synonym : {}", obj);
-						} else if(obj instanceof List) {
-							String extracted = "";
-							@SuppressWarnings("unchecked")
-							List<CharVector> synonyms = (List<CharVector>)obj;
-							for(CharVector cv : synonyms) {
-								extracted += cv+" ";
-							}
-							logger.debug(" |_synonym : {}", obj);
-							logger.trace("EXTRACTED:{}", extracted);
-						}
+						logger.debug(" |_synonym : {}", obj);
 					}
 				}
 				if (addAttr != null) {
-					Iterator<String> termIter = addAttr.iterateAdditionalTerms();
+					Iterator<String> termIter = addAttr.iterator();
 					for (; termIter.hasNext();) {
 						String term = termIter.next();
 						String type = typeAttr.type();
@@ -193,7 +182,6 @@ public class ProductNameAnalysisFilterTest {
 				extractor = new KoreanWordExtractor(dictionary);
 				option = new AnalyzerOption();
 				tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
-				tstream.testInit();
 				tstream.reset();
 				CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
 				OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);
@@ -278,7 +266,7 @@ public class ProductNameAnalysisFilterTest {
 				TypeAttribute typeAttribute = tokenStream.addAttribute(TypeAttribute.class);
 				CharTermAttribute termAttribute = tokenStream.addAttribute(CharTermAttribute.class);
 				SynonymAttribute synonymAttribute = tokenStream.addAttribute(SynonymAttribute.class);
-				AdditionalTermAttribute additionalTermAttribute = tokenStream.addAttribute(AdditionalTermAttribute.class);
+				ExtraTermAttribute additionalTermAttribute = tokenStream.addAttribute(ExtraTermAttribute.class);
 				
 				logger.debug("--------------------------------------------------------------------------------");
 				logger.debug("test for {}{}", "", testdata);
@@ -319,7 +307,7 @@ public class ProductNameAnalysisFilterTest {
 					}
 					
 					if (additionalTermAttribute != null) {
-						Iterator<String> termIter = additionalTermAttribute.iterateAdditionalTerms();
+						Iterator<String> termIter = additionalTermAttribute.iterator();
 						for (; termIter.hasNext(); inx2 += 2) {
 							String term = termIter.next();
 							String type = typeAttribute.type();

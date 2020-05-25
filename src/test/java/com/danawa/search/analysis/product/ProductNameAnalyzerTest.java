@@ -10,7 +10,7 @@ import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.util.TestUtil;
 
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
@@ -60,12 +60,12 @@ public class ProductNameAnalyzerTest {
 			CharTermAttribute termAttribute = stream.addAttribute(CharTermAttribute.class);
 			OffsetAttribute offsetAttribute = stream.addAttribute(OffsetAttribute.class);
 			TypeAttribute typeAttribute = stream.addAttribute(TypeAttribute.class);
-			AdditionalTermAttribute addAttribute = stream.addAttribute(AdditionalTermAttribute.class);
+			ExtraTermAttribute addAttribute = stream.addAttribute(ExtraTermAttribute.class);
 			stream.reset();
 			for (; stream.incrementToken();) {
 				logger.debug("TOKEN:{} / {}~{} / {} / {} // {}", termAttribute, offsetAttribute.startOffset(),
 					offsetAttribute.endOffset(), tokenAttribute.ref().length(), typeAttribute.type());
-				Iterator<String> iter = addAttribute.iterateAdditionalTerms();
+				Iterator<String> iter = addAttribute.iterator();
 				while (iter != null && iter.hasNext()) {
 					String next = iter.next();
 					logger.debug(" - ADD:{} / {}", next, typeAttribute.type());

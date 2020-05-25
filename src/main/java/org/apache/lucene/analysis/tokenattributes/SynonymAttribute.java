@@ -7,6 +7,6 @@ import org.apache.lucene.util.Attribute;
 /**
  */
 public interface SynonymAttribute extends Attribute {
-	public void setSynonyms(List<?> synonym);
-	public List<?> getSynonyms();
+	public void setSynonyms(List<CharSequence> synonym);
+	public List<CharSequence> getSynonyms();
 }

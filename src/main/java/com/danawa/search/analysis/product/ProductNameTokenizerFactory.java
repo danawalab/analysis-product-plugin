@@ -67,7 +67,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 
     public ProductNameTokenizerFactory(IndexSettings indexSettings, Environment env, String name, final Settings settings) {
 		super(indexSettings, settings, name);
-		logger.debug("ProductNameTokenizerFactory::self {}", this);
+		logger.trace("ProductNameTokenizerFactory::self {}", this);
 
 		exportTerm = settings.getAsBoolean("export_term", false);
 
@@ -81,7 +81,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 
 	@Override
 	public Tokenizer create() {
-		logger.debug("ProductNameTokenizer::create {}", this);
+		logger.trace("ProductNameTokenizer::create {}", this);
 		return new ProductNameTokenizer(commonDictionary, exportTerm);
 	}
 

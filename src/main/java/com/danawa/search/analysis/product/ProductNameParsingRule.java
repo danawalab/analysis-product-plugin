@@ -18,7 +18,7 @@ import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
@@ -52,14 +52,14 @@ public class ProductNameParsingRule {
 	private CompoundDictionary compoundDictionary;
 	private SetDictionary stopDictionary;
 	private OffsetAttribute offsetAttribute;
-	private AdditionalTermAttribute additionalTermAttribute;
+	private ExtraTermAttribute additionalTermAttribute;
 	private CharVector term;
 
 	private ProductNameParsingRule() { }
 
 	public ProductNameParsingRule(KoreanWordExtractor extractor, ProductNameDictionary dictionary,
 		AnalyzerOption option, OffsetAttribute offsetAttribute, TypeAttribute typeAttribute,
-		SynonymAttribute synonymAttribute, AdditionalTermAttribute additionalTermAttribute) {
+		SynonymAttribute synonymAttribute, ExtraTermAttribute additionalTermAttribute) {
 		this.extractor = extractor;
 		this.option = option;
 		this.typeAttribute = typeAttribute;
@@ -79,7 +79,7 @@ public class ProductNameParsingRule {
 	}
 	
 	public ProductNameParsingRule clone(TypeAttribute typeAttribute, SynonymAttribute synonymAttribute,
-		OffsetAttribute offsetAttribute, AdditionalTermAttribute additionalTermAttribute) {
+		OffsetAttribute offsetAttribute, ExtraTermAttribute additionalTermAttribute) {
 		ProductNameParsingRule clone = new ProductNameParsingRule();
 		clone.extractor = this.extractor;
 		clone.option = this.option;
@@ -1660,28 +1660,28 @@ public class ProductNameParsingRule {
 	// 	}
 	// }
 	
-	public List<List<CharVector>> synonymExtract(List<?> synonyms) {
+	public List<CharSequence> synonymExtract(List<CharSequence> synonyms) {
 		ProductNameParsingRule parsingRule = this.clone(
 			new TypeAttributeImpl(), null, this.offsetAttribute, null);
 		parsingRule.option = new AnalyzerOption();
 		parsingRule.option.useSynonym(false);
 		parsingRule.option.useStopword(true);
 
-		List<List<CharVector>> result = null;
+		List<CharSequence> result = null;
 		Set<String> dupSet = new HashSet<>();
 		for (int synonymInx = 0; synonymInx < synonyms.size(); synonymInx++) {
-			Object synonymObj = synonyms.get(synonymInx);
-			logger.trace("synonym:{}", synonymObj);
+			CharVector synonym = CharVector.valueOf(synonyms.get(synonymInx));
+			logger.trace("synonym:{}", synonym);
 
 			List<CharVector> synonymTokens = new ArrayList<>(1);
-			if (synonymObj instanceof CharVector) {
-				CharVector synonymCV = (CharVector) synonymObj;
+			if (synonym instanceof CharVector) {
+				CharVector synonymCV = (CharVector) synonym;
 				// 유사어가 공백이 포함된 여러어절로 구성되어 있을 경우 처리.
 				if (synonymCV.hasWhitespaces()) {
-					String[] terms = synonymCV.toString().split(" ");
-					for (String term : terms) {
+					List<CharVector> terms = synonymCV.splitByWhitespace();//.toString().split(" ");
+					for (CharVector term : terms) {
 						if (term.length() > 0) {
-							synonymTokens.add(new CharVector(term));
+							synonymTokens.add(term);
 						}
 					}
 				} else {
@@ -1689,84 +1689,76 @@ public class ProductNameParsingRule {
 				}
 			}
 
-			List<CharVector> extracted = new ArrayList<>();
+			// List<CharVector> extracted = new ArrayList<>();
 			// 어절별로 처리한다. 하나의 어절에서 여러 단어가 나올수 있다.
 			StringBuilder sb = new StringBuilder();
 			for (CharVector synonymCV : synonymTokens) {
 				logger.trace("TRACING SYNONYM : {}", synonymCV);
 				extractor.setInput(synonymCV.array(), synonymCV.offset(), synonymCV.length());
 				ExtractedEntry cvEntry = extractor.extract();
-				if (cvEntry != null) {
-					// 분석된 동의어에서 분석된 단어들은 차후 AND 조건으로 이어져야 한다.
-					while (cvEntry != null) {
-						CharVector cv = synonymCV.clone();
-						cv.offset(cv.offset() + cvEntry.offset());
-						cv.length(cvEntry.column());
-						if (cv.length() < synonymCV.length()) {
-							cv = cv.trim();
-							if (cv.length() > 0) {
-								// NOTE! 동의어를 모델명분석을 하는편과 하지 않는 편 어느쪽이 더 분석결과가 나은지 비교할 것.
-								if (spaceDictionary != null && spaceDictionary.containsKey(cv)) {
-									CharSequence[] splits = spaceDictionary.get(cv);
-									for (CharSequence sp : splits) {
-										parsingRule.addEntry(sp, null, false);
-									}
-								} else {
-									parsingRule.addEntry(cv, null, false);
-								}
-							}
-						} else {
-							// 분리어체크.
-							if (spaceDictionary != null && spaceDictionary.containsKey(synonymCV)) {
-								CharSequence[] splits = spaceDictionary.get(synonymCV);
+				// 분석된 동의어에서 분석된 단어들은 차후 AND 조건으로 이어져야 한다.
+				while (cvEntry != null) {
+					CharVector cv = synonymCV.clone();
+					cv.offset(cv.offset() + cvEntry.offset());
+					cv.length(cvEntry.column());
+					if (cv.length() < synonymCV.length()) {
+						cv = cv.trim();
+						if (cv.length() > 0) {
+							// NOTE! 동의어를 모델명분석을 하는편과 하지 않는 편 어느쪽이 더 분석결과가 나은지 비교할 것.
+							if (spaceDictionary != null && spaceDictionary.containsKey(cv)) {
+								CharSequence[] splits = spaceDictionary.get(cv);
 								for (CharSequence sp : splits) {
 									parsingRule.addEntry(sp, null, false);
 								}
 							} else {
-								parsingRule.addEntry(synonymCV, null, false);
+								parsingRule.addEntry(cv, null, false);
 							}
-							break;
 						}
-						cvEntry = cvEntry.next();
+					} else {
+						// 분리어체크.
+						if (spaceDictionary != null && spaceDictionary.containsKey(synonymCV)) {
+							CharSequence[] splits = spaceDictionary.get(synonymCV);
+							for (CharSequence sp : splits) {
+								parsingRule.addEntry(sp, null, false);
+							}
+						} else {
+							parsingRule.addEntry(synonymCV, null, false);
+						}
+						break;
 					}
+					cvEntry = cvEntry.next();
+				}
 
-					if (parsingRule.queueSize() > 0) {
-						List<RuleEntry> entryList = parsingRule.getQueue();
-						logger.trace("SYNONYM-QUEUE:{}", entryList);
-						parsingRule.init();
-						parsingRule.processRule(entryList, false);
-						CharVector token = new CharVector();
-						while (entryList.size() > 0) {
-							entryList.remove(0).makeTerm(token);
-							extracted.add(token);
-							if (sb.length() > 0) {
-								sb.append("`");
-							}
-							sb.append(token.toString());
+				if (parsingRule.queueSize() > 0) {
+					List<RuleEntry> entryList = parsingRule.getQueue();
+					logger.trace("SYNONYM-QUEUE:{}", entryList);
+					parsingRule.init();
+					parsingRule.processRule(entryList, false);
+					CharVector token = new CharVector();
+					while (entryList.size() > 0) {
+						entryList.remove(0).makeTerm(token);
+						// extracted.add(token);
+						if (sb.length() > 0) {
+							sb.append(" ");
 						}
-						// while (parsingRule != null && parsingRule.hasNext(token, false, false)) {
-						// 	extracted.add(token.clone());
-						// 	// if(sb.length() > 0) {
-						// 	// 	sb.append("`");
-						// 	// }
-						// 	// sb.append(token.toString());
-						// }
+						sb.append(token.toString());
 					}
 				}
 			}
 
-			if (extracted != null && extracted.size() > 0) {
-				logger.trace("SYNONYM-EXTRACTED:{}", extracted);
+			// if (extracted != null && extracted.size() > 0) {
+				// logger.trace("SYNONYM-EXTRACTED:{}", extracted);
 				String idString = sb.toString();
 				if (!dupSet.contains(idString)) {
 					if (result == null) {
 						result = new ArrayList<>();
 					}
-					result.add(extracted);
-					logger.trace("synonym:{}, {}", extracted, idString);
+					// result.add(extracted);
+					result.add(idString);
+					logger.trace("synonym:{}", idString);
 					dupSet.add(idString);
 				}
-			}
+			// }
 		}
 		return result;
 	}

@@ -28,4 +28,8 @@ public class AnalyzerOption {
 	public boolean useForQuery() {
 		return this.forQuery;
 	}
+
+	@Override public String toString() {
+		return "[" + forQuery + "," + useSynonym + "," + useStopword + "]";
+	}
 }

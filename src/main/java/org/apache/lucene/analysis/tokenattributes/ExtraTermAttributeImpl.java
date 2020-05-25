@@ -10,9 +10,9 @@ import org.apache.lucene.util.AttributeImpl;
 import org.apache.lucene.util.AttributeReflector;
 import org.elasticsearch.common.logging.Loggers;
 
-public class AdditionalTermAttributeImpl extends AttributeImpl implements AdditionalTermAttribute {
+public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAttribute {
 
-	private static final Logger logger = Loggers.getLogger(AdditionalTermAttributeImpl.class, "");
+	private static final Logger logger = Loggers.getLogger(ExtraTermAttributeImpl.class, "");
 
 	private List<String> additionalTerms = new ArrayList<String>();
 	private List<String> types = new ArrayList<String>();
@@ -58,8 +58,8 @@ public class AdditionalTermAttributeImpl extends AttributeImpl implements Additi
 			return true;
 		}
 
-		if (other instanceof AdditionalTermAttributeImpl) {
-			final AdditionalTermAttributeImpl o = (AdditionalTermAttributeImpl) other;
+		if (other instanceof ExtraTermAttributeImpl) {
+			final ExtraTermAttributeImpl o = (ExtraTermAttributeImpl) other;
 			return (this.additionalTerms == null ? o.additionalTerms == null
 					: this.additionalTerms.equals(o.additionalTerms));
 		}
@@ -74,7 +74,7 @@ public class AdditionalTermAttributeImpl extends AttributeImpl implements Additi
 
 	@Override
 	public void copyTo(AttributeImpl target) {
-		AdditionalTermAttribute t = (AdditionalTermAttribute) target;
+		ExtraTermAttribute t = (ExtraTermAttribute) target;
 		for (int inx = 0; inx < additionalTerms.size(); inx++) {
 			String term = additionalTerms.get(inx);
 			String type = types.get(inx);
@@ -98,7 +98,7 @@ public class AdditionalTermAttributeImpl extends AttributeImpl implements Additi
 	}
 
 	@Override
-	public Iterator<String> iterateAdditionalTerms() {
+	public Iterator<String> iterator() {
 		return new Iterator<String>() {
 
 			@Override
@@ -140,7 +140,7 @@ public class AdditionalTermAttributeImpl extends AttributeImpl implements Additi
 		return subLength;
 	}
 
-	public void cloneTo(AdditionalTermAttributeImpl target) {
+	public void cloneTo(ExtraTermAttributeImpl target) {
 		target.additionalTerms = this.additionalTerms;
 		target.types = this.types;
 		target.offsets = this.offsets;

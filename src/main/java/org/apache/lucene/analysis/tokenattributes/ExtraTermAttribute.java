@@ -6,7 +6,7 @@ import java.util.List;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.util.Attribute;
 
-public interface AdditionalTermAttribute extends Attribute {
+public interface ExtraTermAttribute extends Attribute {
 	
 	public void init(TokenStream tokenStream);
 	
@@ -17,5 +17,5 @@ public interface AdditionalTermAttribute extends Attribute {
 	
 	public int size();
 
-	public Iterator<String> iterateAdditionalTerms();
+	public Iterator<String> iterator();
 }

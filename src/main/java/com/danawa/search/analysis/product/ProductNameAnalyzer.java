@@ -8,7 +8,7 @@ import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.TokenStream;
 
 public class ProductNameAnalyzer extends Analyzer {
-	private ProductNameDictionary commonDictionary;
+	private ProductNameDictionary dictionary;
 	private AnalyzerOption option;
 
 	public ProductNameAnalyzer(ProductNameDictionary commonDictionary) {
@@ -20,16 +20,16 @@ public class ProductNameAnalyzer extends Analyzer {
 
 	public ProductNameAnalyzer(ProductNameDictionary commonDictionary, AnalyzerOption option) {
 		super();
-		this.commonDictionary = commonDictionary;
+		this.dictionary = commonDictionary;
 		this.option = option;
 	}
 
 	@Override
 	protected TokenStreamComponents createComponents(String fieldName) {
-		Tokenizer tokenizer = new ProductNameTokenizer(commonDictionary, false);
+		Tokenizer tokenizer = new ProductNameTokenizer(dictionary, false);
 		TokenStream stream = tokenizer;
-		KoreanWordExtractor extractor = new KoreanWordExtractor(commonDictionary);
-		stream = new ProductNameAnalysisFilter(stream, extractor, commonDictionary, option);
+		KoreanWordExtractor extractor = new KoreanWordExtractor(dictionary);
+		stream = new ProductNameAnalysisFilter(stream, extractor, dictionary, option);
 		return new TokenStreamComponents(tokenizer, stream);
 	}
 }

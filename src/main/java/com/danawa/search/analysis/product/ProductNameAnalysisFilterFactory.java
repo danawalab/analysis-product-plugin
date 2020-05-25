@@ -35,7 +35,7 @@ public class ProductNameAnalysisFilterFactory extends AbstractTokenFilterFactory
 
 	@Override
 	public TokenStream create(TokenStream tokenStream) {
-		logger.debug("ProductNameAnalysisFilter::create {}", this);
+		logger.trace("ProductNameAnalysisFilter::create {}", this);
 		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
 			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 			extractor = new KoreanWordExtractor(dictionary);

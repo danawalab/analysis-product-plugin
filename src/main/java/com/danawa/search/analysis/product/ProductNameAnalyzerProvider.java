@@ -15,7 +15,16 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<A
 
 	public ProductNameAnalyzerProvider(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 		super(indexSettings, name, settings);
-		logger.debug("ProductNameAnalyzerProvider::self {}", this);
+		logger.trace("ProductNameAnalyzerProvider::self {}", this);
+
+		boolean useSynonym = settings.getAsBoolean("use_synonym", true);
+		boolean useStopword = settings.getAsBoolean("use_stopword", true);
+		boolean useForQuery = settings.getAsBoolean("use_for_query", true);
+		AnalyzerOption option = new AnalyzerOption();
+		option.useSynonym(useSynonym);
+		option.useStopword(useStopword);
+		option.useForQuery(useForQuery);
+
 		ProductNameDictionary dictionary;
 		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
 			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
@@ -23,12 +32,12 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<A
 			dictionary = ProductNameTokenizerFactory.loadDictionary(env);
 			contextStore.put(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, dictionary);
 		}
-		analyzer = new ProductNameAnalyzer(dictionary);
+		analyzer = new ProductNameAnalyzer(dictionary, option);
 	}
 
 	@Override
 	public Analyzer get() {
-		logger.debug("ProductNameAnalyzerProvider::get {}", analyzer);
+		logger.trace("ProductNameAnalyzerProvider::get {}", analyzer);
 		return analyzer;
 	}
 }

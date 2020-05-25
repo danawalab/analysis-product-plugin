@@ -6,17 +6,17 @@ import org.apache.lucene.util.AttributeImpl;
 import org.apache.lucene.util.AttributeReflector;
 
 public class SynonymAttributeImpl extends AttributeImpl implements SynonymAttribute {
-	private List<?> synonym;
+	private List<CharSequence> synonyms;
 
 	public SynonymAttributeImpl() { }
 
-	public SynonymAttributeImpl(List<?> synonym) {
-		this.synonym = synonym;
+	public SynonymAttributeImpl(List<CharSequence> synonyms) {
+		this.synonyms = synonyms;
 	}
 
 	@Override
 	public void clear() {
-		synonym = null;
+		synonyms = null;
 	}
 
 	@Override
@@ -26,41 +26,46 @@ public class SynonymAttributeImpl extends AttributeImpl implements SynonymAttrib
 		}
 		if (other instanceof SynonymAttributeImpl) {
 			final SynonymAttributeImpl o = (SynonymAttributeImpl) other;
-			return (this.synonym == null ? o.synonym == null : this.synonym.equals(o.synonym));
+			return (this.synonyms == null ? o.synonyms == null : this.synonyms.equals(o.synonyms));
 		}
 		return false;
 	}
 
 	@Override
 	public int hashCode() {
-		return (synonym == null) ? 0 : synonym.hashCode();
+		return (synonyms == null) ? 0 : synonyms.hashCode();
 	}
 
 	@Override
 	public void copyTo(AttributeImpl target) {
 		SynonymAttribute t = (SynonymAttribute) target;
-		t.setSynonyms(synonym);
+		t.setSynonyms(synonyms);
 	}
 
 	@Override
-	public void setSynonyms(List<?> synonym) {
-		if (synonym == null || synonym.size() == 0) {
-			this.synonym = null;
+	public void setSynonyms(List<CharSequence> synonyms) {
+		if (synonyms == null || synonyms.size() == 0) {
+			this.synonyms = null;
 		} else {
-			this.synonym = synonym;
+			this.synonyms = synonyms;
 		}
 	}
 
 	@Override
-	public List<?> getSynonyms() {
-		if (synonym == null || synonym.size() == 0) {
+	public List<CharSequence> getSynonyms() {
+		if (synonyms == null || synonyms.size() == 0) {
 			return null;
 		}
-		return synonym;
+		return synonyms;
+	}
+
+	@Override
+	public String toString() {
+		return String.valueOf(synonyms);
 	}
 
 	@Override
 	public void reflectWith(AttributeReflector reflector) {
-		reflector.reflect(SynonymAttribute.class, "synonym", synonym);
+		reflector.reflect(SynonymAttribute.class, "synonyms", synonyms);
 	}
 }

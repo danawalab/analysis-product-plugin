@@ -15,7 +15,7 @@ import com.danawa.search.analysis.product.ProductNameParsingRule.RuleEntry;
 import com.danawa.util.CharVector;
 
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.analysis.tokenattributes.AdditionalTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.StopwordAttribute;
@@ -35,7 +35,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private final CharTermAttribute termAttribute = addAttribute(CharTermAttribute.class);
 	private final TokenInfoAttribute tokenAttribute = addAttribute(TokenInfoAttribute.class);
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
-	private final AdditionalTermAttribute additionalTermAttribute = addAttribute(AdditionalTermAttribute.class);
+	private final ExtraTermAttribute additionalTermAttribute = addAttribute(ExtraTermAttribute.class);
 	private final StopwordAttribute stopwordAttribute = addAttribute(StopwordAttribute.class);
 	private final SynonymAttribute synonymAttribute = addAttribute(SynonymAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
@@ -53,7 +53,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		super(input);
 	}
 
-	public ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary, AnalyzerOption analyzerOption) {
+	public ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary, AnalyzerOption option) {
 		super(input);
 		this.extractor = extractor;
 		if (dictionary != null) {
@@ -63,7 +63,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		}
 		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
-		this.option = analyzerOption;
+		this.option = option;
 		additionalTermAttribute.init(this);
 		termList = new ArrayList<>();
 		super.clearAttributes();
@@ -84,22 +84,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	boolean hasToken;
 
 	private List<RuleEntry> termList;
-
-	public void testInit() {
-		termList = new ArrayList<>();
-		if (dictionary != null) {
-			this.dictionary = tokenAttribute.dictionary();
-			this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
-			this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
-			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
-		}
-		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
-		this.option = new AnalyzerOption();
-		this.extractor = new KoreanWordExtractor(dictionary);
-
-		option.useSynonym(true);
-		option.useStopword(true);
-	}
 
 	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
@@ -182,12 +166,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					if (entry.buf != null) {
 						token = applyEntry(entry);
 						if (option.useSynonym()) {
-							List<Object> synonyms = new ArrayList<>();
-							if (entry.synonym != null && option.useSynonym()) {
-								synonyms.addAll(Arrays.asList(entry.synonym));
-							}
-							if (synonymDictionary != null && synonymDictionary.map().containsKey(token)) {
-								CharSequence[] wordSynonym = synonymDictionary.map().get(token);
+							List<CharSequence> synonyms = new ArrayList<>();
+							if (synonymDictionary != null && synonymDictionary.containsKey(token)) {
+								CharSequence[] wordSynonym = synonymDictionary.get(token);
 								logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
 								// if (synonymAttribute.getSynonyms() != null) {
 								// 	synonyms.addAll(synonymAttribute.getSynonyms());
@@ -198,13 +179,18 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 								// 동의어는 한번 더 분석해 준다.
 								// 단 단위명은 더 분석하지 않는다.
 								if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
-									List<?> synonymsExt = parsingRule.synonymExtract(synonyms);
+									List<CharSequence> synonymsExt = parsingRule.synonymExtract(synonyms);
 									if (synonymsExt != null) {
-										synonyms = (List<Object>) synonymsExt;
+										synonyms = synonymsExt;
 									}
 								}
 							}
+							// 본래 entry 에 있던 동의어는 이미 분석된 동의어 이므로 따로 처리할 필요가 없다.
+							if (entry.synonym != null && option.useSynonym()) {
+								synonyms.addAll(Arrays.asList(entry.synonym));
+							}
 							if (synonyms.size() > 0) {
+								logger.debug("SET-SYNONYM:{}", synonyms);
 								synonymAttribute.setSynonyms(synonyms);
 							}
 						}
@@ -229,6 +215,10 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						termList.remove(0);
 					}
 				} else {
+					applyEntry(entry);
+					termList.remove(0);
+					ret = true;
+					break;
 					// if (subEntryList != null) {
 					// 	while(subEntryList.size() > 0) {
 					// 		RuleEntry nextEntry = subEntryList.get(0);
