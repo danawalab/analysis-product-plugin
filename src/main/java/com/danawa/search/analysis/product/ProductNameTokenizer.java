@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.korean.KoreanWordExtractor.ExtractedEntry;
 import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.CharVector;
@@ -121,11 +122,13 @@ public class ProductNameTokenizer extends Tokenizer {
 	private boolean exportTerm;
 
 	private KoreanWordExtractor extractor;
+	private SynonymDictionary synonymDictionary;
 
 	protected ProductNameTokenizer(ProductNameDictionary dictionary, boolean exportTerm) {
 		if (dictionary != null) {
 			extractor = new KoreanWordExtractor(dictionary);
 			tokenAttribute.dictionary(dictionary);
+			synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
 		}
 		this.exportTerm = exportTerm;
 		init();
@@ -164,24 +167,29 @@ public class ProductNameTokenizer extends Tokenizer {
 					tokenAttribute.addState(TokenInfoAttribute.STATE_INPUT_FINISHED);
 				}
 				// FIXME:임시주석. 테스트를 위해 주석처리함.
-				// if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
-				// 	// FULL-TERM, 테스트 후 (공백포함여부, 유니코드포함여부) TokenInfoAttribute 에 입력.
-				// 	ret = true;
-				// 	for (int inx = 0; inx < readLength; inx++) {
-				// 		char ch = buffer[inx];
-				// 		String type = getType(ch);
-				// 		if (!(type != WHITESPACE && (type == ALPHA || type == NUMBER))) {
-				// 			ret = false;
-				// 		}
-				// 	}
-				// 	if (ret) {
-				// 		tokenAttribute.ref(buffer, 0, readLength);
-				// 		tokenAttribute.posTag(null);
-				// 		offsetAttribute.setOffset(0, readLength);
-				// 		typeAttribute.setType(FULL_STRING);
-				// 		break;
-				// 	}
-				// }
+				if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
+					// FULL-TERM, 테스트 후 (공백포함여부, 유니코드포함여부) TokenInfoAttribute 에 입력.
+					ret = true;
+					for (int inx = 0; inx < readLength; inx++) {
+						char ch = buffer[inx];
+						String type = getType(ch);
+						if (!(type != WHITESPACE && (type == ALPHA || type == NUMBER || type == SYMBOL))) {
+							ret = false;
+						}
+					}
+					if (ret) {
+						if (synonymDictionary != null && synonymDictionary.containsKey(
+							new CharVector(buffer, 0, readLength))) {
+							tokenAttribute.ref(buffer, 0, readLength);
+							tokenAttribute.posTag(null);
+							offsetAttribute.setOffset(0, readLength);
+							typeAttribute.setType(FULL_STRING);
+							break;
+						} else {
+							ret = false;
+						}
+					}
+				}
 			} else {
 				if (entry == null) {
 					////////////////////////////////////////////////////////////////////////////////

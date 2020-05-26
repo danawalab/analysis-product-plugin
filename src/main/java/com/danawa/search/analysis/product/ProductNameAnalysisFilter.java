@@ -39,7 +39,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private final StopwordAttribute stopwordAttribute = addAttribute(StopwordAttribute.class);
 	private final SynonymAttribute synonymAttribute = addAttribute(SynonymAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
-	private SynonymAttribute tokenSynonymAttribute;
 	private AnalyzerOption option;
 	
 	private KoreanWordExtractor extractor;
@@ -48,6 +47,10 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private SpaceDictionary spaceDictionary;
 	private SetDictionary stopDictionary;
 	private ProductNameDictionary dictionary;
+	
+	private ProductNameParsingRule parsingRule;
+	private CharVector token;
+	private List<RuleEntry> termList;
 	
 	public ProductNameAnalysisFilter(TokenStream input) {
 		super(input);
@@ -62,36 +65,19 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
 			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		}
-		this.tokenSynonymAttribute = input.getAttribute(SynonymAttribute.class);
 		this.option = option;
 		extraTermAttribute.init(this);
 		termList = new ArrayList<>();
 		super.clearAttributes();
 		logger.trace("init");
 	}
-	
-	char[] buffer;
-	int offset;
-	
-	ProductNameParsingRule parsingRule;
-	int prevOffset;
-	int currentOffset;
-	int lastOffset;
-	int extractOffset;
-	int extractFinal;
-	int finalOffset;
-	CharVector token;
-	boolean hasToken;
-
-	private List<RuleEntry> termList;
 
 	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
 		// FIXME : 큐 마지막에 ASCII 텀이 남아 있다면 모델명규칙 등을 위해 남겨 두어야 함.
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
 		if (parsingRule == null) {
-			parsingRule = new ProductNameParsingRule(extractor, dictionary, option, 
-				offsetAttribute, typeAttribute, extraTermAttribute);
+			parsingRule = new ProductNameParsingRule(extractor, dictionary, option);
 		}
 		synonymAttribute.setSynonyms(null);
 		extraTermAttribute.init(this);
@@ -109,40 +95,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					CharVector ref = tokenAttribute.ref();
 					String type = typeAttribute.type();
 					PosTag posTag = tokenAttribute.posTag();
-					if (type == ProductNameTokenizer.FULL_STRING) {
-						// List<?> synonyms = tokenSynonymAttribute.getSynonyms();
-						// synonymAttribute.setSynonyms(synonyms);
-						// NOP
-					} else if(posTag == PosTag.N) {
-						type = ProductNameTokenizer.HANGUL;
-					} else if(posTag == PosTag.DIGIT) {
-						type = ProductNameTokenizer.NUMBER;
-					} else if(posTag == PosTag.ALPHA) {
-						type = ProductNameTokenizer.ALPHA;
-					} else if(posTag == PosTag.SYMBOL) {
-						type = ProductNameTokenizer.SYMBOL;
-					} else if(posTag == null || posTag == PosTag.UNK) {
-						type = ProductNameTokenizer.UNCATEGORIZED;
-					}
-					if(spaceDictionary != null && spaceDictionary.containsKey(ref)) {
-						int offsetSt = offsetAttribute.startOffset();
-						CharSequence[] splits = spaceDictionary.get(ref);
-						logger.trace("SPLIT:{}{}", "", splits);
-						for (int sinx = 0, position = 0; sinx < splits.length; sinx++) {
-							int length = splits[sinx].length();
-							if(sinx > 0) {
-								// 강제 분리를 위한 빈공백
-								termList.add(new RuleEntry(ref.array(), position, 0, 
-									offsetSt + position, offsetSt + position, ProductNameTokenizer.SYMBOL));
-							}
-							termList.add(new RuleEntry(ref.array(), ref.offset() + position, length, 
-								offsetSt + position, offsetSt + position + length, type));
-							position += length;
-						}
-					} else {
-						termList.add(new RuleEntry(ref.array(), ref.offset(), ref.length(), 
-							offsetAttribute.startOffset(), offsetAttribute.endOffset(), type));
-					}
+
+					ProductNameParsingRule.addEntry(termList, ref, type, posTag, 
+						offsetAttribute.startOffset(), offsetAttribute.endOffset(), spaceDictionary);
 					if (tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED)) {
 						break;
 					}
@@ -165,7 +120,23 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				// 분기. 색인시에는 모델명을 일반텀으로 추출, 질의시에는 추가텀으로 추출
 				// 색인시에는 오프셋이 앞으로 갈수 없으므로 일반텀으로 추출한다
 
-				if (!option.useForQuery()) {
+				if (option.useForQuery()) {
+					// 질의용
+					token = applyEntry(entry);
+					if (option.useSynonym()) {
+						applySynonym(token, entry);
+					}
+					if (entry.subEntry != null && entry.subEntry.size() > 0) {
+						for (RuleEntry subEntry : entry.subEntry) {
+							extraTermAttribute.addExtraTerm(String.valueOf(subEntry.makeTerm(null)), 
+								subEntry.type, null, 0, subEntry.startOffset, subEntry.endOffset);
+						}
+					}
+					termList.remove(0);
+					ret = true;
+					break;
+				} else {
+					// 색인용
 					if (entry.buf != null) {
 						token = applyEntry(entry);
 						if (option.useSynonym()) {
@@ -191,20 +162,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					} else if (subEntryList.size() == 0) {
 						termList.remove(0);
 					}
-				} else {
-					token = applyEntry(entry);
-					if (option.useSynonym()) {
-						applySynonym(token, entry);
-					}
-					if (entry.subEntry != null && entry.subEntry.size() > 0) {
-						for (RuleEntry subEntry : entry.subEntry) {
-							extraTermAttribute.addExtraTerm(String.valueOf(subEntry.makeTerm(null)), 
-								subEntry.type, null, 0, subEntry.startOffset, subEntry.endOffset);
-						}
-					}
-					termList.remove(0);
-					ret = true;
-					break;
 				}
 			}
 		} // LOOP
@@ -217,16 +174,13 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			if (synonymDictionary != null && synonymDictionary.containsKey(token)) {
 				CharSequence[] wordSynonym = synonymDictionary.get(token);
 				logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
-				// if (synonymAttribute.getSynonyms() != null) {
-				// 	synonyms.addAll(synonymAttribute.getSynonyms());
-				// }
 				if (wordSynonym != null) {
 					synonyms.addAll(Arrays.asList(wordSynonym));
 				}
 				// 동의어는 한번 더 분석해 준다.
 				// 단 단위명은 더 분석하지 않는다.
 				if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
-					List<CharSequence> synonymsExt = parsingRule.synonymExtract(synonyms);
+					List<CharSequence> synonymsExt = parsingRule.synonymExtract(synonyms, entry);
 					if (synonymsExt != null) {
 						synonyms = synonymsExt;
 					}
@@ -292,16 +246,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	public void reset() throws IOException {
 		super.reset();
 		extraTermAttribute.init(this);
-		offset = 0;
-		prevOffset = 0;
-		currentOffset = 0;
-		lastOffset = 0;
 		parsingRule = null;
 		token = null;
-		hasToken = false;
-		extractOffset = 0;
-		extractFinal = 0;
-		finalOffset = 0;
 		termList = new ArrayList<>();
 		this.clearAttributes();
 	}

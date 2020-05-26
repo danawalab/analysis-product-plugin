@@ -15,7 +15,7 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<A
 
 	public ProductNameAnalyzerProvider(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 		super(indexSettings, name, settings);
-		logger.debug("ProductNameAnalyzerProvider::self {}", this);
+		logger.trace("ProductNameAnalyzerProvider::self {}", this);
 		ProductNameDictionary dictionary;
 		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
 			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
@@ -28,7 +28,7 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<A
 
 	@Override
 	public Analyzer get() {
-		logger.debug("ProductNameAnalyzerProvider::get {}", analyzer);
+		logger.trace("ProductNameAnalyzerProvider::get {}", analyzer);
 		return analyzer;
 	}
 }
