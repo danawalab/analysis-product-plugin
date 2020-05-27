@@ -18,7 +18,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.StopwordAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
@@ -36,7 +35,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private final TokenInfoAttribute tokenAttribute = addAttribute(TokenInfoAttribute.class);
 	private final OffsetAttribute offsetAttribute = addAttribute(OffsetAttribute.class);
 	private final ExtraTermAttribute extraTermAttribute = addAttribute(ExtraTermAttribute.class);
-	private final StopwordAttribute stopwordAttribute = addAttribute(StopwordAttribute.class);
 	private final SynonymAttribute synonymAttribute = addAttribute(SynonymAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
 	private AnalyzerOption option;
@@ -211,36 +209,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		}
 		ret = entry.makeTerm(null);
 		return ret;
-
-		// token.init(entry.buf, entry.start, entry.length);
-		// token.ignoreCase();
-		// typeAttribute.setType(entry.type);
-		// if (entry.synonym != null) {
-		// 	if (analyzerOption.useSynonym()) {
-		// 		synonymAttribute.setSynonyms(Arrays.asList(entry.synonym));
-		// 	} else {
-		// 		synonymAttribute.setSynonyms(null);
-		// 	}
-		// }
-		// // 복합명사 분해는 색인시에만 적용한다. 쿼리시에는 적용하지 않음.
-		// if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
-		// 	typeAttribute.setType(ProductNameTokenizer.COMPOUND);
-		// 	// 복합명사 분리는 색인시에만 수행. 쿼리시에는 분해하지 않고, 표시만.
-		// 	// 2017-11-10 swsong 복합명사 분리를 검색, 색인 모두 수행한다.
-		// 	// 공백있는 단어가 검색이 안되는 문제가 있어서 추가텀을 T or (A1 and A2 and A3 ..) 하여 검색하게 된다
-		// 	if (additionalTermAttribute != null) {
-		// 		CharSequence[] compounds = compoundDictionary.get(token);
-		// 		for (CharSequence word : compounds) {
-		// 			additionalTermAttribute.addAdditionalTerm(word.toString(), ProductNameTokenizer.COMPOUND, null, 0, entry.start, entry.start + entry.length);
-		// 		}
-		// 	}
-		// }
-		// logger.trace("token:{} / start:{} / end:{} / lstart:{} / length:{}", token,
-		// 	entry.startOffset, entry.endOffset, entry.start, entry.length);
-		
-		// if (setOffset) {
-		// 	offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
-		// }
 	}
 
 	public void reset() throws IOException {
