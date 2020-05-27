@@ -204,6 +204,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						}
 					}
 					builder.execute().actionGet();
+					logger.debug("TOTAL {} ROWS in {}ms", count, System.currentTimeMillis() - time);
 				} catch (Exception e) {
 					logger.error("", e);
 				} finally {
