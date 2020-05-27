@@ -585,7 +585,7 @@ public class ProductNameParsingRule {
 								// 동의어 처리
 								// 단위명의 동의어가 있다면 처리한다.
 								RuleEntry backup = e0.clone();
-								if (fullExtract) {
+								if (fullExtract && !option.useForQuery()) {
 									e0.subEntry = new ArrayList<>();
 									e0.subEntry.add(backup);
 								}
@@ -669,7 +669,7 @@ public class ProductNameParsingRule {
 								e0.modifiable = true;
 								e1.modifiable = true;
 							} else {
-								if (fullExtract) {
+								if (fullExtract && !option.useForQuery()) {
 									e0.subEntry = new ArrayList<>();
 									e0.subEntry.add(e0.clone());
 								}
@@ -1109,22 +1109,17 @@ public class ProductNameParsingRule {
 				e0.modifiable = false;
 			}
 
-			if (!option.useForQuery()) {
-				CharVector token = e0.makeTerm(null);
-				if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
-					// 복합명사 분리는 색인시에만 수행. 쿼리시에는 분해하지 않고, 표시만.
-					// 2017-11-10 swsong 복합명사 분리를 검색, 색인 모두 수행한다.
-					// 공백있는 단어가 검색이 안되는 문제가 있어서 추가텀을 T or (A1 and A2 and A3 ..) 하여 검색하게 된다
-					CharSequence[] compounds = compoundDictionary.get(token);
-					for (CharSequence word : compounds) {
-						CharVector cv = CharVector.valueOf(word);
-						RuleEntry entry = new RuleEntry(cv.array(), cv.offset(), cv.length(), e0.startOffset, e0.endOffset, COMPOUND);
-						if (e0.subEntry == null) { e0.subEntry = new ArrayList<>(); }
-						e0.subEntry.add(entry);
-					}
-					if (e0.subEntry != null) { Collections.sort(e0.subEntry); }
-					e0.type = COMPOUND;
+			CharVector token = e0.makeTerm(null);
+			if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
+				CharSequence[] compounds = compoundDictionary.get(token);
+				for (CharSequence word : compounds) {
+					CharVector cv = CharVector.valueOf(word);
+					RuleEntry entry = new RuleEntry(cv.array(), cv.offset(), cv.length(), e0.startOffset, e0.endOffset, COMPOUND);
+					if (e0.subEntry == null) { e0.subEntry = new ArrayList<>(); }
+					e0.subEntry.add(entry);
 				}
+				if (e0.subEntry != null) { Collections.sort(e0.subEntry); }
+				e0.type = COMPOUND;
 			}
 		}
 
@@ -1501,12 +1496,16 @@ public class ProductNameParsingRule {
 					// 단위명이었지만 규칙에 의해 모델명으로 전환되는 경우.
 					// 단위명과 숫자를 구분해준다.
 					logger.trace("subList:{}{}", "", e0.subEntry);
-					e1 = e0.subEntry.remove(0);
-					tmpList.add(e1);
-					e0.start += e1.length;
-					e0.length -= e1.length;
+					if (e0.subEntry != null && e0.subEntry.size() > 0) {
+						e1 = e0.subEntry.remove(0);
+						tmpList.add(e1);
+						e0.start += e1.length;
+						e0.length -= e1.length;
+						e0.type = ALPHA;
+					} else {
+						e0.type = ALPHANUM;
+					}
 					e0.synonym = null;
-					e0.type = ALPHA;
 				} else if (e0.type == ALPHA) {
 					// 강제분해 등으로 붙지 못한 영문자 끼리 이어준다.
 					if (inx + 1 < subQueue.size()) {
@@ -1586,13 +1585,17 @@ public class ProductNameParsingRule {
 					// 단위명이었지만 규칙에 의해 모델명으로 전환되는 경우.
 					// 단위명과 숫자를 구분해준다.
 					logger.trace("subList:{}{}", "", subEntry.subEntry);
-					RuleEntry number = subEntry.subEntry.remove(0);
-					subQueue.add(number);
-					subEntry.start += number.length;
-					subEntry.length -= number.length;
-					subEntry.startOffset += number.length;
+					if (subEntry != null && subEntry.subEntry.size() > 0) {
+						RuleEntry number = subEntry.subEntry.remove(0);
+						subQueue.add(number);
+						subEntry.start += number.length;
+						subEntry.length -= number.length;
+						subEntry.startOffset += number.length;
+						subEntry.type = ALPHA;
+					} else {
+						subEntry.type = ALPHANUM;
+					}
 					subEntry.synonym = null;
-					subEntry.type = ALPHA;
 					subQueue.add(subEntry);
 				} else {
 					subQueue.add(subEntry);
