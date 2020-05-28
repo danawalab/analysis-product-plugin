@@ -2,6 +2,7 @@ package com.danawa.search.analysis.product;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,7 +14,9 @@ import java.text.SimpleDateFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.danawa.util.ContextStore;
@@ -54,6 +57,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_RELOAD_DICT = "reload-dict";
 	private static final String ACTION_ADD_DOCUMENT = "add-document";
 	private static final String ACTION_FULL_INDEX = "full-index";
+	private static final String ACTION_SEARCH = "search";
+
+	private IndexingThread indexingThread;
 
 	@Inject
 	ProductNameAnalysisAction(Settings settings, RestController controller) {
@@ -71,26 +77,39 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	@Override
 	protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 		final String action = request.param("action");
+		final StringWriter buffer = new StringWriter();
+		JSONWriter builder = new JSONWriter(buffer);
 
 		if (ACTION_RELOAD_DICT.equals(action)) {
 			reloadDictionary();
-		} else if (ACTION_ADD_DOCUMENT.equals(action)) {
-			addDocument(request, client);
-		} else if (ACTION_FULL_INDEX.equals(action)) {
-			SpecialPermission.check();
-			AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-				bulkIndex(request, client);
-				return null;
-			});
-		}
-
-		return channel -> {
-			StringWriter buffer = new StringWriter();
-			JSONWriter builder = new JSONWriter(buffer);
 			builder.object()
-				.key("message").value("OK")
 				.key("action").value(action)
 				.endObject();
+		} else if (ACTION_ADD_DOCUMENT.equals(action)) {
+			addDocument(request, client);
+			builder.object()
+				.key("action").value(action)
+				.endObject();
+		} else if (ACTION_FULL_INDEX.equals(action)) {
+			SpecialPermission.check();
+			int count = AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
+				return bulkIndex(request, client);
+			});
+			builder.object()
+				.key("action").value(action);
+			if (count > 0) {
+				builder.key("working").value("true")
+					.key("count").value(count);
+			} else {
+				builder.key("working").value("false");
+			}
+			builder.endObject();
+		} else if (ACTION_SEARCH.equals(action)) {
+			builder.object()
+				.key("action").value(action)
+				.endObject();
+		}
+		return channel -> {
 			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, buffer.toString()));
 		};
 	}
@@ -149,79 +168,161 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	private void bulkIndex(final RestRequest request, final NodeClient client) {
-		final StringBuilder path = new StringBuilder();
-		final StringBuilder enc = new StringBuilder();
-		final StringBuilder indexName = new StringBuilder();
+	private int bulkIndex(final RestRequest request, final NodeClient client) {
+		int ret = 0;
+		String path = null;
+		String enc = null;
+		String indexName = null;
+		int flush = 5000;
 		try {
 			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-			path.append(jobj.optString("path", ""));
-			enc.append(jobj.optString("enc", "euc-kr"));
-			indexName.append(jobj.optString("index", ""));
+			path = jobj.optString("path", "");
+			enc = jobj.optString("enc", "euc-kr");
+			indexName = jobj.optString("index", "");
+			flush = jobj.optInt("flush", 50000);
 		} catch (Exception e) {
 			logger.error("", e);
 		}
+		synchronized (this) {
+			if (indexingThread == null || !indexingThread.running()) {
+				indexingThread = new IndexingThread(indexName, path, enc, flush, client);
+				indexingThread.start();
+			} else {
+				ret = indexingThread.count();
+			}
+		}
+		return ret;
+	}
 
-		new Thread() {
-			@Override public void run() {
-				final File file = new File(String.valueOf(path));
-				if (!file.exists()) { 
-					logger.debug("FILE NOT FOUND : {}", path);
-					return; 
+	static class IndexingThread extends Thread implements FileFilter {
+		private String indexName;
+		private String path;
+		private String enc;
+		private int flush;
+		private NodeClient client;
+		private boolean running; 
+		private int count;
+		List<File> files;
+		private static final Pattern ptnHead = Pattern.compile("\\x5b[%]([a-zA-Z0-9_-]+)[%]\\x5d");
+
+		public IndexingThread(String indexName, String path, String enc, int flush, NodeClient client) {
+			this.indexName = indexName;
+			this.path = path;
+			this.enc = enc;
+			this.flush = flush;
+			this.client = client;
+		}
+
+		public boolean running() {
+			return running;
+		}
+
+		public int count() {
+			return count;
+		}
+
+		@Override public void run() {
+			running = true;
+			count = 0;
+			files = new ArrayList<>();
+			String[] paths = path.split(",");
+			for (String path : paths) {
+				path = path.trim();
+				File base = new File(path);
+				if (!base.exists()) { 
+					logger.debug("BASE FILE NOT FOUND : {}", base);
+				} else {
+					if (base.isDirectory()) {
+						base.listFiles(this);
+					} else {
+						files.add(base);
+					}
 				}
+			}
+
+			if (files.size() > 0) {
 				BufferedReader reader = null;
 				InputStream istream = null;
-				Pattern ptn = Pattern.compile("\\x5b[%]([a-zA-Z0-9]+)[%]\\x5d");
 				long time = System.currentTimeMillis();
+				boolean isSourceFile = false;
 				try {
-					BulkRequestBuilder builder = client.prepareBulk();
+					BulkRequestBuilder builder = null;
 					Map<String, Object> source;
-					istream =  new FileInputStream(file);
-					reader = new BufferedReader(new InputStreamReader(istream, String.valueOf(enc)));
-					int count = 0;
-					logger.debug("PARSING FILE..");
-					for (String line; (line = reader.readLine()) != null; count++) {
-						Matcher mat = ptn.matcher(line);
-						String key = null;
-						int offset = 0;
-						source = new HashMap<>();
-						while (mat.find()) {
-							if (key != null) {
-								columnValue(source, key, line.substring(offset, mat.start()));
+					
+					for (File file : files) {
+						if (!file.exists()) {
+							logger.debug("FILE NOT FOUND : {}", file);
+							continue;
+						}
+						isSourceFile = false;
+						istream =  new FileInputStream(file);
+						reader = new BufferedReader(new InputStreamReader(istream, String.valueOf(enc)));
+						logger.debug("PARSING FILE..{}", file);
+						builder = client.prepareBulk();
+						for (String line; (line = reader.readLine()) != null; count++) {
+							Matcher mat = ptnHead.matcher(line);
+							String key = null;
+							int offset = 0;
+							source = new HashMap<>();
+							while (mat.find()) {
+								isSourceFile = true;
+								if (key != null) {
+									fieldValue(source, key, line.substring(offset, mat.start()));
+								}
+								key = mat.group(1);
+								offset = mat.end();
 							}
-							key = mat.group(1);
-							offset = mat.end();
-						}
-						columnValue(source, key, line.substring(offset));
+							if (isSourceFile) {
+								fieldValue(source, key, line.substring(offset));
 
-						builder.add(client.prepareIndex(String.valueOf(indexName), "_doc").setSource(source));
-						if (count > 0 && count % 50000 == 0) {
-							builder.execute().actionGet();
-							builder = client.prepareBulk();
+								builder.add(client.prepareIndex(String.valueOf(indexName), "_doc").setSource(source));
+								if (count > 0 && count % flush == 0) {
+									builder.execute().actionGet();
+									builder = client.prepareBulk();
+								}
+								if (count > 0 && count % 100000 == 0) {
+									logger.debug("{} ROWS FLUSHED! in {}ms", count, System.currentTimeMillis() - time);
+								}
+							} else {
+								logger.debug("{} IS NOT SOURCEFILE", file);
+								// 소스파일이 아니므로 바로 다음파일로.
+								break;
+							}
 						}
-						if (count > 0 && count % 100000 == 0) {
-							logger.debug("{} ROWS FLUSHED! in {}ms", count, System.currentTimeMillis() - time);
-						}
+						builder.execute().actionGet();
+						try { reader.close(); } catch (Exception ignore) { }
 					}
-					builder.execute().actionGet();
 					logger.debug("TOTAL {} ROWS in {}ms", count, System.currentTimeMillis() - time);
 				} catch (Exception e) {
 					logger.error("", e);
 				} finally {
 					try { reader.close(); } catch (Exception ignore) { }
 				}
+			} else {
+				logger.debug("THERE'S NO SOURCE FILE(S) FOUND");
 			}
-		}.start();
-	}
-
-	private void columnValue(Map<String, Object> source, String key , String value) throws Exception {
-		if ("".equals(key)) {
-		} else if ("REGISTERDATE".equals(key)) {
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
-			source.put(key, sdf.parse(value));
-		} else {
-			source.put(key, value);
+			running = false;
 		}
-		logger.trace("ROW:{} / {}", key, value);
+
+		private void fieldValue(Map<String, Object> source, String key , String value) throws Exception {
+			if ("".equals(key)) {
+			} else if ("REGISTERDATE".equals(key)) {
+				SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+				source.put(key, sdf.parse(value));
+			} else {
+				source.put(key, value);
+			}
+			logger.trace("ROW:{} / {}", key, value);
+		}
+
+		@Override public boolean accept(File file) {
+			if (!file.exists()) { return false; }
+			if (file.isDirectory()) {
+				file.listFiles(this);
+			} else if (file.isFile()) {
+				files.add(file);
+			}
+			return false;
+		}
 	}
 }

@@ -1,6 +1,8 @@
 package com.danawa.search.analysis.product;
 
 import java.io.File;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -25,6 +27,7 @@ import com.danawa.util.ResourceResolver;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
+import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
@@ -151,43 +154,46 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return ret;
 	}
 
-	public static ProductNameDictionary loadDictionary(Environment env) {
+	public static ProductNameDictionary loadDictionary(final Environment env) {
 		// 플러그인 디렉토리 에서 설정파일을 찾도록 한다.
-		for (int tries = 0; tries < 2; tries++) {
-			try {
-				if (tries == 0) {
-					baseFile = ResourceResolver.getResourceRoot(ProductNameDictionary.class);
+		SpecialPermission.check();
+		return AccessController.doPrivileged((PrivilegedAction<ProductNameDictionary>) () -> {
+			for (int tries = 0; tries < 2; tries++) {
+				try {
+					if (tries == 0) {
+						baseFile = ResourceResolver.getResourceRoot(ProductNameDictionary.class);
+					} else {
+						// 설정파일이 플러그인 디렉토리에 존재하지 않는다면 검색엔진 conf 디렉토리에서 설정파일을 찾는다.
+						// 추후 불필요시 삭제한다. (설정파일 혼란이 있을수 있음)
+						baseFile = env.configFile().toFile();
+					}
+					if (baseFile != null && baseFile.exists()) {
+						logger.debug("PRODUCT DICTIONARY BASE : {}", baseFile);
+					}
+				} catch (Exception e) { 
+					logger.error("", e);
+					baseFile = null; 
+					configFile = null;
+					continue;
+				}
+				configFile = new File(baseFile, ANALYSIS_PROP);
+				if (configFile.exists()) { 
+					logger.debug("DICTIONARY PROPERTIES : {}", configFile);
+					break;
 				} else {
-					// 설정파일이 플러그인 디렉토리에 존재하지 않는다면 검색엔진 conf 디렉토리에서 설정파일을 찾는다.
-					// 추후 불필요시 삭제한다. (설정파일 혼란이 있을수 있음)
-					baseFile = env.configFile().toFile();
+					baseFile = null; 
+					configFile = null;
 				}
-				if (baseFile != null && baseFile.exists()) {
-					logger.debug("PRODUCT DICTIONARY BASE : {}", baseFile);
-				}
-			} catch (Exception e) { 
-				logger.error("", e);
-				baseFile = null; 
-				configFile = null;
-				continue;
 			}
-			configFile = new File(baseFile, ANALYSIS_PROP);
-			if (configFile.exists()) { 
-				logger.debug("DICTIONARY PROPERTIES : {}", configFile);
-				break;
-			} else {
-				baseFile = null; 
-				configFile = null;
+			Properties dictProp = ResourceResolver.readProperties(configFile);
+			if (dictProp == null) {
+				logger.error("DICTIONARY PROPERTIES FILE NOT FOUND {}", configFile);
 			}
-		}
-		Properties dictProp = ResourceResolver.readProperties(configFile);
-		if (dictProp == null) {
-			logger.error("DICTIONARY PROPERTIES FILE NOT FOUND {}", configFile);
-		}
-		return loadDictionary(baseFile, dictProp);
+			return loadDictionary(baseFile, dictProp);
+		});
 	}
 
-	public static ProductNameDictionary loadDictionary(File baseFile, Properties dictProp) {
+	public static ProductNameDictionary loadDictionary(final File baseFile, final Properties dictProp) {
 		/**
 		 * 기본셋팅. 
 		 * ${ELASTICSEARCH}/config/product_name_analysis.prop 파일을 사용하도록 한다
@@ -195,93 +201,96 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		 * 커스터마이징 하도록 한다.
 		 * 우선은 JAXB 마샬링 구조를 사용하지 않고 Properties 를 사용하도록 한다.
 		 **/
-		Dictionary<TagProb, PreResult<CharSequence>> dictionary = null;
-		ProductNameDictionary commonDictionary = null;
-		List<String> idList = new ArrayList<>();
-		String idStr = dictProp.getProperty(ATTR_DICTIONARY_ID_LIST);
-		if (idStr != null) {
-			for (String id : idStr.split("[,]")) {
-				idList.add(id.trim());
+		SpecialPermission.check();
+		return AccessController.doPrivileged((PrivilegedAction<ProductNameDictionary>) () -> {
+			Dictionary<TagProb, PreResult<CharSequence>> dictionary = null;
+			ProductNameDictionary commonDictionary = null;
+			List<String> idList = new ArrayList<>();
+			String idStr = dictProp.getProperty(ATTR_DICTIONARY_ID_LIST);
+			if (idStr != null) {
+				for (String id : idStr.split("[,]")) {
+					idList.add(id.trim());
+				}
 			}
-		}
 
-		// 시스템사전을 먼저 읽어오도록 한다. 
-		for (String dictionaryId : idList) {
-			if (getType(dictProp, dictionaryId) == Type.SYSTEM) {
-				dictionary = loadSystemDictionary(baseFile, dictProp, dictionaryId);
-				commonDictionary = new ProductNameDictionary(dictionary);
-				break;
+			// 시스템사전을 먼저 읽어오도록 한다. 
+			for (String dictionaryId : idList) {
+				if (getType(dictProp, dictionaryId) == Type.SYSTEM) {
+					dictionary = loadSystemDictionary(baseFile, dictProp, dictionaryId);
+					commonDictionary = new ProductNameDictionary(dictionary);
+					break;
+				}
 			}
-		}
-		for (String dictionaryId : idList) {
-			Type type = getType(dictProp, dictionaryId);
-			String tokenType = getTokenType(dictProp, dictionaryId);
-			File dictFile = getDictionaryFile(baseFile, dictProp, dictionaryId);
-			boolean ignoreCase = getIgnoreCase(dictProp, dictionaryId);
-			SourceDictionary<?> sourceDictionary = null;
+			for (String dictionaryId : idList) {
+				Type type = getType(dictProp, dictionaryId);
+				String tokenType = getTokenType(dictProp, dictionaryId);
+				File dictFile = getDictionaryFile(baseFile, dictProp, dictionaryId);
+				boolean ignoreCase = getIgnoreCase(dictProp, dictionaryId);
+				SourceDictionary<?> sourceDictionary = null;
 
-			if (type == Type.SET) {
-				SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase);
-				if (tokenType != null) {
-					commonDictionary.appendAdditionalNounEntry(setDictionary.set(), tokenType);
+				if (type == Type.SET) {
+					SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase);
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(setDictionary.set(), tokenType);
+					}
+					sourceDictionary = setDictionary;
+				} else if (type == Type.MAP) {
+					MapDictionary mapDictionary = new MapDictionary(dictFile, ignoreCase);
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(mapDictionary.map().keySet(), tokenType);
+					}
+					sourceDictionary = mapDictionary;
+				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+					SynonymDictionary synonymDictionary = new SynonymDictionary(dictFile, ignoreCase);
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(synonymDictionary.getWordSet(), tokenType);
+					}
+					sourceDictionary = synonymDictionary;
+				} else if (type == Type.SPACE) {
+					SpaceDictionary spaceDictionary = new SpaceDictionary(dictFile, ignoreCase);
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(spaceDictionary.map().keySet(), tokenType);
+					}
+					sourceDictionary = spaceDictionary;
+					// Map map = new HashMap<CharSequence, PreResult<CharSequence>>();
+					// for(Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()){
+					// 	PreResult preResult = new PreResult<T>();
+					// 	preResult.setResult(e.getValue());
+					// 	map.put(e.getKey(), preResult);
+					// }
+					// commonDictionary.setPreDictionary(map);
+				} else if (type == Type.CUSTOM) {
+					CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase);
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(customDictionary.getWordSet(), tokenType);
+					}
+					sourceDictionary = customDictionary;
+				} else if (type == Type.INVERT_MAP) {
+					InvertMapDictionary invertMapDictionary = new InvertMapDictionary(dictFile, ignoreCase);
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(invertMapDictionary.map().keySet(), tokenType);
+					}
+					sourceDictionary = invertMapDictionary;
+				} else if (type == Type.COMPOUND) {
+					CompoundDictionary compoundDictionary = new CompoundDictionary(dictFile, ignoreCase);
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(compoundDictionary.map().keySet(), tokenType);
+					}
+					sourceDictionary = compoundDictionary;
+				} else if (type == Type.SYSTEM) {
+					// ignore
+				} else {
+					// logger.error();
+					logger.error("Unknown Dictionary type > {}", type);
 				}
-				sourceDictionary = setDictionary;
-			} else if (type == Type.MAP) {
-				MapDictionary mapDictionary = new MapDictionary(dictFile, ignoreCase);
-				if (tokenType != null) {
-					commonDictionary.appendAdditionalNounEntry(mapDictionary.map().keySet(), tokenType);
+				// logger.info("Dictionary {} is loaded. tokenType[{}] ", dictionaryId, tokenType);
+				// add dictionary
+				if (sourceDictionary != null) {
+					commonDictionary.addDictionary(dictionaryId, sourceDictionary);
 				}
-				sourceDictionary = mapDictionary;
-			} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-				SynonymDictionary synonymDictionary = new SynonymDictionary(dictFile, ignoreCase);
-				if (tokenType != null) {
-					commonDictionary.appendAdditionalNounEntry(synonymDictionary.getWordSet(), tokenType);
-				}
-				sourceDictionary = synonymDictionary;
-			} else if (type == Type.SPACE) {
-				SpaceDictionary spaceDictionary = new SpaceDictionary(dictFile, ignoreCase);
-				if (tokenType != null) {
-					commonDictionary.appendAdditionalNounEntry(spaceDictionary.map().keySet(), tokenType);
-				}
-				sourceDictionary = spaceDictionary;
-				// Map map = new HashMap<CharSequence, PreResult<CharSequence>>();
-				// for(Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()){
-				// 	PreResult preResult = new PreResult<T>();
-				// 	preResult.setResult(e.getValue());
-				// 	map.put(e.getKey(), preResult);
-				// }
-				// commonDictionary.setPreDictionary(map);
-			} else if (type == Type.CUSTOM) {
-				CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase);
-				if (tokenType != null) {
-					commonDictionary.appendAdditionalNounEntry(customDictionary.getWordSet(), tokenType);
-				}
-				sourceDictionary = customDictionary;
-			} else if (type == Type.INVERT_MAP) {
-				InvertMapDictionary invertMapDictionary = new InvertMapDictionary(dictFile, ignoreCase);
-				if (tokenType != null) {
-					commonDictionary.appendAdditionalNounEntry(invertMapDictionary.map().keySet(), tokenType);
-				}
-				sourceDictionary = invertMapDictionary;
-			} else if (type == Type.COMPOUND) {
-				CompoundDictionary compoundDictionary = new CompoundDictionary(dictFile, ignoreCase);
-				if (tokenType != null) {
-					commonDictionary.appendAdditionalNounEntry(compoundDictionary.map().keySet(), tokenType);
-				}
-				sourceDictionary = compoundDictionary;
-			} else if (type == Type.SYSTEM) {
-				// ignore
-			} else {
-				// logger.error();
-				logger.error("Unknown Dictionary type > {}", type);
 			}
-			// logger.info("Dictionary {} is loaded. tokenType[{}] ", dictionaryId, tokenType);
-			// add dictionary
-			if (sourceDictionary != null) {
-				commonDictionary.addDictionary(dictionaryId, sourceDictionary);
-			}
-		}
-		return commonDictionary;
+			return commonDictionary;
+		});
 	}
 
 	public static void reloadDictionary() {
