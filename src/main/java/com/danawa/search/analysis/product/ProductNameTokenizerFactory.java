@@ -167,8 +167,9 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 						// 추후 불필요시 삭제한다. (설정파일 혼란이 있을수 있음)
 						baseFile = env.configFile().toFile();
 					}
+					logger.debug("TESTING PRODUCT DICTIONARY BASE : {}", baseFile.getAbsolutePath());
 					if (baseFile != null && baseFile.exists()) {
-						logger.debug("PRODUCT DICTIONARY BASE : {}", baseFile);
+						logger.debug("PRODUCT DICTIONARY BASE : {}", baseFile.getAbsolutePath());
 					}
 				} catch (Exception e) { 
 					logger.error("", e);
@@ -178,7 +179,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 				}
 				configFile = new File(baseFile, ANALYSIS_PROP);
 				if (configFile.exists()) { 
-					logger.debug("DICTIONARY PROPERTIES : {}", configFile);
+					logger.debug("DICTIONARY PROPERTIES : {}", configFile.getAbsolutePath());
 					break;
 				} else {
 					baseFile = null; 
@@ -187,7 +188,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 			}
 			Properties dictProp = ResourceResolver.readProperties(configFile);
 			if (dictProp == null) {
-				logger.error("DICTIONARY PROPERTIES FILE NOT FOUND {}", configFile);
+				logger.error("DICTIONARY PROPERTIES FILE NOT FOUND {}", configFile.getAbsolutePath());
 			}
 			return loadDictionary(baseFile, dictProp);
 		});

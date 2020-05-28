@@ -26,12 +26,18 @@ public class ResourceResolver {
 			path = path.substring(0, cutIndex + SUFFIX_JAR.length() - 2);
 			cutIndex = path.lastIndexOf(SEPARATOR_PATH);
             path = path.substring(0, cutIndex);
+			if (File.separatorChar == '/') {
+				path = File.separatorChar + path;
+			}
             ret = new File(path);
 		} else {
 			//in workspace
             String pkg = cls.getPackageName();
             path = path.substring(0, path.length() - pkg.length() - SEPARATOR_PATH.length()
                 - cls.getSimpleName().length() - SUFFIX_CLASS.length());
+			if (File.separatorChar == '/') {
+				path = File.separatorChar + path;
+			}
             ret = new File(path);
         }
         return ret;
