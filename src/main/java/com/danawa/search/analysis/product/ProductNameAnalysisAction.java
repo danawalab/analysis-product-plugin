@@ -7,6 +7,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -16,12 +18,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.ContextStore;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
+import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
@@ -33,6 +44,8 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
@@ -105,6 +118,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 			builder.endObject();
 		} else if (ACTION_SEARCH.equals(action)) {
+			search(request, client);
 			builder.object()
 				.key("action").value(action)
 				.endObject();
@@ -192,6 +206,96 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 		}
 		return ret;
+	}
+
+	private void search(final RestRequest request, final NodeClient client) {
+		TokenStream stream = null;
+		try {
+			logger.debug("TESTING SEARCH...");
+			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+			String text = jobj.optString("text", "");
+
+			logger.debug("ANALYZE TEXT : {}", text);
+			stream = getAnalyzer(text);
+			CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+			TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+			SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
+			ExtraTermAttribute addAttr = stream.addAttribute(ExtraTermAttribute.class);
+			stream.reset();
+
+			String[] flist = new String[] { "PRODUCTNAME" };
+			BoolQueryBuilder query = QueryBuilders.boolQuery();
+			List<QueryBuilder> qlist = query.must();
+
+			while (stream.incrementToken()) {
+				logger.debug("TOKEN:{} / {}", termAttr, typeAttr.type());
+				qlist.add(QueryBuilders.multiMatchQuery(String.valueOf(termAttr), flist));
+
+
+				if (synAttr != null && synAttr.getSynonyms() != null) {
+					List<CharSequence> synonymObj = synAttr.getSynonyms();
+					for(int inx3=0 ; inx3 < synonymObj.size(); inx3++) {
+						Object obj = synonymObj.get(inx3);
+						logger.debug(" |_synonym : {}", obj);
+					}
+				}
+				if (addAttr != null) {
+					Iterator<String> termIter = addAttr.iterator();
+					for (; termIter.hasNext();) {
+						String term = termIter.next();
+						String type = typeAttr.type();
+						logger.debug("a-term:{} / type:{}", term, type);
+					}
+				}
+			}
+
+			logger.trace("Q:{}", query.toString());
+
+			// 문서 검색 테스트
+			ActionListener<SearchResponse> listener = new ActionListener<SearchResponse>() {
+				@Override public void onResponse(SearchResponse response) {
+					SearchHits hits = response.getHits();
+					for (SearchHit hit : hits.getHits()) {
+						Map<String, Object> map = hit.getSourceAsMap();
+						logger.debug("RESULT:{}", map);
+					}
+				}
+				@Override public void onFailure(Exception e) { }
+			};
+			SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+			sourceBuilder.query(query);
+			sourceBuilder.from(0);
+			sourceBuilder.size(5);
+			sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+			SearchRequest searchRequest = new SearchRequest("sample_index");
+			searchRequest.source(sourceBuilder);
+			client.search(searchRequest, listener);
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+	}
+
+	private TokenStream getAnalyzer(String str) {
+		TokenStream tstream = null;
+		Reader reader = null;
+		Tokenizer tokenizer = null;
+		ProductNameDictionary dictionary = null;
+		KoreanWordExtractor extractor = null;
+		AnalyzerOption option = null;
+		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
+			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+			extractor = new KoreanWordExtractor(dictionary);
+		}
+		option = new AnalyzerOption();
+		option.useForQuery(true);
+		option.useSynonym(true);
+		option.useStopword(true);
+		reader = new StringReader(str);
+		tokenizer = new ProductNameTokenizer(dictionary, false);
+		extractor = new KoreanWordExtractor(dictionary);
+		tokenizer.setReader(reader);
+		tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
+		return tstream;
 	}
 
 	static class IndexingThread extends Thread implements FileFilter {
