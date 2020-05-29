@@ -56,6 +56,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
@@ -210,6 +211,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		try {
 			logger.debug("TESTING SEARCH...");
 			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+			String[] fields = jobj.optString("fields", "").split("[,]");
 			String text = jobj.optString("text", "");
 			int from = jobj.optInt("from", 0);
 			int size = jobj.optInt("size", 20);
@@ -222,19 +224,25 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
 			stream.reset();
 
-			String[] fields = new String[] { "PRODUCTNAME" };
 			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
 			List<CharSequence> synonyms = null;
 
+			JSONArray analysis = new JSONArray();
+
 			while (stream.incrementToken()) {
-				logger.debug("TOKEN:{} / {}", termAttr, typeAttr.type());
-				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(String.valueOf(termAttr), fields);
+				String termStr = String.valueOf(termAttr);
+				logger.debug("TOKEN:{} / {}", termStr, typeAttr.type());
+				JSONObject termDetail = new JSONObject();
+				termDetail.put("term", termStr);
+				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(termStr, fields);
 
 				if (synAttr != null && (synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+					JSONArray synonymList = new JSONArray();
 					BoolQueryBuilder query = QueryBuilders.boolQuery();
 					query.should().add(termQuery);
 					for (int sinx = 0; sinx < synonyms.size(); sinx++) {
 						String synonym = String.valueOf(synonyms.get(sinx));
+						synonymList.put(synonym);
 						if (synonym.indexOf(" ") == -1) {
 							query.should().add(QueryBuilders.multiMatchQuery(synonym, fields));
 						} else {
@@ -246,22 +254,27 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						}
 						logger.debug(" |_synonym : {}", synonym);
 					}
+					termDetail.put("synonym", synonymList);
 					termQuery = query;
 				}
 				if (extAttr != null && extAttr.size() > 0) {
+					JSONArray extraList = new JSONArray();
 					BoolQueryBuilder query = QueryBuilders.boolQuery();
 					Iterator<String> termIter = extAttr.iterator();
 					for (; termIter.hasNext();) {
 						String term = termIter.next();
 						String type = typeAttr.type();
+						extraList.put(term);
 						query.must().add(QueryBuilders.multiMatchQuery(String.valueOf(term), fields));
 						logger.debug("a-term:{} / type:{}", term, type);
 					}
 					BoolQueryBuilder parent = QueryBuilders.boolQuery();
 					parent.should().add(termQuery);
 					parent.should().add(query);
+					termDetail.put("extra", extraList);
 					termQuery = parent;
 				}
+				analysis.put(termDetail);
 				mainQuery.must().add(termQuery);
 			}
 			logger.debug("Q:{}", mainQuery.toString());
@@ -276,6 +289,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			{
 				SearchHits hits = response.getHits();
 				builder.object()
+					.key("analysis").value(analysis)
 					.key("result").array();
 				for (SearchHit hit : hits.getHits()) {
 					Map<String, Object> map = hit.getSourceAsMap();
