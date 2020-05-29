@@ -118,10 +118,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 			builder.endObject();
 		} else if (ACTION_SEARCH.equals(action)) {
-			search(request, client);
-			builder.object()
-				.key("action").value(action)
-				.endObject();
+			search(request, client, builder);
 		}
 		return channel -> {
 			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, buffer.toString()));
@@ -208,68 +205,108 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return ret;
 	}
 
-	private void search(final RestRequest request, final NodeClient client) {
+	private void search(final RestRequest request, final NodeClient client, final JSONWriter builder) {
 		TokenStream stream = null;
 		try {
 			logger.debug("TESTING SEARCH...");
 			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 			String text = jobj.optString("text", "");
+			int from = jobj.optInt("from", 0);
+			int size = jobj.optInt("size", 20);
 
 			logger.debug("ANALYZE TEXT : {}", text);
 			stream = getAnalyzer(text);
 			CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 			TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
 			SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
-			ExtraTermAttribute addAttr = stream.addAttribute(ExtraTermAttribute.class);
+			ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
 			stream.reset();
 
 			String[] flist = new String[] { "PRODUCTNAME" };
-			BoolQueryBuilder query = QueryBuilders.boolQuery();
-			List<QueryBuilder> qlist = query.must();
+			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
+			List<QueryBuilder> queries = mainQuery.must();
+			List<CharSequence> synonyms = null;
 
 			while (stream.incrementToken()) {
 				logger.debug("TOKEN:{} / {}", termAttr, typeAttr.type());
-				qlist.add(QueryBuilders.multiMatchQuery(String.valueOf(termAttr), flist));
+				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(String.valueOf(termAttr), flist);
 
-
-				if (synAttr != null && synAttr.getSynonyms() != null) {
-					List<CharSequence> synonymObj = synAttr.getSynonyms();
-					for(int inx3=0 ; inx3 < synonymObj.size(); inx3++) {
-						Object obj = synonymObj.get(inx3);
-						logger.debug(" |_synonym : {}", obj);
+				if (synAttr != null && (synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
+					List<QueryBuilder> subs = subQuery.should();
+					subs.add(termQuery);
+					for(int inx3=0 ; inx3 < synonyms.size(); inx3++) {
+						CharSequence synonym = synonyms.get(inx3);
+						subs.add(QueryBuilders.multiMatchQuery(String.valueOf(synonym), flist));
+						logger.debug(" |_synonym : {}", synonym);
 					}
+					termQuery = subQuery;
 				}
-				if (addAttr != null) {
-					Iterator<String> termIter = addAttr.iterator();
+				if (extAttr != null) {
+					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
+					List<QueryBuilder> subs = subQuery.must();
+					Iterator<String> termIter = extAttr.iterator();
 					for (; termIter.hasNext();) {
 						String term = termIter.next();
 						String type = typeAttr.type();
+						subs.add(QueryBuilders.multiMatchQuery(String.valueOf(term), flist));
 						logger.debug("a-term:{} / type:{}", term, type);
 					}
+					BoolQueryBuilder parent = QueryBuilders.boolQuery();
+					List<QueryBuilder> plist = parent.should();
+					plist.add(termQuery);
+					plist.add(subQuery);
+					termQuery = parent;
 				}
+				queries.add(termQuery);
 			}
-
-			logger.trace("Q:{}", query.toString());
-
-			// 문서 검색 테스트
-			ActionListener<SearchResponse> listener = new ActionListener<SearchResponse>() {
-				@Override public void onResponse(SearchResponse response) {
-					SearchHits hits = response.getHits();
-					for (SearchHit hit : hits.getHits()) {
-						Map<String, Object> map = hit.getSourceAsMap();
-						logger.debug("RESULT:{}", map);
-					}
-				}
-				@Override public void onFailure(Exception e) { }
-			};
+			logger.debug("Q:{}", mainQuery.toString());
 			SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-			sourceBuilder.query(query);
-			sourceBuilder.from(0);
-			sourceBuilder.size(5);
+			sourceBuilder.query(mainQuery);
+			sourceBuilder.from(from);
+			sourceBuilder.size(size);
 			sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
 			SearchRequest searchRequest = new SearchRequest("sample_index");
 			searchRequest.source(sourceBuilder);
-			client.search(searchRequest, listener);
+
+			// 문서 검색 테스트
+			// ActionListener<SearchResponse> listener = new ActionListener<SearchResponse>() {
+			// 	@Override public void onResponse(SearchResponse response) {
+			// 		SearchHits hits = response.getHits();
+			// 		builder.object()
+			// 			.key("result").array();
+			// 		for (SearchHit hit : hits.getHits()) {
+			// 			Map<String, Object> map = hit.getSourceAsMap();
+			// 			logger.debug("RESULT:{}", map);
+			// 			for (String key : map.keySet()) {
+			// 				builder.object()
+			// 					.key(key).value(map.get(key))
+			// 				.endObject();
+			// 			}
+			// 		}
+			// 		builder
+			// 			.endArray().endObject();
+			// 	}
+			// 	@Override public void onFailure(Exception e) { }
+			// };
+			// client.search(searchRequest, listener);
+			SearchResponse response = client.search(searchRequest).actionGet();
+			{
+				SearchHits hits = response.getHits();
+				builder.object()
+					.key("result").array();
+				for (SearchHit hit : hits.getHits()) {
+					Map<String, Object> map = hit.getSourceAsMap();
+					logger.trace("RESULT:{}", map);
+					builder.object();
+					for (String key : map.keySet()) {
+							builder.key(key).value(map.get(key));
+					}
+					builder.endObject();
+				}
+				builder
+					.endArray().endObject();
+			}
 		} catch (Exception e) {
 			logger.error("", e);
 		}
