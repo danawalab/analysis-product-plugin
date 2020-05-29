@@ -39,6 +39,7 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
@@ -54,6 +55,7 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.json.JSONArray;
@@ -226,9 +228,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
 			List<CharSequence> synonyms = null;
-
 			JSONArray analysis = new JSONArray();
-
 			while (stream.incrementToken()) {
 				String termStr = String.valueOf(termAttr);
 				logger.debug("TOKEN:{} / {}", termStr, typeAttr.type());
@@ -278,33 +278,100 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				mainQuery.must().add(termQuery);
 			}
 			logger.debug("Q:{}", mainQuery.toString());
-			SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-			sourceBuilder.query(mainQuery);
-			sourceBuilder.from(from);
-			sourceBuilder.size(size);
-			sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
-			SearchRequest searchRequest = new SearchRequest("sample_index");
-			searchRequest.source(sourceBuilder);
-			SearchResponse response = client.search(searchRequest).actionGet();
-			{
-				SearchHits hits = response.getHits();
-				builder.object()
-					.key("analysis").value(analysis)
-					.key("result").array();
-				for (SearchHit hit : hits.getHits()) {
-					Map<String, Object> map = hit.getSourceAsMap();
-					logger.trace("RESULT:{}", map);
-					builder.object();
-					for (String key : map.keySet()) {
-						builder.key(key).value(map.get(key));
-					}
-					builder.endObject();
-				}
-				builder
-					.endArray().endObject();
+			SearchSourceBuilder source = new SearchSourceBuilder();
+			source.query(mainQuery);
+
+			boolean doScroll = from + size > 10000;
+			SearchRequest search = new SearchRequest("sample_index");
+			Scroll scroll = null;
+
+			if (doScroll) {
+				logger.debug("SCROLL SEARCH");
+				scroll = new Scroll(TimeValue.timeValueMinutes(10L));
+				source.from(0);
+				source.size(100);
+				source.timeout(new TimeValue(60, TimeUnit.SECONDS));
+				search.source(source);
+				search.scroll(scroll);
+			} else {
+				logger.debug("LIMIT SEARCH {}~{}", from, size);
+				source.from(from);
+				source.size(size);
+				search.source(source);
 			}
+
+			builder.object().key("analysis").value(analysis);
+			if (doScroll) {
+				doSearchScroll(search, scroll, from, size, client, builder);
+			} else {
+				doSearch(search, client, builder);
+			}
+			builder.endObject();
 		} catch (Exception e) {
 			logger.error("", e);
+		}
+	}
+
+	public void doSearchScroll(SearchRequest search, Scroll scroll, int from, int size, NodeClient client, JSONWriter builder) throws Exception {
+		SearchHit[] hits = null;
+		SearchResponse response = null;
+		client.search(search);
+		response = client.search(search).get();
+		String scrollId = response.getScrollId();
+		hits = response.getHits().getHits();
+		builder.key("result").array();
+		for (int rownum = 0; hits != null && hits.length > 0;) {
+			logger.trace("FROM:{} / {}", from, rownum);
+			if (rownum + hits.length <= from) { 
+				rownum += hits.length;
+			} else {
+				for (SearchHit hit : hits) {
+					if (rownum < from) { 
+					} else {
+						Map<String, Object> map = hit.getSourceAsMap();
+						map.put("ROWNUM", rownum);
+						logger.trace("RESULT:{}", map);
+						builder.object();
+						for (String key : map.keySet()) {
+							builder.key(key).value(map.get(key));
+						}
+						builder.endObject();
+						if (--size <= 0) { break; }
+					}
+					rownum++;
+				}
+			}
+			if (size <= 0) { break; }
+			SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
+			scrollRequest.scroll(scroll);
+			response = client.searchScroll(scrollRequest).get();
+			hits = response.getHits().getHits();
+			scrollId = response.getScrollId();
+		}
+		builder.endArray();
+	}
+
+	public void doSearch(SearchRequest search, NodeClient client, JSONWriter builder) throws Exception {
+		SearchHit[] hits = null;
+		SearchResponse response = null;
+		client.search(search);
+		response = client.search(search).get();
+		hits = response.getHits().getHits();
+		if (hits != null) {
+			builder.key("result").array();
+			int rownum = 0;
+			for (SearchHit hit : hits) {
+				Map<String, Object> map = hit.getSourceAsMap();
+				map.put("ROWNUM", rownum);
+				logger.trace("RESULT:{}", map);
+				builder.object();
+				for (String key : map.keySet()) {
+					builder.key(key).value(map.get(key));
+				}
+				builder.endObject();
+				rownum++;
+			}
+			builder.endArray();
 		}
 	}
 
