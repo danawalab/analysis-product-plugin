@@ -315,38 +315,41 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	public void doSearchScroll(SearchRequest search, Scroll scroll, int from, int size, NodeClient client, JSONWriter builder) throws Exception {
 		SearchHit[] hits = null;
 		SearchResponse response = null;
-		client.search(search);
 		response = client.search(search).get();
 		String scrollId = response.getScrollId();
 		hits = response.getHits().getHits();
-		builder.key("result").array();
-		for (int rownum = 0; hits != null && hits.length > 0;) {
-			logger.trace("FROM:{} / {}", from, rownum);
-			if (rownum + hits.length <= from) { 
-				rownum += hits.length;
-			} else {
-				for (SearchHit hit : hits) {
-					if (rownum < from) { 
-					} else {
-						Map<String, Object> map = hit.getSourceAsMap();
-						map.put("ROWNUM", rownum);
-						logger.trace("RESULT:{}", map);
-						builder.object();
-						for (String key : map.keySet()) {
-							builder.key(key).value(map.get(key));
+		if (hits != null) {
+			long total = response.getHits().getTotalHits().value;
+			builder.key("total").value(total);
+			builder.key("result").array();
+			for (int rownum = 0; hits != null && hits.length > 0;) {
+				logger.trace("FROM:{} / {}", from, rownum);
+				if (rownum + hits.length <= from) { 
+					rownum += hits.length;
+				} else {
+					for (SearchHit hit : hits) {
+						if (rownum < from) { 
+						} else {
+							Map<String, Object> map = hit.getSourceAsMap();
+							map.put("ROWNUM", rownum);
+							logger.trace("RESULT:{}", map);
+							builder.object();
+							for (String key : map.keySet()) {
+								builder.key(key).value(map.get(key));
+							}
+							builder.endObject();
+							if (--size <= 0) { break; }
 						}
-						builder.endObject();
-						if (--size <= 0) { break; }
+						rownum++;
 					}
-					rownum++;
 				}
+				if (size <= 0) { break; }
+				SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
+				scrollRequest.scroll(scroll);
+				response = client.searchScroll(scrollRequest).get();
+				hits = response.getHits().getHits();
+				scrollId = response.getScrollId();
 			}
-			if (size <= 0) { break; }
-			SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
-			scrollRequest.scroll(scroll);
-			response = client.searchScroll(scrollRequest).get();
-			hits = response.getHits().getHits();
-			scrollId = response.getScrollId();
 		}
 		builder.endArray();
 	}
@@ -354,10 +357,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	public void doSearch(SearchRequest search, NodeClient client, JSONWriter builder) throws Exception {
 		SearchHit[] hits = null;
 		SearchResponse response = null;
-		client.search(search);
 		response = client.search(search).get();
 		hits = response.getHits().getHits();
 		if (hits != null) {
+			long total = response.getHits().getTotalHits().value;
+			builder.key("total").value(total);
 			builder.key("result").array();
 			int rownum = 0;
 			for (SearchHit hit : hits) {
