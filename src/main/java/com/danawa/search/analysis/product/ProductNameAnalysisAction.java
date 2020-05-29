@@ -213,6 +213,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		try {
 			logger.debug("TESTING SEARCH...");
 			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+			String index = jobj.optString("index", "");
 			String[] fields = jobj.optString("fields", "").split("[,]");
 			String text = jobj.optString("text", "");
 			int from = jobj.optInt("from", 0);
@@ -220,15 +221,58 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 			logger.debug("ANALYZE TEXT : {}", text);
 			stream = getAnalyzer(text);
-			CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
-			TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
-			SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
-			ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
-			stream.reset();
 
+			JSONArray analysis = new JSONArray();
+
+			QueryBuilder mainQuery = buildQuery(stream, fields, analysis);
+
+			logger.debug("Q:{}", mainQuery.toString());
+			SearchSourceBuilder source = new SearchSourceBuilder();
+			source.query(mainQuery);
+
+			boolean doScroll = from + size > 10000;
+			SearchRequest search = new SearchRequest(index);
+			Scroll scroll = null;
+
+			if (doScroll) {
+				logger.debug("SCROLL SEARCH");
+				scroll = new Scroll(TimeValue.timeValueMinutes(10L));
+				source.from(0);
+				source.size(100);
+				source.timeout(new TimeValue(60, TimeUnit.SECONDS));
+				search.source(source);
+				search.scroll(scroll);
+			} else {
+				logger.debug("LIMIT SEARCH {}~{}", from, size);
+				source.from(from);
+				source.size(size);
+				search.source(source);
+			}
+
+			builder.object().key("analysis").value(analysis);
+			if (doScroll) {
+				doSearchScroll(search, scroll, from, size, client, builder);
+			} else {
+				doSearch(search, client, builder);
+			}
+			builder.endObject();
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+	}
+
+	public QueryBuilder buildQuery(TokenStream stream, String[] fields, JSONArray analysis) {
+		QueryBuilder ret = null;
+
+		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
+		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
+
+		try {
+			stream.reset();
 			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
 			List<CharSequence> synonyms = null;
-			JSONArray analysis = new JSONArray();
 			while (stream.incrementToken()) {
 				String termStr = String.valueOf(termAttr);
 				logger.debug("TOKEN:{} / {}", termStr, typeAttr.type());
@@ -274,43 +318,21 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					termDetail.put("extra", extraList);
 					termQuery = parent;
 				}
-				analysis.put(termDetail);
+				if (analysis != null) {
+					analysis.put(termDetail);
+				}
 				mainQuery.must().add(termQuery);
 			}
-			logger.debug("Q:{}", mainQuery.toString());
-			SearchSourceBuilder source = new SearchSourceBuilder();
-			source.query(mainQuery);
-
-			boolean doScroll = from + size > 10000;
-			SearchRequest search = new SearchRequest("sample_index");
-			Scroll scroll = null;
-
-			if (doScroll) {
-				logger.debug("SCROLL SEARCH");
-				scroll = new Scroll(TimeValue.timeValueMinutes(10L));
-				source.from(0);
-				source.size(100);
-				source.timeout(new TimeValue(60, TimeUnit.SECONDS));
-				search.source(source);
-				search.scroll(scroll);
-			} else {
-				logger.debug("LIMIT SEARCH {}~{}", from, size);
-				source.from(from);
-				source.size(size);
-				search.source(source);
-			}
-
-			builder.object().key("analysis").value(analysis);
-			if (doScroll) {
-				doSearchScroll(search, scroll, from, size, client, builder);
-			} else {
-				doSearch(search, client, builder);
-			}
-			builder.endObject();
+			ret = mainQuery;
 		} catch (Exception e) {
 			logger.error("", e);
+		} finally {
+			try { stream.close(); } catch (Exception ignore) { }
 		}
+
+		return ret;
 	}
+
 
 	public void doSearchScroll(SearchRequest search, Scroll scroll, int from, int size, NodeClient client, JSONWriter builder) throws Exception {
 		SearchHit[] hits = null;
@@ -319,8 +341,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String scrollId = response.getScrollId();
 		hits = response.getHits().getHits();
 		if (hits != null) {
-			long total = response.getHits().getTotalHits().value;
-			builder.key("total").value(total);
 			builder.key("result").array();
 			for (int rownum = 0; hits != null && hits.length > 0;) {
 				logger.trace("FROM:{} / {}", from, rownum);
@@ -350,8 +370,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				hits = response.getHits().getHits();
 				scrollId = response.getScrollId();
 			}
+			builder.endArray();
 		}
-		builder.endArray();
 	}
 
 	public void doSearch(SearchRequest search, NodeClient client, JSONWriter builder) throws Exception {
@@ -360,8 +380,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		response = client.search(search).get();
 		hits = response.getHits().getHits();
 		if (hits != null) {
-			long total = response.getHits().getTotalHits().value;
-			builder.key("total").value(total);
 			builder.key("result").array();
 			int rownum = 0;
 			for (SearchHit hit : hits) {
