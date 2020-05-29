@@ -222,43 +222,47 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
 			stream.reset();
 
-			String[] flist = new String[] { "PRODUCTNAME" };
+			String[] fields = new String[] { "PRODUCTNAME" };
 			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
-			List<QueryBuilder> queries = mainQuery.must();
 			List<CharSequence> synonyms = null;
 
 			while (stream.incrementToken()) {
 				logger.debug("TOKEN:{} / {}", termAttr, typeAttr.type());
-				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(String.valueOf(termAttr), flist);
+				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(String.valueOf(termAttr), fields);
 
 				if (synAttr != null && (synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
-					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
-					List<QueryBuilder> subs = subQuery.should();
-					subs.add(termQuery);
-					for(int inx3=0 ; inx3 < synonyms.size(); inx3++) {
-						CharSequence synonym = synonyms.get(inx3);
-						subs.add(QueryBuilders.multiMatchQuery(String.valueOf(synonym), flist));
+					BoolQueryBuilder query = QueryBuilders.boolQuery();
+					query.should().add(termQuery);
+					for (int sinx = 0; sinx < synonyms.size(); sinx++) {
+						String synonym = String.valueOf(synonyms.get(sinx));
+						if (synonym.indexOf(" ") == -1) {
+							query.should().add(QueryBuilders.multiMatchQuery(synonym, fields));
+						} else {
+							BoolQueryBuilder inQuery = QueryBuilders.boolQuery();
+							for (String field : fields) {
+								inQuery.should().add(QueryBuilders.matchPhraseQuery(field, synonym).slop(3));
+							}
+							query.should().add(inQuery);
+						}
 						logger.debug(" |_synonym : {}", synonym);
 					}
-					termQuery = subQuery;
+					termQuery = query;
 				}
-				if (extAttr != null) {
-					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
-					List<QueryBuilder> subs = subQuery.must();
+				if (extAttr != null && extAttr.size() > 0) {
+					BoolQueryBuilder query = QueryBuilders.boolQuery();
 					Iterator<String> termIter = extAttr.iterator();
 					for (; termIter.hasNext();) {
 						String term = termIter.next();
 						String type = typeAttr.type();
-						subs.add(QueryBuilders.multiMatchQuery(String.valueOf(term), flist));
+						query.must().add(QueryBuilders.multiMatchQuery(String.valueOf(term), fields));
 						logger.debug("a-term:{} / type:{}", term, type);
 					}
 					BoolQueryBuilder parent = QueryBuilders.boolQuery();
-					List<QueryBuilder> plist = parent.should();
-					plist.add(termQuery);
-					plist.add(subQuery);
+					parent.should().add(termQuery);
+					parent.should().add(query);
 					termQuery = parent;
 				}
-				queries.add(termQuery);
+				mainQuery.must().add(termQuery);
 			}
 			logger.debug("Q:{}", mainQuery.toString());
 			SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
@@ -268,28 +272,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
 			SearchRequest searchRequest = new SearchRequest("sample_index");
 			searchRequest.source(sourceBuilder);
-
-			// 문서 검색 테스트
-			// ActionListener<SearchResponse> listener = new ActionListener<SearchResponse>() {
-			// 	@Override public void onResponse(SearchResponse response) {
-			// 		SearchHits hits = response.getHits();
-			// 		builder.object()
-			// 			.key("result").array();
-			// 		for (SearchHit hit : hits.getHits()) {
-			// 			Map<String, Object> map = hit.getSourceAsMap();
-			// 			logger.debug("RESULT:{}", map);
-			// 			for (String key : map.keySet()) {
-			// 				builder.object()
-			// 					.key(key).value(map.get(key))
-			// 				.endObject();
-			// 			}
-			// 		}
-			// 		builder
-			// 			.endArray().endObject();
-			// 	}
-			// 	@Override public void onFailure(Exception e) { }
-			// };
-			// client.search(searchRequest, listener);
 			SearchResponse response = client.search(searchRequest).actionGet();
 			{
 				SearchHits hits = response.getHits();
@@ -300,7 +282,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					logger.trace("RESULT:{}", map);
 					builder.object();
 					for (String key : map.keySet()) {
-							builder.key(key).value(map.get(key));
+						builder.key(key).value(map.get(key));
 					}
 					builder.endObject();
 				}
@@ -312,7 +294,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	private TokenStream getAnalyzer(String str) {
+	public static TokenStream getAnalyzer(String str) {
 		TokenStream tstream = null;
 		Reader reader = null;
 		Tokenizer tokenizer = null;
