@@ -592,8 +592,8 @@ public class ProductNameParsingRule {
 								CharSequence[] synonyms = null;
 								CharSequence[] units = null;
 								if (fullExtract && unitSynonymDictionary != null) {
-									units = unitSynonymDictionary.map().get(unitCandidate);
-									if (units != null) {
+									units = unitSynonymDictionary.get(unitCandidate);
+									if (units != null && !(units.length == 1 && unitCandidate.equals(units[0]))) {
 										synonyms = new CharVector[units.length];
 										for (int inx = 0; inx < units.length; inx++) {
 											char[] ubuf = new char[e0.length + units[inx].length()];

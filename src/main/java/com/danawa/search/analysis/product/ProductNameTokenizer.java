@@ -166,7 +166,6 @@ public class ProductNameTokenizer extends Tokenizer {
 				} else {
 					tokenAttribute.addState(TokenInfoAttribute.STATE_INPUT_FINISHED);
 				}
-				// FIXME:임시주석. 테스트를 위해 주석처리함.
 				if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
 					// FULL-TERM, 테스트 후 (공백포함여부, 유니코드포함여부) TokenInfoAttribute 에 입력.
 					ret = true;

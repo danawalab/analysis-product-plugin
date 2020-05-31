@@ -56,10 +56,10 @@ public class SpaceDictionary extends MapDictionary {
 
 	@Override
 	public void addEntry(CharSequence word, Object[] values, List<Object> columnList) {
-		if (word == null) { return; }
-		String keyword = String.valueOf(word).replaceAll(DELIMITER, "");
+		if (values == null || values.length == 0) { return; }
+		String keyword = String.valueOf(values[0]).replaceAll(DELIMITER, "");
 		wordSet.add(new CharVector(String.valueOf(keyword), ignoreCase));
-		String[] list = String.valueOf(word).split(DELIMITER);
+		String[] list = String.valueOf(values[0]).split(DELIMITER);
 		super.addEntry(keyword, list, columnList);
 		for (int i = 0; i < list.length; i++) {
 			String str = list[i].trim();

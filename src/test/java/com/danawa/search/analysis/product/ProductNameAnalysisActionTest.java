@@ -1,5 +1,6 @@
 package com.danawa.search.analysis.product;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Reader;
@@ -24,32 +25,45 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.Before;
 import org.junit.Test;
 
 public class ProductNameAnalysisActionTest {
 
 	private static Logger logger = Loggers.getLogger(ProductNameAnalysisActionTest.class, "");
 
+	@Before public void init() {
+		TestUtil.setLogLevel(System.getProperty("LOG_LEVEL"), 
+			ProductNameTokenizer.class, 
+			ProductNameParsingRule.class,
+			ProductNameAnalysisFilter.class);
+	}
+
 	@Test public void queryBuildTest() {
 		if (TestUtil.launchForBuild()) { return; }
-		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		QueryBuilder ret = null;
+		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		TokenStream stream = null;
-		try {
-			String[] fields = new String[] { "PRODUCTNAME" };
-			String text = "";
-			text = "테스트상품 ab12cd-12345";
-			text = "집업WAS1836ER27";
-			stream = getAnalyzer(dictionary, text);
-			logger.debug("ANALYZE TEXT : {}", text);
-			CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
-			TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
-			SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
-			ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
-			stream.reset();
+		JSONArray analysis = new JSONArray();
 
+		String[] fields = new String[] { "PRODUCTNAME" };
+		String text = "";
+		text = "테스트상품 ab12cd-12345";
+		text = "집업WAS1836ER27";
+		text = "10.5cm";
+
+		stream = getAnalyzer(dictionary, text);
+		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
+		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
+		logger.debug("ANALYZE TEXT : {}", text);
+
+		try {
+			stream.reset();
 			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
 			List<CharSequence> synonyms = null;
-			JSONArray analysis = new JSONArray();
 			while (stream.incrementToken()) {
 				String termStr = String.valueOf(termAttr);
 				logger.debug("TOKEN:{} / {}", termStr, typeAttr.type());
@@ -95,14 +109,17 @@ public class ProductNameAnalysisActionTest {
 					termDetail.put("extra", extraList);
 					termQuery = parent;
 				}
-				analysis.put(termDetail);
+				if (analysis != null) {
+					analysis.put(termDetail);
+				}
 				mainQuery.must().add(termQuery);
 			}
-			logger.debug("Q:{}", mainQuery.toString());
+			ret = mainQuery;
 		} catch (Exception e) {
 			logger.error("", e);
 		}
 		assertTrue(true);
+		assertNotNull(ret);
 	}
 
 	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str) {

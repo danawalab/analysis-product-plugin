@@ -37,6 +37,7 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
@@ -218,17 +219,31 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			String text = jobj.optString("text", "");
 			int from = jobj.optInt("from", 0);
 			int size = jobj.optInt("size", 20);
+			boolean trackTotal = jobj.optBoolean("total", false);
 
 			logger.debug("ANALYZE TEXT : {}", text);
 			stream = getAnalyzer(text);
 
 			JSONArray analysis = new JSONArray();
 
-			QueryBuilder mainQuery = buildQuery(stream, fields, analysis);
+			QueryBuilder query = buildQuery(stream, fields, analysis);
 
-			logger.debug("Q:{}", mainQuery.toString());
+			logger.debug("Q:{}", query.toString());
+
 			SearchSourceBuilder source = new SearchSourceBuilder();
-			source.query(mainQuery);
+			source.query(query);
+
+			long total = -1;
+
+			if (trackTotal) {
+				// NOTE: 부하가 얼마나 걸릴지 체크해 봐야 할듯.
+				SearchRequest countRequest = new SearchRequest(index);
+				SearchSourceBuilder countSource = new SearchSourceBuilder().query(query).size(0).trackTotalHits(true);
+				countRequest.source(countSource);
+				SearchResponse countResponse = client.search(countRequest).get();
+				total = countResponse.getHits().getTotalHits().value;
+				logger.debug("TOTAL:{}", total);
+			}
 
 			boolean doScroll = from + size > 10000;
 			SearchRequest search = new SearchRequest(index);
@@ -251,9 +266,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 			builder.object().key("analysis").value(analysis);
 			if (doScroll) {
-				doSearchScroll(search, scroll, from, size, client, builder);
+				doSearchScroll(search, scroll, from, size, total, client, builder);
 			} else {
-				doSearch(search, client, builder);
+				doSearch(search, total, client, builder);
 			}
 			builder.endObject();
 		} catch (Exception e) {
@@ -334,13 +349,18 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 
-	public void doSearchScroll(SearchRequest search, Scroll scroll, int from, int size, NodeClient client, JSONWriter builder) throws Exception {
+	public void doSearchScroll(SearchRequest search, Scroll scroll, int from, int size, long total, NodeClient client, JSONWriter builder) throws Exception {
 		SearchHit[] hits = null;
 		SearchResponse response = null;
+		ClearScrollRequest clearScroll = new ClearScrollRequest();
 		response = client.search(search).get();
 		String scrollId = response.getScrollId();
+		clearScroll.addScrollId(scrollId);
 		hits = response.getHits().getHits();
 		if (hits != null) {
+			if (total != -1) {
+				builder.key("total").value(total);
+			}
 			builder.key("result").array();
 			for (int rownum = 0; hits != null && hits.length > 0;) {
 				logger.trace("FROM:{} / {}", from, rownum);
@@ -369,17 +389,22 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				response = client.searchScroll(scrollRequest).get();
 				hits = response.getHits().getHits();
 				scrollId = response.getScrollId();
+				clearScroll.addScrollId(scrollId);
 			}
 			builder.endArray();
 		}
+		client.clearScroll(clearScroll).get();
 	}
 
-	public void doSearch(SearchRequest search, NodeClient client, JSONWriter builder) throws Exception {
+	public void doSearch(SearchRequest search, long total, NodeClient client, JSONWriter builder) throws Exception {
 		SearchHit[] hits = null;
 		SearchResponse response = null;
 		response = client.search(search).get();
 		hits = response.getHits().getHits();
 		if (hits != null) {
+			if (total != -1) {
+				builder.key("total").value(total);
+			}
 			builder.key("result").array();
 			int rownum = 0;
 			for (SearchHit hit : hits) {

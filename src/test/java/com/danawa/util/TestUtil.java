@@ -11,6 +11,7 @@ import java.util.Set;
 import com.danawa.search.analysis.dict.CompoundDictionary;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
+import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
 import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
@@ -172,14 +173,21 @@ public final class TestUtil {
 			SetDictionary unitDict = new SetDictionary(true);
 			unitDict.loadSource(new File(dictDir, "99.Unit.txt"));
 
+			SpaceDictionary spaceDict = new SpaceDictionary(true);
+			spaceDict.loadSource(new File(dictDir, "99.Space.txt"));
+
 			SynonymDictionary unitSynDict = new SynonymDictionary(true);
 			unitSynDict.loadSource(new File(dictDir, "99.Unit-Synonym.txt"));
+
+
+			logger.debug("SPACE:{}", spaceDict.map());
 
 			ret = new ProductNameDictionary(baseDict);
 			ret.appendAdditionalNounEntry(userDict.set(), HIGH);
 			ret.appendAdditionalNounEntry(synonymDict.getWordSet(), HIGH);
 			ret.addDictionary(DICT_USER, userDict);
 			ret.addDictionary(DICT_SYNONYM, synonymDict);
+			ret.addDictionary(DICT_SPACE, spaceDict);
 			ret.addDictionary(DICT_UNIT, unitDict);
 			ret.addDictionary(DICT_UNIT_SYNONYM, unitSynDict);
 			ret.addDictionary(DICT_COMPOUND, compDict);
