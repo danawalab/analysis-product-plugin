@@ -108,9 +108,10 @@ public class ProductNameAnalysisFilterTest {
 		// str = "멕케이폴로집업";
 		str = "립스테이크";
 		str = "LGNOTEBOOK";
+		str = "발롱그리쉬코 발레리나 토슈즈 웜업 부츠 M-67";
 		try {
 			option = new AnalyzerOption();
-			option.useForQuery(false);
+			option.useForQuery(true);
 			option.useSynonym(true);
 			option.useStopword(true);
 			reader = new StringReader(str);

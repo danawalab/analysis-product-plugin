@@ -10,11 +10,8 @@ public interface ExtraTermAttribute extends Attribute {
 	
 	public void init(TokenStream tokenStream);
 	
-	public void addExtraTerm(String extraTerm, String type,
-		List<CharSequence> synonyms, int subSize, int start, int end);
-	
-	public int subSize();
-	
+	public void addExtraTerm(String extraTerm, List<CharSequence> synonyms);
+
 	public int size();
 
 	public Iterator<String> iterator();

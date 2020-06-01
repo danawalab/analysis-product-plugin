@@ -126,8 +126,13 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					}
 					if (entry.subEntry != null && entry.subEntry.size() > 0) {
 						for (RuleEntry subEntry : entry.subEntry) {
-							extraTermAttribute.addExtraTerm(String.valueOf(subEntry.makeTerm(null)), 
-								subEntry.type, null, 0, subEntry.startOffset, subEntry.endOffset);
+							List<CharSequence> synonyms = null;
+							CharVector cv = subEntry.makeTerm(null);
+							if (synonymDictionary.containsKey(cv)) {
+								synonyms = Arrays.asList(synonymDictionary.get(cv));
+								logger.trace("token:{} / synonym:{}", cv, synonyms);
+							}
+							extraTermAttribute.addExtraTerm(String.valueOf(cv), synonyms);
 						}
 					}
 					termList.remove(0);

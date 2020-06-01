@@ -14,85 +14,33 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 
 	private static final Logger logger = Loggers.getLogger(ExtraTermAttributeImpl.class, "");
 
-	private List<String> extraTerms = new ArrayList<String>();
-	private List<String> types = new ArrayList<String>();
-	private List<int[]> offsets = new ArrayList<int[]>();
-	private List<CharSequence> synonyms;
-	private OffsetAttribute offsetAttribute;
-	private TypeAttribute typeAttribute;
+	private List<String> extraTerms = new ArrayList<>();
+	private List<List<CharSequence>> synonyms = new ArrayList<>();
 	private SynonymAttribute synonymAttribute;
-	private int subLength;
 
 	@Override
 	public void init(TokenStream tokenStream) {
 		if (tokenStream != null) {
-			if (tokenStream.hasAttribute(OffsetAttribute.class)) {
-				this.offsetAttribute = tokenStream.getAttribute(OffsetAttribute.class);
-			}
-			if (tokenStream.hasAttribute(TypeAttribute.class)) {
-				this.typeAttribute = tokenStream.getAttribute(TypeAttribute.class);
-			}
 			if (tokenStream.hasAttribute(SynonymAttribute.class)) {
 				this.synonymAttribute = tokenStream.getAttribute(SynonymAttribute.class);
 			}
 		}
 
 		this.extraTerms.clear();
-		this.types.clear();
-		this.offsets.clear();
-		this.subLength = 0;
+		this.synonyms.clear();
 	}
 
 	@Override
 	public void clear() {
 		this.extraTerms.clear();
-		this.types.clear();
-		this.offsets.clear();
-		this.subLength = 0;
+		this.synonyms.clear();
 	}
 
 	@Override
-	public boolean equals(Object other) {
-		if (other == this) {
-			return true;
-		}
-
-		if (other instanceof ExtraTermAttributeImpl) {
-			final ExtraTermAttributeImpl o = (ExtraTermAttributeImpl) other;
-			return (this.extraTerms == null ? o.extraTerms == null
-					: this.extraTerms.equals(o.extraTerms));
-		}
-
-		return false;
-	}
-
-	@Override
-	public int hashCode() {
-		return (extraTerms == null) ? 0 : extraTerms.hashCode();
-	}
-
-	@Override
-	public void copyTo(AttributeImpl target) {
-		ExtraTermAttribute t = (ExtraTermAttribute) target;
-		for (int inx = 0; inx < extraTerms.size(); inx++) {
-			String term = extraTerms.get(inx);
-			String type = types.get(inx);
-			List<CharSequence> synonyms = this.synonyms;
-			int[] offset = offsets.get(inx);
-			int subLength = this.subLength;
-			t.addExtraTerm(term, type, synonyms, subLength, offset[0], offset[1]);
-		}
-	}
-
-	@Override
-	public void addExtraTerm(String extraTerm, String type, List<CharSequence> synonyms,
-			int subLength, int start, int end) {
+	public void addExtraTerm(String extraTerm, List<CharSequence> synonyms) {
 		logger.trace("add extra {}", extraTerm);
 		this.extraTerms.add(extraTerm);
-		this.types.add(type);
-		this.synonyms = synonyms;
-		this.offsets.add(new int[] { start, end });
-		this.subLength = subLength;
+		this.synonyms.add(synonyms);
 	}
 
 	@Override
@@ -107,16 +55,8 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 			@Override
 			public String next() {
 				String term = extraTerms.remove(0);
-				String type = types.remove(0);
-				int[] offset = offsets.remove(0);
-				if (offsetAttribute != null) {
-					offsetAttribute.setOffset(offset[0], offset[1]);
-				}
-				if (typeAttribute != null) {
-					typeAttribute.setType(type);
-				}
 				if (synonymAttribute != null) {
-					synonymAttribute.setSynonyms(synonyms);
+					synonymAttribute.setSynonyms(synonyms.remove(0));
 				}
 				return term;
 			}
@@ -134,27 +74,59 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 	}
 
 	@Override
-	public int subSize() {
-		return subLength;
-	}
-
-	public void cloneTo(ExtraTermAttributeImpl target) {
-		target.extraTerms = this.extraTerms;
-		target.types = this.types;
-		target.offsets = this.offsets;
-		target.synonyms = this.synonyms;
-		// target.offsetAttribute = offsetAttribute;
-		// target.typeAttribute = typeAttribute;
-		// target.synonymAttribute = this.synonymAttribute;
-	}
-
-	@Override
 	public String toString() {
 		return extraTerms.toString();
 	}
 
 	@Override
-	public void reflectWith(AttributeReflector reflector) {
+	public int hashCode() {
+		return (extraTerms == null) ? 0 : extraTerms.hashCode();
+	}
 
+	@Override
+	public boolean equals(Object target) {
+		if (target == this) { return true; }
+		if (target instanceof ExtraTermAttributeImpl) {
+			final ExtraTermAttributeImpl o = (ExtraTermAttributeImpl) target;
+
+			if (o.extraTerms != null &&  o.extraTerms.size() != extraTerms.size()) {
+				return false;
+			}
+			for (int inx = 0; inx < o.extraTerms.size(); inx++) {
+				if (!o.extraTerms.get(inx).equals(extraTerms.get(inx))) {
+					return false;
+				}
+			}
+			if (o.synonyms != null &&  o.synonyms.size() != synonyms.size()) {
+				return false;
+			}
+			for (int inx = 0; inx < o.synonyms.size(); inx++) {
+				if (!o.synonyms.get(inx).equals(synonyms.get(inx))) {
+					return false;
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	public void copyTo(AttributeImpl target) {
+		if (target == this) { return; }
+		if (target instanceof ExtraTermAttributeImpl) {
+			ExtraTermAttributeImpl o = (ExtraTermAttributeImpl) target;
+			o.extraTerms.clear();
+			o.extraTerms.addAll(extraTerms);
+			o.synonyms.clear();
+			o.synonyms.addAll(synonyms);
+			o.synonymAttribute = synonymAttribute;
+		}
+	}
+
+	@Override
+	public void reflectWith(AttributeReflector reflector) {
+		reflector.reflect(ExtraTermAttribute.class, "extraTerms", extraTerms );
+		reflector.reflect(ExtraTermAttribute.class, "synonyms", synonyms );
+		reflector.reflect(ExtraTermAttribute.class, "synonymAttribute", synonymAttribute);
 	}
 }
