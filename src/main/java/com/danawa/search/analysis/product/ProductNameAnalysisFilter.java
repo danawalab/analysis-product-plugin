@@ -94,6 +94,10 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					String type = typeAttribute.type();
 					PosTag posTag = tokenAttribute.posTag();
 
+					// 색인시에는 전체텀을 추출하지 않는다.
+					if (!option.useForQuery() && FULL_STRING.equals(type)) {
+						continue;
+					}
 					ProductNameParsingRule.addEntry(termList, ref, type, posTag, 
 						offsetAttribute.startOffset(), offsetAttribute.endOffset(), spaceDictionary);
 					if (tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED)) {
@@ -132,7 +136,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 								synonyms = Arrays.asList(synonymDictionary.get(cv));
 								logger.trace("token:{} / synonym:{}", cv, synonyms);
 							}
-							extraTermAttribute.addExtraTerm(String.valueOf(cv), synonyms);
+							extraTermAttribute.addExtraTerm(String.valueOf(cv), subEntry.type, synonyms);
 						}
 					}
 					termList.remove(0);

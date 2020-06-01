@@ -15,14 +15,17 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 	private static final Logger logger = Loggers.getLogger(ExtraTermAttributeImpl.class, "");
 
 	private List<String> extraTerms = new ArrayList<>();
+	private List<String> types = new ArrayList<>();
 	private List<List<CharSequence>> synonyms = new ArrayList<>();
 	private SynonymAttribute synonymAttribute;
+	private TypeAttribute typeAttribute;
 
 	@Override
 	public void init(TokenStream tokenStream) {
 		if (tokenStream != null) {
 			if (tokenStream.hasAttribute(SynonymAttribute.class)) {
 				this.synonymAttribute = tokenStream.getAttribute(SynonymAttribute.class);
+				this.typeAttribute = tokenStream.getAttribute(TypeAttribute.class);
 			}
 		}
 
@@ -37,9 +40,10 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 	}
 
 	@Override
-	public void addExtraTerm(String extraTerm, List<CharSequence> synonyms) {
+	public void addExtraTerm(String extraTerm, String type, List<CharSequence> synonyms) {
 		logger.trace("add extra {}", extraTerm);
 		this.extraTerms.add(extraTerm);
+		this.types.add(type);
 		this.synonyms.add(synonyms);
 	}
 
@@ -55,8 +59,13 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 			@Override
 			public String next() {
 				String term = extraTerms.remove(0);
+				String type = types.remove(0);
+				List<CharSequence> synonym = synonyms.remove(0);
+				if (typeAttribute != null) {
+					typeAttribute.setType(type);
+				}
 				if (synonymAttribute != null) {
-					synonymAttribute.setSynonyms(synonyms.remove(0));
+					synonymAttribute.setSynonyms(synonym);
 				}
 				return term;
 			}
@@ -89,8 +98,16 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 		if (target instanceof ExtraTermAttributeImpl) {
 			final ExtraTermAttributeImpl o = (ExtraTermAttributeImpl) target;
 
-			if (o.extraTerms != null &&  o.extraTerms.size() != extraTerms.size()) {
+			if (o.extraTerms == null || 
+				o.extraTerms.size() != extraTerms.size() ||
+				o.types.size() != types.size() ||
+				o.synonyms.size() != synonyms.size()) {
 				return false;
+			}
+			for (int inx = 0; inx < o.types.size(); inx++) {
+				if (!o.types.get(inx).equals(types.get(inx))) {
+					return false;
+				}
 			}
 			for (int inx = 0; inx < o.extraTerms.size(); inx++) {
 				if (!o.extraTerms.get(inx).equals(extraTerms.get(inx))) {
@@ -117,8 +134,11 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 			ExtraTermAttributeImpl o = (ExtraTermAttributeImpl) target;
 			o.extraTerms.clear();
 			o.extraTerms.addAll(extraTerms);
+			o.types.clear();
+			o.types.addAll(extraTerms);
 			o.synonyms.clear();
 			o.synonyms.addAll(synonyms);
+			o.typeAttribute = typeAttribute;
 			o.synonymAttribute = synonymAttribute;
 		}
 	}
@@ -126,7 +146,9 @@ public class ExtraTermAttributeImpl extends AttributeImpl implements ExtraTermAt
 	@Override
 	public void reflectWith(AttributeReflector reflector) {
 		reflector.reflect(ExtraTermAttribute.class, "extraTerms", extraTerms );
+		reflector.reflect(ExtraTermAttribute.class, "types", types );
 		reflector.reflect(ExtraTermAttribute.class, "synonyms", synonyms );
+		reflector.reflect(ExtraTermAttribute.class, "typeAttribute", typeAttribute);
 		reflector.reflect(ExtraTermAttribute.class, "synonymAttribute", synonymAttribute);
 	}
 }

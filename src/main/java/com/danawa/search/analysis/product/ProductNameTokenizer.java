@@ -169,27 +169,13 @@ public class ProductNameTokenizer extends Tokenizer {
 					tokenAttribute.addState(TokenInfoAttribute.STATE_INPUT_FINISHED);
 				}
 				if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
-					// FULL-TERM, 테스트 후 (공백포함여부, 유니코드포함여부) TokenInfoAttribute 에 입력.
+					// FULL-TERM. 색인시에는 추출하지 않음 (필터에서 걸러짐)
+					tokenAttribute.ref(buffer, 0, readLength);
+					tokenAttribute.posTag(null);
+					offsetAttribute.setOffset(chainOffset + 0, chainOffset + readLength);
+					typeAttribute.setType(FULL_STRING);
 					ret = true;
-					for (int inx = 0; inx < readLength; inx++) {
-						char ch = buffer[inx];
-						String type = getType(ch);
-						if (!(type != WHITESPACE && (type == ALPHA || type == NUMBER || type == SYMBOL))) {
-							ret = false;
-						}
-					}
-					if (ret) {
-						if (synonymDictionary != null && synonymDictionary.containsKey(
-							new CharVector(buffer, 0, readLength))) {
-							tokenAttribute.ref(buffer, 0, readLength);
-							tokenAttribute.posTag(null);
-							offsetAttribute.setOffset(chainOffset + 0, chainOffset + readLength);
-							typeAttribute.setType(FULL_STRING);
-							break;
-						} else {
-							ret = false;
-						}
-					}
+					break;
 				}
 			} else {
 				if (entry == null) {
