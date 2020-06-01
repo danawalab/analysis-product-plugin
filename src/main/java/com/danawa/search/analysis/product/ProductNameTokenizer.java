@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
-import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.korean.KoreanWordExtractor.ExtractedEntry;
 import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.CharVector;
@@ -123,13 +122,11 @@ public class ProductNameTokenizer extends Tokenizer {
 	private boolean exportTerm;
 
 	private KoreanWordExtractor extractor;
-	private SynonymDictionary synonymDictionary;
 
 	protected ProductNameTokenizer(ProductNameDictionary dictionary, boolean exportTerm) {
 		if (dictionary != null) {
 			extractor = new KoreanWordExtractor(dictionary);
 			tokenAttribute.dictionary(dictionary);
-			synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
 		}
 		this.exportTerm = exportTerm;
 		init();

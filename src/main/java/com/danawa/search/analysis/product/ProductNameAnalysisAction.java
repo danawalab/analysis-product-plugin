@@ -287,12 +287,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		try {
 			stream.reset();
 			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
+			ret = mainQuery;
 			while (stream.incrementToken()) {
-				String termStr = String.valueOf(termAttr);
-				logger.debug("TOKEN:{} / {}", termStr, typeAttr.type());
+				String term = String.valueOf(termAttr);
+				String type = typeAttr.type();
+				logger.debug("TOKEN:{} / {}", term, typeAttr.type());
+
 				JSONObject termDetail = new JSONObject();
-				termDetail.put("term", termStr);
-				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(termStr, fields);
+				termDetail.put("term", term);
+				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(term, fields);
 
 				List<CharSequence> synonyms = null;
 				if (synAttr != null && (synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
@@ -321,16 +324,16 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
 					Iterator<String> termIter = extAttr.iterator();
 					for (; termIter.hasNext();) {
-						String term = termIter.next();
-						String type = typeAttr.type();
+						String exTerm = termIter.next();
+						String exType = typeAttr.type();
 						synonyms = synAttr.getSynonyms();
 						if (synonyms == null || synonyms.size() == 0) {
-							subQuery.must().add(QueryBuilders.multiMatchQuery(term, fields));
-							subTerms.put(term);
+							subQuery.must().add(QueryBuilders.multiMatchQuery(exTerm, fields));
+							subTerms.put(exTerm);
 						} else {
 							JSONArray inTerms = new JSONArray();
 							BoolQueryBuilder inQuery = QueryBuilders.boolQuery();
-							inQuery.should().add(QueryBuilders.multiMatchQuery(term, fields));
+							inQuery.should().add(QueryBuilders.multiMatchQuery(exTerm, fields));
 							for (int sinx = 0; sinx < synonyms.size(); sinx++) {
 								String synonym = String.valueOf(synonyms.get(sinx));
 								inTerms.put(synonym);
@@ -347,7 +350,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							}
 							subQuery.must().add(inQuery);
 						}
-						logger.debug("a-term:{} / type:{} / synonoym:{}", term, type, synonyms);
+						logger.debug("a-term:{} / type:{} / synonoym:{}", exTerm, exType, synonyms);
 					}
 					BoolQueryBuilder parent = QueryBuilders.boolQuery();
 					parent.should().add(termQuery);
@@ -358,9 +361,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				if (analysis != null) {
 					analysis.put(termDetail);
 				}
-				mainQuery.must().add(termQuery);
+				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+					BoolQueryBuilder query = QueryBuilders.boolQuery();
+					query.should(termQuery);
+					query.should(mainQuery);
+					ret = query;
+				} else {
+					mainQuery.must().add(termQuery);
+				}
 			}
-			ret = mainQuery;
 		} catch (Exception e) {
 			logger.error("", e);
 		} finally {

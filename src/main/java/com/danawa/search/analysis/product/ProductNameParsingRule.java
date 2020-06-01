@@ -113,7 +113,7 @@ public class ProductNameParsingRule {
 						offsetSt + position, offsetSt + position, SYMBOL));
 				}
 				termList.add(new RuleEntry(ref.array(), ref.offset() + position, length, 
-					offsetSt + position, offsetSt + position + length, type));
+					offsetSt + position, offsetSt + position + length, HANGUL));
 				position += length;
 			}
 		} else {
@@ -1061,6 +1061,8 @@ public class ProductNameParsingRule {
 
 		if (queue.size() > 1 && (e0 = queue.get(0)).type == FULL_STRING && 
 			(e1 = queue.get(1)).startOffset == e0.startOffset && e1.endOffset == e0.endOffset) {
+			// FIXME:동의어 합치기 필요
+			e1.synonym = e0.synonym;
 			queue.remove(0);
 		}
 		
