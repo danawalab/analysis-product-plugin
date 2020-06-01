@@ -118,6 +118,7 @@ public class ProductNameTokenizer extends Tokenizer {
 	private int position;
 	private int readLength;
 	private int baseOffset;
+	private int chainOffset;
 	private int offset;
 	private boolean exportTerm;
 
@@ -141,7 +142,7 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private void init() {
 		workBuffer = new char[IO_BUFFER_SIZE];
-		position = readLength = baseOffset = offset = 0;
+		position = readLength = chainOffset = baseOffset = offset = 0;
 		super.clearAttributes();
 	}
 
@@ -149,6 +150,7 @@ public class ProductNameTokenizer extends Tokenizer {
 	public final boolean incrementToken() throws IOException {
 		boolean ret = false;
 		typeAttribute.setType(null);
+
 		while (!tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_FINISHED)) {
 			if (position >= readLength) {
 				////////////////////////////////////////////////////////////////////////////////
@@ -181,7 +183,7 @@ public class ProductNameTokenizer extends Tokenizer {
 							new CharVector(buffer, 0, readLength))) {
 							tokenAttribute.ref(buffer, 0, readLength);
 							tokenAttribute.posTag(null);
-							offsetAttribute.setOffset(0, readLength);
+							offsetAttribute.setOffset(chainOffset + 0, chainOffset + readLength);
 							typeAttribute.setType(FULL_STRING);
 							break;
 						} else {
@@ -247,7 +249,8 @@ public class ProductNameTokenizer extends Tokenizer {
 							entry = extractor.extract();
 						} else {
 							tokenAttribute.ref(buffer, position, offset - position);
-							offsetAttribute.setOffset(baseOffset + position, baseOffset + offset);
+							offsetAttribute.setOffset(chainOffset + baseOffset + position,
+								chainOffset + baseOffset + offset);
 							position = offset;
 							// 마지막 공백이 있는경우 건너뜀
 							for (; position < readLength; position++) { 
@@ -270,7 +273,8 @@ public class ProductNameTokenizer extends Tokenizer {
 					}
 					tokenAttribute.ref(buffer, entry.offset(), entry.column());
 					tokenAttribute.posTag(entry.posTag());
-					offsetAttribute.setOffset(baseOffset + entry.offset(), baseOffset + entry.offset() + entry.column());
+					offsetAttribute.setOffset(chainOffset + baseOffset + entry.offset(),
+						chainOffset + baseOffset + entry.offset() + entry.column());
 					if (exportTerm) {
 						termAttribute.copyBuffer(buffer, entry.offset(), entry.column());
 					}
@@ -300,6 +304,9 @@ public class ProductNameTokenizer extends Tokenizer {
 				}
 			}
 		} // LOOP
+		// if (ret) {
+		// 	logger.debug("TOKEN:{} / {}~{}", tokenAttribute.ref(), offsetAttribute.startOffset(), offsetAttribute.endOffset());
+		// }
 		return ret;
 	}
 
@@ -456,6 +463,9 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	@Override
 	public void end() throws IOException {
+		// FIXME: chainOffset 에 의한 버그가 있는지 확인할 것. 
+		// (이어지지 않아야 하는 필드들을 이어서 색인하는 경우)
+		chainOffset = offsetAttribute.endOffset();
 		super.end();
 	}
 
