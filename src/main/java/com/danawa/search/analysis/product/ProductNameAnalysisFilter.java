@@ -109,7 +109,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					parsingRule.init(termList);
 					parsingRule.processRule(termList, true);
 				}
-
 				logger.trace("ENTRY QUEUE-SIZE:{}", termList.size());
 			} else {
 				// 엔트리를 출력할때 오프셋 순서대로 정렬하여 출력한다.
@@ -172,6 +171,13 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				}
 			}
 		} // LOOP
+		if (logger.isTraceEnabled()) {
+			if (ret) {
+				logger.trace("TERM:{} / {}~{} / {}", termAttribute, offsetAttribute.startOffset(), offsetAttribute.endOffset());
+			} else {
+				logger.trace("FILTER STOPPED!!");
+			}
+		}
 		return ret;
 	}
 

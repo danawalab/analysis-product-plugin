@@ -23,6 +23,8 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 
+import junit.framework.Test;
+
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 
@@ -47,7 +49,11 @@ public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin,
 
 	@Override
 	public Map<String, AnalysisProvider<TokenizerFactory>> getTokenizers() {
-		return singletonMap("product_name", ProductNameTokenizerFactory::new);
+		Map<String, AnalysisProvider<TokenizerFactory>> ret = new HashMap<>();
+		ret.put("product_name", ProductNameTokenizerFactory::new);
+		ret.put("test", TestTokenizerFactory::new);
+		// return singletonMap("product_name", ProductNameTokenizerFactory::new);
+		return ret;
 	}
 
 	@Override

@@ -1,7 +1,6 @@
 package com.danawa.search.analysis.product;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
@@ -113,11 +112,9 @@ public class ProductNameTokenizer extends Tokenizer {
 
 	private ExtractedEntry entry;
 	private char[] buffer;
-	private char[] workBuffer;
 	private int position;
 	private int readLength;
 	private int baseOffset;
-	private int chainOffset;
 	private int offset;
 	private boolean exportTerm;
 
@@ -138,13 +135,12 @@ public class ProductNameTokenizer extends Tokenizer {
 	}
 
 	private void init() {
-		workBuffer = new char[IO_BUFFER_SIZE];
-		position = readLength = chainOffset = baseOffset = offset = 0;
-		super.clearAttributes();
+		position = readLength = baseOffset = offset = 0;
 	}
 
 	@Override
 	public final boolean incrementToken() throws IOException {
+		clearAttributes();
 		boolean ret = false;
 		typeAttribute.setType(null);
 
@@ -165,15 +161,15 @@ public class ProductNameTokenizer extends Tokenizer {
 				} else {
 					tokenAttribute.addState(TokenInfoAttribute.STATE_INPUT_FINISHED);
 				}
-				if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
-					// FULL-TERM. 색인시에는 추출하지 않음 (필터에서 걸러짐)
-					tokenAttribute.ref(buffer, 0, readLength);
-					tokenAttribute.posTag(null);
-					offsetAttribute.setOffset(chainOffset + 0, chainOffset + readLength);
-					typeAttribute.setType(FULL_STRING);
-					ret = true;
-					break;
-				}
+				// if (readLength > 0 && readLength < FULL_TERM_LENGTH && baseOffset == 0) {
+				// 	// FULL-TERM. 색인시에는 추출하지 않음 (필터에서 걸러짐)
+				// 	tokenAttribute.ref(buffer, 0, readLength);
+				// 	tokenAttribute.posTag(null);
+				// 	offsetAttribute.setOffset(0, readLength);
+				// 	typeAttribute.setType(FULL_STRING);
+				// 	ret = true;
+				// 	break;
+				// }
 			} else {
 				if (entry == null) {
 					////////////////////////////////////////////////////////////////////////////////
@@ -232,8 +228,8 @@ public class ProductNameTokenizer extends Tokenizer {
 							entry = extractor.extract();
 						} else {
 							tokenAttribute.ref(buffer, position, offset - position);
-							offsetAttribute.setOffset(chainOffset + baseOffset + position,
-								chainOffset + baseOffset + offset);
+							offsetAttribute.setOffset(baseOffset + position,
+								baseOffset + offset);
 							position = offset;
 							// 마지막 공백이 있는경우 건너뜀
 							for (; position < readLength; position++) { 
@@ -256,8 +252,8 @@ public class ProductNameTokenizer extends Tokenizer {
 					}
 					tokenAttribute.ref(buffer, entry.offset(), entry.column());
 					tokenAttribute.posTag(entry.posTag());
-					offsetAttribute.setOffset(chainOffset + baseOffset + entry.offset(),
-						chainOffset + baseOffset + entry.offset() + entry.column());
+					offsetAttribute.setOffset(baseOffset + entry.offset(),
+						baseOffset + entry.offset() + entry.column());
 					if (exportTerm) {
 						termAttribute.copyBuffer(buffer, entry.offset(), entry.column());
 					}
@@ -437,18 +433,13 @@ public class ProductNameTokenizer extends Tokenizer {
 	@Override
 	public void reset() throws IOException {
 		super.reset();
-		Arrays.fill(workBuffer, (char) 0);
 		position = readLength = 0;
 		baseOffset = offset = 0;
 		entry = null;
-		this.clearAttributes();
 	}
 
 	@Override
 	public void end() throws IOException {
-		// FIXME: chainOffset 에 의한 버그가 있는지 확인할 것. 
-		// (이어지지 않아야 하는 필드들을 이어서 색인하는 경우)
-		chainOffset = offsetAttribute.endOffset();
 		super.end();
 	}
 

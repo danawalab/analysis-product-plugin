@@ -109,13 +109,16 @@ public class ProductNameAnalysisFilterTest {
 		str = "립스테이크";
 		str = "LGNOTEBOOK";
 		// str = "발롱그리쉬코 발레리나 토슈즈 웜업 부츠 M-67";
+		str = "abc123d4efg56";
+		str = "1,024gb";
 		try {
 			option = new AnalyzerOption();
-			option.useForQuery(true);
+			option.useForQuery(false);
 			option.useSynonym(true);
 			option.useStopword(true);
 			reader = new StringReader(str);
-			tokenizer = new ProductNameTokenizer(dictionary, false);
+			// tokenizer = new ProductNameTokenizer(dictionary, false);
+			tokenizer = new TestTokenizer(dictionary);
 			extractor = new KoreanWordExtractor(dictionary);
 			tokenizer.setReader(reader);
 			tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
@@ -182,7 +185,8 @@ public class ProductNameAnalysisFilterTest {
 			reader = new BufferedReader(new FileReader(textFile));
 			for (String rl; (rl = reader.readLine()) != null; count++) {
 				logger.trace("TEST:{}", rl);
-				tokenizer = new ProductNameTokenizer(dictionary, false);
+				// tokenizer = new ProductNameTokenizer(dictionary, false);
+				tokenizer = new TestTokenizer(dictionary);
 				tokenizer.setReader(new StringReader(rl));
 				extractor = new KoreanWordExtractor(dictionary);
 				option = new AnalyzerOption();
