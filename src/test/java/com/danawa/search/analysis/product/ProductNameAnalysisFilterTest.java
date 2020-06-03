@@ -117,8 +117,8 @@ public class ProductNameAnalysisFilterTest {
 			option.useSynonym(true);
 			option.useStopword(true);
 			reader = new StringReader(str);
-			// tokenizer = new ProductNameTokenizer(dictionary, false);
-			tokenizer = new TestTokenizer(dictionary);
+			tokenizer = new ProductNameTokenizer(dictionary, false);
+			// tokenizer = new TestTokenizer(dictionary);
 			extractor = new KoreanWordExtractor(dictionary);
 			tokenizer.setReader(reader);
 			tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
@@ -185,8 +185,8 @@ public class ProductNameAnalysisFilterTest {
 			reader = new BufferedReader(new FileReader(textFile));
 			for (String rl; (rl = reader.readLine()) != null; count++) {
 				logger.trace("TEST:{}", rl);
-				// tokenizer = new ProductNameTokenizer(dictionary, false);
-				tokenizer = new TestTokenizer(dictionary);
+				tokenizer = new ProductNameTokenizer(dictionary, false);
+				// tokenizer = new TestTokenizer(dictionary);
 				tokenizer.setReader(new StringReader(rl));
 				extractor = new KoreanWordExtractor(dictionary);
 				option = new AnalyzerOption();

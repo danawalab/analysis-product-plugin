@@ -9,7 +9,6 @@ import com.danawa.util.TestUtil;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
@@ -84,8 +83,8 @@ public class ProductNameTokenizerTest {
 		// str = "거너더러머버서어져쳐켜텨펴혀";
 		try {
 			reader = new StringReader(str);
-			// tokenizer = new ProductNameTokenizer(dictionary, false);
-			tokenizer = new TestTokenizer(dictionary);
+			tokenizer = new ProductNameTokenizer(dictionary, false);
+			// tokenizer = new TestTokenizer(dictionary);
 			tokenizer.setReader(reader);
 			TokenInfoAttribute tokenAttribute = tokenizer.addAttribute(TokenInfoAttribute.class);
 			OffsetAttribute offsetAttribute = tokenizer.addAttribute(OffsetAttribute.class);
