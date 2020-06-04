@@ -22,7 +22,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 	private static Logger logger = Loggers.getLogger(ProductNameTokenizer.class, "");
 
 	public static final int DEFAULT_MAX_WORD_LEN = 255;
-	private static final int IO_BUFFER_SIZE = 100;
+	private static final int IO_BUFFER_SIZE = 200;
 	public static final int FULL_TERM_LENGTH = 64;
 
 	public static final String WHITESPACE = "<WHITESPACE>";

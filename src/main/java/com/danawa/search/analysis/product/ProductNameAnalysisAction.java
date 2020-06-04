@@ -436,6 +436,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 
 	public void doSearchScroll(SearchRequest search, Scroll scroll, int from, int size, long total, NodeClient client, JSONWriter builder) throws Exception {
+		/**
+		 * 스크롤 스트리밍 검색. 느리지만 1만건 이상 검색결과를 추출가능함.
+		 **/
 		SearchHit[] hits = null;
 		SearchResponse response = null;
 		ClearScrollRequest clearScroll = new ClearScrollRequest();
@@ -483,6 +486,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	public void doSearch(SearchRequest search, long total, NodeClient client, JSONWriter builder) throws Exception {
+		/**
+		 * 단순 검색. 빠르지만 1만건 이상 검색결과 검색 불가능
+		 **/
 		SearchHit[] hits = null;
 		SearchResponse response = null;
 		response = client.search(search).get();
@@ -509,6 +515,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	public static TokenStream getAnalyzer(String str) {
+		/**
+		 * FIXME: ES 에서 동적으로 분석기를 가져오는 방법을 생각해 본다.
+		 **/
 		TokenStream tstream = null;
 		Reader reader = null;
 		Tokenizer tokenizer = null;
