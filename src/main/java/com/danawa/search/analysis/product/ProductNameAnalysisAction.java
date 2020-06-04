@@ -76,6 +76,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_FULL_INDEX = "full-index";
 	private static final String ACTION_SEARCH = "search";
 
+	public static final String AND = "AND";
+	public static final String OR = "OR";
+
 	private IndexingThread indexingThread;
 
 	@Inject
@@ -213,6 +216,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		TokenStream stream = null;
 		try {
 			logger.debug("TESTING SEARCH...");
+			
 			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 			String index = jobj.optString("index", "");
 			String[] fields = jobj.optString("fields", "").split("[,]");
@@ -220,11 +224,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			int from = jobj.optInt("from", 0);
 			int size = jobj.optInt("size", 20);
 			boolean trackTotal = jobj.optBoolean("total", false);
+			boolean trackAnalysis = jobj.optBoolean("analysis", false);
 
 			logger.debug("ANALYZE TEXT : {}", text);
 			stream = getAnalyzer(text);
 
-			JSONArray analysis = new JSONArray();
+			JSONObject analysis = null;
+			if (trackAnalysis) {
+				analysis = new JSONObject();
+			}
 
 			QueryBuilder query = buildQuery(stream, fields, analysis);
 
@@ -264,7 +272,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				search.source(source);
 			}
 
-			builder.object().key("analysis").value(analysis);
+			builder.object();
+			if (trackAnalysis) {
+				builder.key("analysis").value(analysis);
+			}
 			if (doScroll) {
 				doSearchScroll(search, scroll, from, size, total, client, builder);
 			} else {
@@ -276,9 +287,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	public QueryBuilder buildQuery(TokenStream stream, String[] fields, JSONArray analysis) {
+	public static QueryBuilder buildQuery(TokenStream stream, String[] fields, JSONObject analysis) {
 		QueryBuilder ret = null;
 
+		boolean doAnalysis = analysis != null;
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
 		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
@@ -288,23 +300,38 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			stream.reset();
 			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
 			ret = mainQuery;
+			JSONObject mainAnalysis = null;
+			if (doAnalysis) {
+				mainAnalysis = new JSONObject();
+				mainAnalysis.put(AND, new JSONArray());
+				analysis.put(AND, mainAnalysis);
+			}
 			while (stream.incrementToken()) {
 				String term = String.valueOf(termAttr);
 				String type = typeAttr.type();
 				logger.debug("TOKEN:{} / {}", term, typeAttr.type());
 
-				JSONObject termDetail = new JSONObject();
-				termDetail.put("term", term);
+				JSONArray termAnalysis = null;
+				if (doAnalysis) {
+					termAnalysis = new JSONArray();
+					termAnalysis.put(term);
+				}
 				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(term, fields);
 
 				List<CharSequence> synonyms = null;
 				if (synAttr != null && (synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
-					JSONArray subTerms = new JSONArray();
+					JSONObject subAnalysis = null;
+					if (doAnalysis) {
+						subAnalysis = new JSONObject();
+						subAnalysis.put(OR, new JSONArray());
+					}
 					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
 					subQuery.should().add(termQuery);
 					for (int sinx = 0; sinx < synonyms.size(); sinx++) {
 						String synonym = String.valueOf(synonyms.get(sinx));
-						subTerms.put(synonym);
+						if (doAnalysis) {
+							subAnalysis.getJSONArray(OR).put(synonym);
+						}
 						if (synonym.indexOf(" ") == -1) {
 							subQuery.should().add(QueryBuilders.multiMatchQuery(synonym, fields));
 						} else {
@@ -316,11 +343,17 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						}
 						logger.debug(" |_synonym : {}", synonym);
 					}
-					termDetail.put("synonym", subTerms);
+					if (doAnalysis) {
+						termAnalysis.put(subAnalysis);
+					}
 					termQuery = subQuery;
 				}
 				if (extAttr != null && extAttr.size() > 0) {
-					JSONArray subTerms = new JSONArray();
+					JSONObject subAnalysis = null;
+					if (doAnalysis) {
+						subAnalysis = new JSONObject();
+						subAnalysis.put(AND, new JSONArray());
+					}
 					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
 					Iterator<String> termIter = extAttr.iterator();
 					for (; termIter.hasNext();) {
@@ -329,14 +362,25 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						synonyms = synAttr.getSynonyms();
 						if (synonyms == null || synonyms.size() == 0) {
 							subQuery.must().add(QueryBuilders.multiMatchQuery(exTerm, fields));
-							subTerms.put(exTerm);
+							if (doAnalysis) {
+								subAnalysis.getJSONArray(AND).put(exTerm);
+							}
 						} else {
-							JSONArray inTerms = new JSONArray();
+							JSONObject inAnalysis = null;
+							if (doAnalysis) {
+								inAnalysis = new JSONObject();
+								inAnalysis.put(OR, new JSONArray());
+							}
 							BoolQueryBuilder inQuery = QueryBuilders.boolQuery();
 							inQuery.should().add(QueryBuilders.multiMatchQuery(exTerm, fields));
+							if (doAnalysis) {
+								inAnalysis.getJSONArray(OR).put(exTerm);
+							}
 							for (int sinx = 0; sinx < synonyms.size(); sinx++) {
 								String synonym = String.valueOf(synonyms.get(sinx));
-								inTerms.put(synonym);
+								if (doAnalysis) {
+									inAnalysis.getJSONArray(OR).put(synonym);
+								}
 								if (synonym.indexOf(" ") == -1) {
 									inQuery.should().add(QueryBuilders.multiMatchQuery(synonym, fields));
 								} else {
@@ -346,7 +390,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 									}
 									inQuery.should().add(inQuery);
 								}
-								subTerms.put(inTerms);
+							}
+							if (doAnalysis) {
+								subAnalysis.getJSONArray(AND).put(inAnalysis);
 							}
 							subQuery.must().add(inQuery);
 						}
@@ -355,19 +401,28 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					BoolQueryBuilder parent = QueryBuilders.boolQuery();
 					parent.should().add(termQuery);
 					parent.should().add(subQuery);
-					termDetail.put("extra", subTerms);
 					termQuery = parent;
-				}
-				if (analysis != null) {
-					analysis.put(termDetail);
+					if (doAnalysis) {
+						termAnalysis.put(subAnalysis);
+					}
 				}
 				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
 					BoolQueryBuilder query = QueryBuilders.boolQuery();
 					query.should(termQuery);
 					query.should(mainQuery);
 					ret = query;
+					if (doAnalysis) {
+						JSONArray jarr = new JSONArray();
+						jarr.put(termAnalysis);
+						jarr.put(mainAnalysis);
+						analysis.remove(AND);
+						analysis.put(OR, jarr);
+					}
 				} else {
 					mainQuery.must().add(termQuery);
+					if (doAnalysis) {
+						mainAnalysis.getJSONArray(AND).put(termAnalysis);
+					}
 				}
 			}
 		} catch (Exception e) {
