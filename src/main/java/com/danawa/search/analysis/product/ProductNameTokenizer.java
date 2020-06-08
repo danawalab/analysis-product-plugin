@@ -145,11 +145,6 @@ public final class ProductNameTokenizer extends Tokenizer {
 	public final boolean incrementToken() throws IOException {
 		typeAtt.setType(null);
 		logger.trace("INCREMENT-TOKEN");
-		if (readLength == -1) { 
-			tokenAtt.state(TokenInfoAttribute.STATE_INPUT_FINISHED);
-			logger.trace("TOKENIZER-STOP");
-			return false; 
-		}
 		int length = 0;
 		int start = -1;
 		int end = -1;
@@ -188,14 +183,14 @@ public final class ProductNameTokenizer extends Tokenizer {
 								return false;
 							}
 						}
-						if (tokenLength > 0 && tokenLength < FULL_TERM_LENGTH && baseOffset == 0) {
-							// FULL-TERM. 색인시에는 추출하지 않음 (필터에서 걸러짐)
-							tokenAtt.ref(newBuffer, 0, tokenLength);
-							tokenAtt.posTag(null);
-							offsetAtt.setOffset(0, tokenLength);
-							typeAtt.setType(FULL_STRING);
-							return true;
-						}
+						// if (tokenLength > 0 && tokenLength < FULL_TERM_LENGTH && baseOffset == 0) {
+						// 	// FULL-TERM. 색인시에는 추출하지 않음 (필터에서 걸러짐)
+						// 	tokenAtt.ref(newBuffer, 0, tokenLength);
+						// 	tokenAtt.posTag(null);
+						// 	offsetAtt.setOffset(0, tokenLength);
+						// 	typeAtt.setType(FULL_STRING);
+						// 	return true;
+						// }
 						position = 0;
 						bufferStart = 0;
 						chrCurrent = 0;

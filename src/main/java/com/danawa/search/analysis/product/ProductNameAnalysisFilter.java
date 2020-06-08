@@ -192,7 +192,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				}
 				// 동의어는 한번 더 분석해 준다.
 				// 단 단위명은 더 분석하지 않는다.
-				if (typeAttribute.type() != ProductNameTokenizer.UNIT) {
+				if (typeAttribute.type() != UNIT) {
 					List<CharSequence> synonymsExt = parsingRule.synonymExtract(synonyms, entry);
 					if (synonymsExt != null) {
 						synonyms = synonymsExt;

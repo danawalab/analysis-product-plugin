@@ -35,7 +35,6 @@ public class KoreanWordExtractor {
 	boolean fastResultFound;
 	int remnantOffset;
 	int remnantLength;
-	// boolean hasRemnant;
 	boolean isUnicode;
 
 	private PriorityQueue<ExtractedEntry> queue = new PriorityQueue<ExtractedEntry>(8, new Comparator<ExtractedEntry>() {
@@ -424,7 +423,6 @@ public class KoreanWordExtractor {
 	public int setInput(char[] buffer, int offset, int length) {
 		remnantOffset = 0;
 		remnantLength = 0;
-		// hasRemnant = false;
 		isUnicode = isUnicode(buffer, offset, length);
 		Arrays.fill(status, 0);
 		
@@ -433,9 +431,9 @@ public class KoreanWordExtractor {
 		String pptype = null;
 		if (length > tabular.length) {
 			logger.trace("LENGTH IS OVER THAN {} / {} / {}", length, tabular.length, offset);
-			//내부적으로 자를 수 있는 기준을 살펴 본다.
-			//자를수 있는 기준은 다음과 같다.
-			//한글 사이의 특수 문자. ( & 제외 : 존슨&존스 등 )
+			// 내부적으로 자를 수 있는 기준을 살펴 본다.
+			// 자를수 있는 기준은 다음과 같다.
+			// 한글 사이의 특수 문자. ( & 제외 : 존슨&존스 등 )
 			for (int inx = offset + length; inx > offset; inx--) {
 				pptype = ptype;
 				ptype = type;
@@ -485,7 +483,6 @@ public class KoreanWordExtractor {
 				}
 				remnantOffset = tabular.length;
 				remnantLength = length - tabular.length;
-				// hasRemnant = remnantLength > 0;
 				length = tabular.length;
 			}
 		}
@@ -615,10 +612,6 @@ public class KoreanWordExtractor {
 		}
 		return bestEntry;
 	}
-	
-	// public boolean hasRemnant() {
-	// 	return hasRemnant;
-	// }
 	
 	public int getTabularSize() {
 		return tabular.length;
