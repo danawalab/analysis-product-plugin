@@ -4,6 +4,7 @@ import java.io.File;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Map;
@@ -250,16 +251,16 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 				} else if (type == Type.SPACE) {
 					SpaceDictionary spaceDictionary = new SpaceDictionary(dictFile, ignoreCase);
 					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(spaceDictionary.map().keySet(), tokenType);
+						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
 					}
 					sourceDictionary = spaceDictionary;
-					// Map map = new HashMap<CharSequence, PreResult<CharSequence>>();
-					// for(Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()){
-					// 	PreResult preResult = new PreResult<T>();
-					// 	preResult.setResult(e.getValue());
-					// 	map.put(e.getKey(), preResult);
-					// }
-					// commonDictionary.setPreDictionary(map);
+					Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
+					for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
+						PreResult<CharSequence> preResult = new PreResult<>();
+						preResult.setResult(e.getValue());
+						map.put(e.getKey(), preResult);
+					}
+					commonDictionary.setPreDictionary(map);
 				} else if (type == Type.CUSTOM) {
 					CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase);
 					if (tokenType != null) {
