@@ -4,7 +4,6 @@ import java.io.File;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Map;
@@ -254,13 +253,14 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
 					}
 					sourceDictionary = spaceDictionary;
-					Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
-					for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
-						PreResult<CharSequence> preResult = new PreResult<>();
-						preResult.setResult(e.getValue());
-						map.put(e.getKey(), preResult);
-					}
-					commonDictionary.setPreDictionary(map);
+					// FIXME:분리어 기분석사전 적용시 한글분석기에서 오류발생.
+					// Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
+					// for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
+					// 	PreResult<CharSequence> preResult = new PreResult<>();
+					// 	preResult.setResult(e.getValue());
+					// 	map.put(e.getKey(), preResult);
+					// }
+					// commonDictionary.setPreDictionary(map);
 				} else if (type == Type.CUSTOM) {
 					CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase);
 					if (tokenType != null) {

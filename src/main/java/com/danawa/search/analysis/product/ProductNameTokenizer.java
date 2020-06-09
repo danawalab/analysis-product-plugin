@@ -270,9 +270,8 @@ public final class ProductNameTokenizer extends Tokenizer {
 					}
 					logger.trace("EXTRACT:{} / {}~{} / {}", new CharVector(buffer, bufferStart, extLength), bufferStart, extLength, baseOffset);
 					extractor.setInput(buffer, bufferStart, extLength);
-					extLength = bufferStart + extLength;
 					entry = extractor.extract();
-				continue;
+					continue;
 				} else {
 					// 한글분석기가 없는경우 (한글사전 적재 실패) 분해된 토큰으로만 출력
 					tokenAtt.ref(buffer, bufferStart, length);
@@ -299,9 +298,10 @@ public final class ProductNameTokenizer extends Tokenizer {
 						termAtt.copyBuffer(buffer, entry.offset(), entry.column());
 					}
 
-					int prevOffset = entry.offset();
 					int extPosition = entry.offset() + entry.column();
+					int prevOffset = entry.offset();
 					entry = entry.next();
+					// ※ 분석기에서 오분석이 나는경우 (분리어사전 적용시 이전 오프셋으로 되돌아 가는 버그)
 					while (entry != null) {
 						if (entry.offset() < prevOffset) { 
 							entry = entry.next(); 
@@ -312,14 +312,13 @@ public final class ProductNameTokenizer extends Tokenizer {
 
 					if (entry == null) {
 						// 분해된 한글이 없다면 다음구간 한글분해 시도
-						if (extPosition < extLength) {
+						if (extPosition < position) {
 							extLength = position - extPosition;
 							if (extLength > extractor.getTabularSize()) {
 								extLength = extractor.getTabularSize();
 							}
 							logger.trace("EXTRACT:{} / {}~{} / {}", new CharVector(buffer, extPosition, extLength), extPosition, extLength, baseOffset);
 							extractor.setInput(buffer, extPosition, extLength);
-							extLength = extPosition + extLength;
 							entry = extractor.extract();
 						}
 					}

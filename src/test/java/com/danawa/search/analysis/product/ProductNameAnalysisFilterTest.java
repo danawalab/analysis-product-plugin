@@ -72,8 +72,8 @@ public class ProductNameAnalysisFilterTest {
 			tokenizer = new ProductNameTokenizer(dictionary, true);
 			extractor = new KoreanWordExtractor(dictionary);
 			tokenizer.setReader(reader);
-			tstream = tokenizer;
-			// tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
+			// tstream = tokenizer;
+			tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
 			tstream.reset();
 			CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
 			OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);
