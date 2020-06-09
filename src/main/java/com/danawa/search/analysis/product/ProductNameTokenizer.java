@@ -270,6 +270,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 					}
 					logger.trace("EXTRACT:{} / {}~{} / {}", new CharVector(buffer, bufferStart, extLength), bufferStart, extLength, baseOffset);
 					extractor.setInput(buffer, bufferStart, extLength);
+					extLength = bufferStart + extLength;
 					entry = extractor.extract();
 				continue;
 				} else {
@@ -298,17 +299,27 @@ public final class ProductNameTokenizer extends Tokenizer {
 						termAtt.copyBuffer(buffer, entry.offset(), entry.column());
 					}
 
+					int prevOffset = entry.offset();
 					int extPosition = entry.offset() + entry.column();
 					entry = entry.next();
+					while (entry != null) {
+						if (entry.offset() < prevOffset) { 
+							entry = entry.next(); 
+						} else {
+							break;
+						}
+					}
+
 					if (entry == null) {
 						// 분해된 한글이 없다면 다음구간 한글분해 시도
-						if (extPosition < position) {
+						if (extPosition < extLength) {
 							extLength = position - extPosition;
 							if (extLength > extractor.getTabularSize()) {
 								extLength = extractor.getTabularSize();
 							}
 							logger.trace("EXTRACT:{} / {}~{} / {}", new CharVector(buffer, extPosition, extLength), extPosition, extLength, baseOffset);
 							extractor.setInput(buffer, extPosition, extLength);
+							extLength = extPosition + extLength;
 							entry = extractor.extract();
 						}
 					}

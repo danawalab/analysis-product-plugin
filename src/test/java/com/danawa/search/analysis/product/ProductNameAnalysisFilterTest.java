@@ -46,7 +46,7 @@ public class ProductNameAnalysisFilterTest {
 
 		Reader reader = null;
 		Tokenizer tokenizer = null;
-		ProductNameAnalysisFilter tstream = null;
+		TokenStream tstream = null;
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		KoreanWordExtractor extractor = null;
@@ -60,6 +60,8 @@ public class ProductNameAnalysisFilterTest {
 		// str = "발롱그리쉬코 발레리나 토슈즈 웜업 부츠 M-67";
 		str = "abc123d4efg56";
 		str = "1,024gb";
+		str = "Z300CNL ASUS 4G 태블릿, LTE탭, 아수스, 에이수스, 젠패드 해외구매 태블릿 LTE+WiFi|OS:안드로이드 6.0 마시멜로우|25.65㎝(10.1″)|1280x800|149ppi|IPS|16:10|10포인트|인텔아톰(베이트레일)Z3560|쿼드코어|1.83Ghz|램:2GB|내장:16GB|microSD카드슬롯|GPS|블루투스|V4.0|카메라|500만화소|200만화소|microUSB2.0|3.5mm 이어폰|가로:251.6mm|세로:172mm|두께:7.9mm|510g|18WHr ZenPad 10 LTE Z300CNL 16GB 4954113 도킹키보드 별매 ASUS 4954113 태블릿/휴대폰>태블릿>안드로이드OS";
+		str = "리본장식 플랫 FJ mcr 8210 여성 플랫슈즈";
 		try {
 			option = new AnalyzerOption();
 			option.useForQuery(true);
@@ -67,11 +69,11 @@ public class ProductNameAnalysisFilterTest {
 			option.useSynonym(true);
 			option.useStopword(true);
 			reader = new StringReader(str);
-			tokenizer = new ProductNameTokenizer(dictionary, false);
-			// tokenizer = new TestTokenizer(dictionary);
+			tokenizer = new ProductNameTokenizer(dictionary, true);
 			extractor = new KoreanWordExtractor(dictionary);
 			tokenizer.setReader(reader);
-			tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
+			tstream = tokenizer;
+			// tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
 			tstream.reset();
 			CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
 			OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);
@@ -136,7 +138,6 @@ public class ProductNameAnalysisFilterTest {
 			for (String rl; (rl = reader.readLine()) != null; count++) {
 				logger.trace("TEST:{}", rl);
 				tokenizer = new ProductNameTokenizer(dictionary, false);
-				// tokenizer = new TestTokenizer(dictionary);
 				tokenizer.setReader(new StringReader(rl));
 				extractor = new KoreanWordExtractor(dictionary);
 				option = new AnalyzerOption();
@@ -202,7 +203,6 @@ public class ProductNameAnalysisFilterTest {
 	}
 
 	private void testRule(String testFile, boolean isForQuery) throws Exception {
-		//단위명 동의어를 일단 꺼 놓기 위해..
 		InputStream stream = null;
 		BufferedReader reader = null;
 		ProductNameAnalyzer analyzer = null;
