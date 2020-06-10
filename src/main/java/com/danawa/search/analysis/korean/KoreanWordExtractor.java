@@ -36,6 +36,7 @@ public class KoreanWordExtractor {
 	int remnantOffset;
 	int remnantLength;
 	boolean isUnicode;
+	CharVector charVector = new CharVector();
 
 	private PriorityQueue<ExtractedEntry> queue = new PriorityQueue<ExtractedEntry>(8, new Comparator<ExtractedEntry>() {
 		@Override
@@ -425,6 +426,12 @@ public class KoreanWordExtractor {
 		remnantLength = 0;
 		isUnicode = isUnicode(buffer, offset, length);
 		Arrays.fill(status, 0);
+		for (int row = 0; row < tabular.length; row++) {
+			for (int col = 0; col < tabular[row].length; col++) {
+				tabular[row][col] = null;
+			}
+		}
+		result.clear();
 		
 		String type = null;
 		String ptype = null;
@@ -528,7 +535,7 @@ public class KoreanWordExtractor {
 		if (e != null) {
 			return e;
 		}
-		if (isDebug) {
+		if (isDebug || logger.isTraceEnabled()) {
 			showTabular();
 		}
 		makeResult();
@@ -547,6 +554,8 @@ public class KoreanWordExtractor {
 			if (entry == null) {
 				continue;
 			}
+			charVector.init(source, entry.offset(), entry.column());
+
 			if (highEntry == null) {
 				highEntry = entry;
 			} else {
@@ -564,51 +573,6 @@ public class KoreanWordExtractor {
 			// 통째 미등록어.
 			bestEntry = new ExtractedEntry(length - 1, length, TagProb.UNK, offset);
 			return bestEntry;
-		}
-		ExtractedEntry prevEntry = null;
-		ExtractedEntry entry = bestEntry;
-		while (entry != null) {
-			CharVector term = new CharVector(source, entry.row() - entry.column() + 1, entry.column());
-			PreResult<CharSequence> preResult = koreanDict.findPreResult(term);
-
-			if (preResult != null) {
-				CharSequence[] resultList = preResult.getResult();
-				if (resultList == null) {
-					CharSequence[] additionList = preResult.getAddition();
-					if (additionList != null) {
-						// 추가단어.
-					}
-				} else {
-					// 분리어 이므로 교체.
-					int startRow = entry.row() - entry.column();
-					ExtractedEntry first = null;
-					ExtractedEntry last = null;
-					for (int i = 0; i < resultList.length; i++) {
-						CharSequence cv = resultList[i];
-						startRow += cv.length();
-						ExtractedEntry entry2 = new ExtractedEntry(startRow, cv.length(), entry.tagProb());
-						if (first == null) {
-							first = entry2;
-							last = first;
-						} else {
-							last.setNext(entry2);
-							last = entry2;
-						}
-					}
-					if (prevEntry == null) {
-						// 처음부터 엔트리가 바뀌면 bestEntry를 교체한다.
-						bestEntry = first;
-					} else if (prevEntry != null) {
-						prevEntry.setNext(first);
-					}
-					prevEntry = last;
-					entry = entry.next();
-					last.setNext(entry);
-					continue;
-				}
-			}
-			prevEntry = entry;
-			entry = entry.next();
 		}
 		return bestEntry;
 	}

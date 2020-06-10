@@ -118,7 +118,8 @@ public final class ProductNameTokenizer extends Tokenizer {
 		readLength = 0, 
 		tokenLength = 0,
 		finalOffset = 0;
-	private char[] buffer = new char[IO_BUFFER_SIZE];
+	private char[] buffer;
+	private char[][] backBuffer = new char[2][IO_BUFFER_SIZE];
 	private ExtractedEntry entry;
 	private KoreanWordExtractor extractor;
 	private char chrCurrent;
@@ -157,7 +158,10 @@ public final class ProductNameTokenizer extends Tokenizer {
 						// 1. 원본 읽어오기 (버퍼 크기만큼 읽어옴)
 						// 읽어온 버퍼가 없거나 모두 처리한 상태라면  리더에서 읽어온다.
 						////////////////////////////////////////////////////////////////////////////////
-						char[] newBuffer = new char[IO_BUFFER_SIZE];
+						char[] oldBuffer = backBuffer[0];
+						char[] newBuffer = backBuffer[1];
+						backBuffer[0] = newBuffer;
+						backBuffer[1] = oldBuffer;
 						baseOffset += readLength;
 						readLength = input.read(newBuffer, 0, newBuffer.length);
 						logger.trace("READ {}/{}", newBuffer.length, readLength);
