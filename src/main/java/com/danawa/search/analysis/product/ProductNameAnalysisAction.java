@@ -72,6 +72,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String BASE_URI = "/_product-name-analysis";
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 	private static final String ACTION_RELOAD_DICT = "reload-dict";
+	private static final String ACTION_COMPILE_DICT = "compile-dict";
 	private static final String ACTION_ADD_DOCUMENT = "add-document";
 	private static final String ACTION_FULL_INDEX = "full-index";
 	private static final String ACTION_SEARCH = "search";
@@ -104,12 +105,17 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			reloadDictionary();
 			builder.object()
 				.key("action").value(action)
-				.endObject();
+			.endObject();
+		} else if (ACTION_COMPILE_DICT.equals(action)) {
+			compileDictionary();
+			builder.object()
+				.key("action").value(action)
+			.endObject();
 		} else if (ACTION_ADD_DOCUMENT.equals(action)) {
 			addDocument(request, client);
 			builder.object()
 				.key("action").value(action)
-				.endObject();
+			.endObject();
 		} else if (ACTION_FULL_INDEX.equals(action)) {
 			SpecialPermission.check();
 			int count = AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
@@ -136,6 +142,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
 			ProductNameTokenizerFactory.reloadDictionary();
 		}
+	}
+
+	public void compileDictionary() {
 	}
 
 	public void addDocument(final RestRequest request, final NodeClient client) {
@@ -407,6 +416,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					}
 				}
 				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+					{
+						BoolQueryBuilder inQuery = QueryBuilders.boolQuery();
+						for (String field : fields) {
+							inQuery.should().add(QueryBuilders.matchPhraseQuery(field, term).slop(10));
+						}
+						termQuery = inQuery;
+					}
 					BoolQueryBuilder query = QueryBuilders.boolQuery();
 					query.should(termQuery);
 					query.should(mainQuery);

@@ -187,14 +187,14 @@ public final class ProductNameTokenizer extends Tokenizer {
 								return false;
 							}
 						}
-						// if (tokenLength > 0 && tokenLength < FULL_TERM_LENGTH && baseOffset == 0) {
-						// 	// FULL-TERM. 색인시에는 추출하지 않음 (필터에서 걸러짐)
-						// 	tokenAtt.ref(newBuffer, 0, tokenLength);
-						// 	tokenAtt.posTag(null);
-						// 	offsetAtt.setOffset(0, tokenLength);
-						// 	typeAtt.setType(FULL_STRING);
-						// 	return true;
-						// }
+						if (tokenLength > 0 && tokenLength < FULL_TERM_LENGTH && baseOffset == 0) {
+							// FULL-TERM. 색인시에는 추출하지 않음 (필터에서 걸러짐)
+							tokenAtt.ref(newBuffer, 0, tokenLength);
+							tokenAtt.posTag(null);
+							offsetAtt.setOffset(0, tokenLength);
+							typeAtt.setType(FULL_STRING);
+							return true;
+						}
 						position = 0;
 						bufferStart = 0;
 						chrCurrent = 0;
