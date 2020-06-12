@@ -124,9 +124,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				if (option.useForQuery()) {
 					// 질의용
 					token = applyEntry(entry);
-					if (option.useSynonym()) {
-						applySynonym(token, entry);
-					}
+					applySynonym(token, entry);
 					if (entry.subEntry != null && entry.subEntry.size() > 0) {
 						for (RuleEntry subEntry : entry.subEntry) {
 							List<CharSequence> synonyms = null;
@@ -145,9 +143,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					// 색인용
 					if (entry.buf != null) {
 						token = applyEntry(entry);
-						if (option.useSynonym()) {
-							applySynonym(token, entry);
-						}
+						// applySynonym(token, entry);
 						if (subEntryList == null) {
 							termList.remove(0);
 						} else {
@@ -159,9 +155,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					} else if (subEntryList.size() > 0) {
 						RuleEntry subEntry = subEntryList.get(0);
 						token = applyEntry(subEntry);
-						if (subEntry.synonym != null && option.useSynonym()) {
-							synonymAttribute.setSynonyms(Arrays.asList(subEntry.synonym));
-						}
+						// if (subEntry.synonym != null && option.useSynonym()) {
+						// 	synonymAttribute.setSynonyms(Arrays.asList(subEntry.synonym));
+						// }
 						subEntryList.remove(0);
 						ret = true;
 						break;
@@ -182,7 +178,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	}
 
 	private void applySynonym(CharVector token, RuleEntry entry) {
-		if (option.useSynonym()) {
+		if (option.useSynonym() && option.useForQuery()) {
 			List<CharSequence> synonyms = new ArrayList<>();
 			if (synonymDictionary != null && synonymDictionary.containsKey(token)) {
 				CharSequence[] wordSynonym = synonymDictionary.get(token);

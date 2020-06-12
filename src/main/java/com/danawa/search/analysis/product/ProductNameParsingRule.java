@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
+import com.danawa.search.analysis.dict.CustomDictionary;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
@@ -43,6 +44,8 @@ public class ProductNameParsingRule {
 	private SynonymDictionary unitSynonymDictionary;
 	private SynonymDictionary synonymDictionary;
 	private SetDictionary userDictionary;
+	private Set<CharSequence> brandDictionary;
+	private Set<CharSequence> makerDictionary;
 	private CompoundDictionary compoundDictionary;
 	private SetDictionary stopDictionary;
 	private CharVector term;
@@ -61,6 +64,14 @@ public class ProductNameParsingRule {
 			userDictionary = dictionary.getDictionary(DICT_USER, SetDictionary.class);
 			compoundDictionary = dictionary.getDictionary(DICT_COMPOUND, CompoundDictionary.class);
 			stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+			{
+				CustomDictionary dict = dictionary.getDictionary(DICT_BRAND, CustomDictionary.class);
+				if (dict != null) { brandDictionary = dict.getWordSet(); }
+			}
+			{
+				CustomDictionary dict = dictionary.getDictionary(DICT_MAKER, CustomDictionary.class);
+				if (dict != null) { makerDictionary = dict.getWordSet(); }
+			}
 		}
 		queue = new ArrayList<>();
 	}
@@ -171,6 +182,7 @@ public class ProductNameParsingRule {
 					queue.get(qinx - 1).modifiable = false;
 					queue.get(qinx + 1).modifiable = false;
 				}
+				continue;
 			}
 			
 			if (e0.type == UNCATEGORIZED) {
@@ -185,9 +197,9 @@ public class ProductNameParsingRule {
 			if (fullExtract) {
 				// extractor 는 타입이 다른 엔트리 에 대해서 체크하지 못하므로
 				// 엔트리들을 합쳐서 복합어/사용자 사전에 체크해 본다
-				// 최대 3개 엔트리까지 체크
-				for (int linx = 2; linx >= 1; linx--) {
-					boolean passFlag = false;
+				// 최대 4개 엔트리까지 체크
+				for (int linx = 4; linx >= 1; linx--) {
+					int passFlag = 0;
 					char[] tmpbuf = e0.buf;
 					int tmpst = e0.start;
 					int tmped = 0;
@@ -197,16 +209,16 @@ public class ProductNameParsingRule {
 					// 로직의 유연화를 위해 루프기반 로직으로 변경 (2020.1.23)
 					if (queue.size() > qinx + linx) {
 						e1 = queue.get(qinx + linx);
-						if (e1.buf == tmpbuf) {
+						if (e1.buf == tmpbuf && e1.length > 0 && e1.type != FULL_STRING) {
 							tmped = e1.start + e1.length;
 							if ((tmpst == 0 || (tmpst > 0 && tmpbuf[tmpst - 1] == ' ')) &&
 								(tmped == lastPosition || (tmped < lastPosition && tmpbuf[tmped] == ' '))) {
-								passFlag = true;
+								passFlag = 1;
 								e1 = e0;
 								for (int tinx = 0; tinx < linx; tinx++) {
 									e2 = queue.get(qinx + tinx + 1);
-									if (e2.start != e1.start + e1.length) {
-										passFlag = false;
+									if (e2.length == 0 || e2.type == FULL_STRING || e2.start != e1.start + e1.length) {
+										passFlag = 0;
 										break;
 									}
 									e1 = e2;
@@ -215,65 +227,108 @@ public class ProductNameParsingRule {
 						}
 					}
 					
-					if (passFlag) {
+					if (passFlag != 0) {
 						e1 = queue.get(qinx + linx);
 						cvTmp.init(e0.buf, e0.start, e1.start + e1.length - e0.start);
+						passFlag = 0;
+
+						// 통합사전 체크는 상대적으로 느리기 때문에 개별사전부터 체크한 후 passFlag 로 나눈다.
 						if (spaceDictionary != null && spaceDictionary.containsKey(cvTmp)) {
-							CharSequence[] splits = spaceDictionary.get(cvTmp);
+							passFlag = 1;
+						} else if ((stopDictionary != null && option.useStopword() && stopDictionary.contains(cvTmp))) {
+							passFlag = 2;
+						} else if (containsDictionary(cvTmp)) {
+							passFlag = 3;
+						}
+
+						if (passFlag != 0) {
+							e0.length = (e1.start + e1.length - e0.start);
+							e0.endOffset = e1.endOffset;
+							e0.type = HANGUL;
 							for (int rinx = qinx + linx - 1; rinx >= qinx; rinx--) {
 								queue.remove(rinx);
 							}
-							int startOffset = e0.startOffset;
-							for (int sinx = 0; sinx < splits.length; sinx++) {
-								CharVector split = CharVector.valueOf(splits[sinx]);
-								e1 = new RuleEntry(split.array(), split.offset(), split.length(),
-									startOffset, startOffset + split.length(), HANGUL);
-								e1.modifiable = false;
-								queue.add(qinx + sinx, e1);
-								startOffset += e1.length;
-							}
-							e0 = queue.get(qinx);
-						} else if (compoundDictionary != null && compoundDictionary.containsKey(cvTmp)) {
-							e0.length = (e1.start + e1.length - e0.start);
-							e0.type = HANGUL;
-							for (int rinx = qinx + linx; rinx > qinx; rinx--) {
-								queue.remove(rinx);
-							}
-							queue.set(qinx, e0);
-							logger.trace("COMPOUND FOUND! : {} / {}", e0, cvTmp);
-						} else if ((stopDictionary != null && option.useStopword() && stopDictionary.contains(cvTmp))) {
-							// 금칙어 규칙은 아래의 경우 (사용자,동의어,브랜드,메이커) 와 다르게
-							// 통합시, 분리시 동시체크를 할 필요가 없으므로 다른 로직을 적용
-							e0.length = (e1.start + e1.length - e0.start);
-							e0.modifiable = false;
-							e0.type = HANGUL;
-							for (int rinx = qinx + linx; rinx > qinx; rinx--) {
-								queue.remove(rinx);
-							}
-							queue.set(qinx, e0);
-						} else if (containsDictionary(cvTmp)) {
-							// 요청에 의해 사용자 사전에 있는 ASCII + UNICODE 조합단어
-							// (토크나이저에서 강제분리됨)는 먼저 체크하여 붙여줌.
-							// 해당 경우 통합시, 분리시의 규칙을 둘 다 적용해야 하므로
-							// 분리된 단어 모두를 추가텀으로 구성하도록 함.
-							// 추가텀은 항상 등록하지 않고 사전에 있는 경우에만 등록한다.
-							// e0.subEntry.add(new RuleEntry(e0.buf, e0.start, e0.length, e0.startOffset, e0.endOffset, HANGUL));
-							e0 = new RuleEntry(e0.buf, e0.start, e0.length, e0.startOffset, e0.endOffset, e0.type);
-							e0.length = (e1.start + e1.length - e0.start);
-							e0.modifiable = false;
-							e0.type = HANGUL;
-							
-							for (int rinx = qinx + linx; rinx >= qinx; rinx--) {
-								queue.remove(rinx);
-							}
-							queue.add(qinx, e0);
-							if (queue.size() > (qinx + 1)) {
-								if ((e1 = queue.get(qinx + 1)).type == FULL_STRING) {
-									e1.subEntry = e0.subEntry;
-									queue.remove(qinx);
+							if (passFlag == 1) {
+								CharSequence[] splits = spaceDictionary.get(cvTmp);
+								int start = e0.start;
+								int startOffset = e0.startOffset;
+								for (int sinx = 0; sinx < splits.length; sinx++) {
+									CharSequence split = splits[sinx];
+									e1 = new RuleEntry(e0.buf, start, split.length(),
+										startOffset, startOffset + split.length(), HANGUL);
+									e1.modifiable = false;
+									queue.add(qinx + sinx, e1);
+									start += e1.length;
+									startOffset += e1.length;
 								}
+								queue.remove(qinx);
+								qinx += splits.length - 1;
+							} else if (passFlag == 2) {
+								// 금칙어 규칙은 아래의 경우 (사용자,동의어,브랜드,메이커) 와 다르게
+								// 통합시, 분리시 동시체크를 할 필요가 없으므로 다른 로직을 적용
+								e0.modifiable = false;
+								queue.set(qinx, e0);
+							} else {
+								queue.set(qinx, e0);
 							}
 						}
+
+//						if (spaceDictionary != null && spaceDictionary.containsKey(cvTmp)) {
+//							CharSequence[] splits = spaceDictionary.get(cvTmp);
+//							for (int rinx = qinx + linx - 1; rinx >= qinx; rinx--) {
+//								queue.remove(rinx);
+//							}
+//							int startOffset = e0.startOffset;
+//							for (int sinx = 0; sinx < splits.length; sinx++) {
+//								CharVector split = CharVector.valueOf(splits[sinx]);
+//								e1 = new RuleEntry(split.array(), split.offset(), split.length(),
+//									startOffset, startOffset + split.length(), HANGUL);
+//								e1.modifiable = false;
+//								queue.add(qinx + sinx, e1);
+//								startOffset += e1.length;
+//							}
+//							e0 = queue.get(qinx);
+//						} else if (compoundDictionary != null && compoundDictionary.containsKey(cvTmp)) {
+//							e0.length = (e1.start + e1.length - e0.start);
+//							e0.type = HANGUL;
+//							for (int rinx = qinx + linx; rinx > qinx; rinx--) {
+//								queue.remove(rinx);
+//							}
+//							queue.set(qinx, e0);
+//							logger.trace("COMPOUND FOUND! : {} / {}", e0, cvTmp);
+//						} else if ((stopDictionary != null && option.useStopword() && stopDictionary.contains(cvTmp))) {
+//							// 금칙어 규칙은 아래의 경우 (사용자,동의어,브랜드,메이커) 와 다르게
+//							// 통합시, 분리시 동시체크를 할 필요가 없으므로 다른 로직을 적용
+//							e0.length = (e1.start + e1.length - e0.start);
+//							e0.modifiable = false;
+//							e0.type = HANGUL;
+//							for (int rinx = qinx + linx; rinx > qinx; rinx--) {
+//								queue.remove(rinx);
+//							}
+//							queue.set(qinx, e0);
+//						} else if (containsDictionary(cvTmp)) {
+//							// 요청에 의해 사용자 사전에 있는 ASCII + UNICODE 조합단어
+//							// (토크나이저에서 강제분리됨)는 먼저 체크하여 붙여줌.
+//							// 해당 경우 통합시, 분리시의 규칙을 둘 다 적용해야 하므로
+//							// 분리된 단어 모두를 추가텀으로 구성하도록 함.
+//							// 추가텀은 항상 등록하지 않고 사전에 있는 경우에만 등록한다.
+//							// e0.subEntry.add(new RuleEntry(e0.buf, e0.start, e0.length, e0.startOffset, e0.endOffset, HANGUL));
+//							e0 = new RuleEntry(e0.buf, e0.start, e0.length, e0.startOffset, e0.endOffset, e0.type);
+//							e0.length = (e1.start + e1.length - e0.start);
+//							e0.modifiable = false;
+//							e0.type = HANGUL;
+//							
+//							for (int rinx = qinx + linx; rinx >= qinx; rinx--) {
+//								queue.remove(rinx);
+//							}
+//							queue.add(qinx, e0);
+//							if (queue.size() > (qinx + 1)) {
+//								if ((e1 = queue.get(qinx + 1)).type == FULL_STRING) {
+//									e1.subEntry = e0.subEntry;
+//									queue.remove(qinx);
+//								}
+//							}
+//						}
 						break;
 					}
 				}
@@ -1662,7 +1717,9 @@ public class ProductNameParsingRule {
 	
 	private boolean containsDictionary(CharVector cv) {
 		if (extractor.dictionary().find(cv) != null ||
-			userDictionary.contains(cv)) {
+			userDictionary.contains(cv) ||
+			(brandDictionary != null && brandDictionary.contains(cv)) ||
+			(makerDictionary != null && makerDictionary.contains(cv))) {
 			return true;
 		}
 		return false;
