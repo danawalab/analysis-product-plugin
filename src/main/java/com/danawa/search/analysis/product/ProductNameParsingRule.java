@@ -100,7 +100,7 @@ public class ProductNameParsingRule {
 		} else if(posTag == null || posTag == PosTag.UNK) {
 			type = UNCATEGORIZED;
 		}
-		if(spaceDictionary != null && spaceDictionary.containsKey(ref)) {
+		if(type != FULL_STRING && spaceDictionary != null && spaceDictionary.containsKey(ref)) {
 			// 분리어가 발견되면
 			int offsetSt = startOffset;
 			CharSequence[] splits = spaceDictionary.get(ref);

@@ -36,6 +36,7 @@ public class ProductNameAnalysisFilterTest {
 
 	@Before public void init() {
 		TestUtil.setLogLevel(System.getProperty("LOG_LEVEL"), 
+			KoreanWordExtractor.class, 
 			ProductNameTokenizer.class, 
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
@@ -67,8 +68,8 @@ public class ProductNameAnalysisFilterTest {
 		str = "Sandisk Extream Z80 USB 16gb";
 		try {
 			option = new AnalyzerOption();
-			option.useForQuery(true);
-			// option.useForQuery(false);
+			// option.useForQuery(true);
+			option.useForQuery(false);
 			option.useSynonym(true);
 			option.useStopword(true);
 			reader = new StringReader(str);
@@ -114,6 +115,7 @@ public class ProductNameAnalysisFilterTest {
 		if (TestUtil.launchForBuild()) { return; }
 
 		TestUtil.setLogLevel(TestUtil.LOG_LEVEL_DEBUG, 
+			KoreanWordExtractor.class, 
 			ProductNameTokenizer.class, 
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
@@ -183,6 +185,7 @@ public class ProductNameAnalysisFilterTest {
 		if (TestUtil.launchForBuild()) { return; }
 
 		TestUtil.setLogLevel(TestUtil.LOG_LEVEL_DEBUG, 
+			KoreanWordExtractor.class, 
 			ProductNameTokenizer.class, 
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
@@ -196,6 +199,7 @@ public class ProductNameAnalysisFilterTest {
 		if (TestUtil.launchForBuild()) { return; }
 
 		TestUtil.setLogLevel(TestUtil.LOG_LEVEL_DEBUG, 
+			KoreanWordExtractor.class, 
 			ProductNameTokenizer.class, 
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);

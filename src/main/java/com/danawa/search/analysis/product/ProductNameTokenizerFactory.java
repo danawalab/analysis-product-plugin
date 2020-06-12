@@ -141,7 +141,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	}
 
 	private static String getTokenType(Properties prop, String dictionaryId) {
-		String ret = TokenType.MIN.name();
+		String ret = null;
 		String attribute = prop.getProperty(ATTR_DICTIONARY_TOKEN_TYPE + "." + dictionaryId);
 		if (attribute != null) {
 			attribute = attribute.trim();
@@ -252,15 +252,15 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 					SpaceDictionary spaceDictionary = new SpaceDictionary(dictFile, ignoreCase);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
+						Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
+						for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
+							PreResult<CharSequence> preResult = new PreResult<>();
+							preResult.setResult(e.getValue());
+							map.put(e.getKey(), preResult);
+						}
+						commonDictionary.setPreDictionary(map);
 					}
 					sourceDictionary = spaceDictionary;
-					Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
-					for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
-						PreResult<CharSequence> preResult = new PreResult<>();
-						preResult.setResult(e.getValue());
-						map.put(e.getKey(), preResult);
-					}
-					commonDictionary.setPreDictionary(map);
 				} else if (type == Type.CUSTOM) {
 					CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase);
 					if (tokenType != null) {
