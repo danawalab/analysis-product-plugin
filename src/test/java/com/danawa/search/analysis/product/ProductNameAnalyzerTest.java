@@ -1,10 +1,8 @@
 package com.danawa.search.analysis.product;
 
-import java.io.File;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.Iterator;
-import java.util.Properties;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.util.TestUtil;
@@ -35,11 +33,10 @@ public class ProductNameAnalyzerTest {
 
 	@Test public void testAnalyzerSimple() {
 		if (TestUtil.launchForBuild()) { return; }
-		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (!propFile.exists()) { return; }
 
-		Properties prop = TestUtil.readProperties(propFile);
-		ProductNameDictionary commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
+		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+
 		ProductNameAnalyzer analyzer = null;
 		String str = "한글분석기테스트중입니다";
 		str = "가보시 통굽 태슬 애나멜 여자로퍼 단화 UH-Ulbeuseu";
@@ -53,7 +50,7 @@ public class ProductNameAnalyzerTest {
 		Reader reader = null;
 		TokenStream stream = null;
 		try {
-			analyzer = new ProductNameAnalyzer(commonDictionary);
+			analyzer = new ProductNameAnalyzer(dictionary);
 			reader = new StringReader(str);
 			stream = analyzer.tokenStream("", reader);
 			TokenInfoAttribute tokenAttribute = stream.addAttribute(TokenInfoAttribute.class);

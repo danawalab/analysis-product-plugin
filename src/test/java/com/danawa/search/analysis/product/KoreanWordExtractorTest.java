@@ -1,8 +1,5 @@
 package com.danawa.search.analysis.product;
 
-import java.io.File;
-import java.util.Properties;
-
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.korean.KoreanWordExtractor;
@@ -30,11 +27,9 @@ public class KoreanWordExtractorTest {
 
 	@Test public void testUserDictionary() {
 		if (TestUtil.launchForBuild()) { return; }
-		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (!propFile.exists()) { return; }
-		Properties prop = TestUtil.readProperties(propFile);
-		ProductNameDictionary commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
-		SetDictionary userDictionary = commonDictionary.getDictionary("user", SetDictionary.class);
+		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		SetDictionary userDictionary = dictionary.getDictionary("user", SetDictionary.class);
 		CharSequence word = new CharVector("JY모터스");
 		logger.debug("DICT:{}", userDictionary.set());
 		logger.debug("CONTAINS {} = {}", word, userDictionary.contains(word));
@@ -44,11 +39,9 @@ public class KoreanWordExtractorTest {
 
 	@Test public void testExtractorSimple() {
 		if (TestUtil.launchForBuild()) { return; }
-		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (!propFile.exists()) { return; }
-		Properties prop = TestUtil.readProperties(propFile);
-		ProductNameDictionary commonDictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
-		KoreanWordExtractor extractor = new KoreanWordExtractor(commonDictionary);
+		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		KoreanWordExtractor extractor = new KoreanWordExtractor(dictionary);
 		String str = "한글분석기테스트중입니다";
 		str = "/F20005W_F10011M_F20246W_247W_251W_FMS10";
 		char[] buf = str.toCharArray();

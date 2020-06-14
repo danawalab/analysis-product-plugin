@@ -3,12 +3,9 @@ package com.danawa.search.analysis.product;
 import java.io.File;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map.Entry;
 import java.util.Map;
-import java.util.Properties;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
 import com.danawa.search.analysis.dict.CustomDictionary;
@@ -33,6 +30,8 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.analysis.AbstractTokenizerFactory;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.elasticsearch.index.IndexSettings;
 
 public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
@@ -53,13 +52,13 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	public static final String USER_DICT_PATH_OPTION = "user_dictionary";
 	public static final String USER_DICT_RULES_OPTION = "user_dictionary_rules";
 
-	private static final String ANALYSIS_PROP = "product-name-dictionary.properties";
-	private static final String ATTR_DICTIONARY_BASE_PATH = "analysis.product.dictionary.basePath";
-	private static final String ATTR_DICTIONARY_ID_LIST = "analysis.product.dictionary.list";
-	private static final String ATTR_DICTIONARY_TYPE = "analysis.product.dictionary.type";
-	private static final String ATTR_DICTIONARY_TOKEN_TYPE = "analysis.product.dictionary.tokenType";
-	private static final String ATTR_DICTIONARY_IGNORECASE = "analysis.product.dictionary.ignoreCase";
-	private static final String ATTR_DICTIONARY_FILE_PATH = "analysis.product.dictionary.filePath";
+	private static final String ANALYSIS_PROP = "product-name-dictionary.yml";
+	private static final String ATTR_DICTIONARY_BASE_PATH = "basePath";
+	private static final String ATTR_DICTIONARY_LIST = "dictionary";
+	private static final String ATTR_DICTIONARY_TYPE = "type";
+	private static final String ATTR_DICTIONARY_TOKEN_TYPE = "tokenType";
+	private static final String ATTR_DICTIONARY_IGNORECASE = "ignoreCase";
+	private static final String ATTR_DICTIONARY_FILE_PATH = "filePath";
 
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
@@ -89,67 +88,56 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return new ProductNameTokenizer(commonDictionary, exportTerm);
 	}
 
-	private static File getDictionaryFile(File envBase, Properties prop, String dictionaryId) {
+	private static File getDictionaryFile(File envBase, JSONObject prop, String basePath) {
 		File ret = null;
 		// 속성에서 발견되면 속성내부 경로를 사용해 파일을 얻어오며, 그렇지 않은경우 지정된 경로에서 사전파일을 얻어온다
 		File baseFile = null;
 		try {
 			// 베이스파일이 속성에 있으면 먼저 시도.
-			String attr = prop.getProperty(ATTR_DICTIONARY_BASE_PATH).trim();
-			if (attr != null && !"".equals(attr)) {
-				baseFile = new File(attr);
+			if (basePath != null && !"".equals(basePath)) {
+				baseFile = new File(basePath);
 			}
 			if (baseFile == null || !baseFile.exists()) { baseFile = envBase; }
 		} catch (Exception e) { 
 			logger.debug("DICTIONARY EXCEPTION : {} / {}", baseFile, e.getMessage());
 			baseFile = envBase;
 		}
-
-		String attribute = prop.getProperty(ATTR_DICTIONARY_FILE_PATH + "." + dictionaryId).trim();
-		ret = new File(baseFile, attribute);
-		if (attribute == null || !ret.exists()) {
+		String dictionaryId = prop.optString("name", "").trim();
+		String path = prop.optString(ATTR_DICTIONARY_FILE_PATH, "").trim();
+		ret = new File(baseFile, path);
+		if (path == null || !ret.exists()) {
 			ret = new File(new File(envBase, dictionaryPath), dictionaryId + dictionarySuffix);
 		}
 		return ret;
 	}
 
-	private static Type getType(Properties prop, String dictionaryId) {
+	private static Type getType(JSONObject prop) {
 		Type ret = null;
-		String attribute = prop.getProperty(ATTR_DICTIONARY_TYPE + "." + dictionaryId);
-		if (attribute != null) {
-			attribute = attribute.trim();
-			for (Type type : Type.values()) {
-				if (type.name().equalsIgnoreCase(attribute)) {
-					ret = type;
-					break;
-				}
+		String attribute = prop.optString(ATTR_DICTIONARY_TYPE, "").trim();
+		for (Type type : Type.values()) {
+			if (type.name().equalsIgnoreCase(attribute)) {
+				ret = type;
+				break;
 			}
 		}
 		return ret;
 	}
 
-	private static boolean getIgnoreCase(Properties prop, String dictionaryId) {
+	private static boolean getIgnoreCase(JSONObject prop) {
 		boolean ret = false;
-		String attribute = prop.getProperty(ATTR_DICTIONARY_IGNORECASE + "." + dictionaryId);
-		if (attribute != null) {
-			attribute = attribute.trim();
-			if ("true".equalsIgnoreCase(attribute)) {
-				ret = true;
-			}
+		if (prop.optBoolean(ATTR_DICTIONARY_IGNORECASE, true)) {
+			ret = true;
 		}
 		return ret;
 	}
 
-	private static String getTokenType(Properties prop, String dictionaryId) {
+	private static String getTokenType(JSONObject prop) {
 		String ret = null;
-		String attribute = prop.getProperty(ATTR_DICTIONARY_TOKEN_TYPE + "." + dictionaryId);
-		if (attribute != null) {
-			attribute = attribute.trim();
-			for (TokenType tokenType : TokenType.values()) {
-				if (tokenType.name().equalsIgnoreCase(attribute)) {
-					ret = attribute;
-					break;
-				}
+		String attribute = prop.optString(ATTR_DICTIONARY_TOKEN_TYPE, "").trim();
+		for (TokenType tokenType : TokenType.values()) {
+			if (tokenType.name().equalsIgnoreCase(attribute)) {
+				ret = attribute;
+				break;
 			}
 		}
 		return ret;
@@ -187,7 +175,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 					configFile = null;
 				}
 			}
-			Properties dictProp = ResourceResolver.readProperties(configFile);
+			JSONObject dictProp = ResourceResolver.readYmlConfig(configFile);
 			if (dictProp == null) {
 				logger.error("DICTIONARY PROPERTIES FILE NOT FOUND {}", configFile.getAbsolutePath());
 			}
@@ -195,7 +183,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		});
 	}
 
-	public static ProductNameDictionary loadDictionary(final File baseFile, final Properties dictProp) {
+	public static ProductNameDictionary loadDictionary(final File baseFile, final JSONObject dictProp) {
 		/**
 		 * 기본셋팅. 
 		 * ${ELASTICSEARCH}/config/product_name_analysis.prop 파일을 사용하도록 한다
@@ -207,29 +195,27 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return AccessController.doPrivileged((PrivilegedAction<ProductNameDictionary>) () -> {
 			Dictionary<TagProb, PreResult<CharSequence>> dictionary = null;
 			ProductNameDictionary commonDictionary = null;
-			List<String> idList = new ArrayList<>();
-			String idStr = dictProp.getProperty(ATTR_DICTIONARY_ID_LIST);
-			if (idStr != null) {
-				for (String id : idStr.split("[,]")) {
-					idList.add(id.trim());
-				}
-			}
+			JSONArray dictList = dictProp.optJSONArray(ATTR_DICTIONARY_LIST);
+			String basePath = dictProp.optString(ATTR_DICTIONARY_BASE_PATH);
 
 			// 시스템사전을 먼저 읽어오도록 한다. 
-			for (String dictionaryId : idList) {
-				if (getType(dictProp, dictionaryId) == Type.SYSTEM) {
-					dictionary = loadSystemDictionary(baseFile, dictProp, dictionaryId);
+			for (int inx = 0; inx < dictList.length(); inx++) {
+				JSONObject row = dictList.optJSONObject(inx);
+				if (getType(row) == Type.SYSTEM) {
+					dictionary = loadSystemDictionary(baseFile, row, basePath);
 					commonDictionary = new ProductNameDictionary(dictionary);
 					break;
 				}
 			}
-			for (String dictionaryId : idList) {
-				Type type = getType(dictProp, dictionaryId);
-				String tokenType = getTokenType(dictProp, dictionaryId);
-				File dictFile = getDictionaryFile(baseFile, dictProp, dictionaryId);
-				boolean ignoreCase = getIgnoreCase(dictProp, dictionaryId);
-				SourceDictionary<?> sourceDictionary = null;
 
+			for (int inx = 0; inx < dictList.length(); inx++) {
+				JSONObject row = dictList.optJSONObject(inx);
+				String dictionaryId = row.optString("name");
+				Type type = getType(row);
+				String tokenType = getTokenType(row);
+				File dictFile = getDictionaryFile(baseFile, row, basePath);
+				boolean ignoreCase = getIgnoreCase(row);
+				SourceDictionary<?> sourceDictionary = null;
 				if (type == Type.SET) {
 					SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase);
 					if (tokenType != null) {
@@ -297,12 +283,9 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 			logger.error("DICTIONARY NOT LOADED!");
 			return;
 		}
-
 		ProductNameDictionary commonDictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
-
 		// long st = System.nanoTime();
-		ProductNameDictionary newCommonDictionary = loadDictionary(baseFile, ResourceResolver.readProperties(configFile));
-
+		ProductNameDictionary newCommonDictionary = loadDictionary(baseFile, ResourceResolver.readYmlConfig(configFile));
 		// 1. commonDictionary에 systemdictinary셋팅.
 		commonDictionary.reset(newCommonDictionary);
 		// 2. dictionaryMap 에 셋팅.
@@ -346,10 +329,10 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		newCommonDictionary = null;
 	}
 
-	protected static Dictionary<TagProb, PreResult<CharSequence>> loadSystemDictionary(File baseFile, Properties prop, String dictionaryId) {
-		File systemDictFile = getDictionaryFile(baseFile, prop, dictionaryId);
+	protected static Dictionary<TagProb, PreResult<CharSequence>> loadSystemDictionary(File baseFile, JSONObject prop, String basePath) {
+		File systemDictFile = getDictionaryFile(baseFile, prop, basePath);
 		long st = System.nanoTime();
-		boolean ignoreCase = false;
+		boolean ignoreCase = getIgnoreCase(prop);
 		TagProbDictionary tagProbDictionary = new TagProbDictionary(systemDictFile, ignoreCase);
 		logger.debug("Product Dictionary Load {}ms >> {}", (System.nanoTime() - st) / 1000000,
 			systemDictFile.getName());

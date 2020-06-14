@@ -25,6 +25,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.elasticsearch.common.logging.Loggers;
+import org.json.JSONObject;
 
 import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
 
@@ -85,6 +86,10 @@ public final class TestUtil {
 
 	public static final Properties readProperties(File file) {
 		return ResourceResolver.readProperties(file);
+	}
+
+	public static final JSONObject readYmlConfig(File file) {
+		return ResourceResolver.readYmlConfig(file);
 	}
 
 	public static final void setLogLevel(String levelStr, Class<?>... classes) {
@@ -202,8 +207,8 @@ public final class TestUtil {
 		ProductNameDictionary ret = null;
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
 		try {
-			Properties prop = TestUtil.readProperties(propFile);
-			ret = ProductNameTokenizerFactory.loadDictionary(null, prop);
+			JSONObject prop = TestUtil.readYmlConfig(propFile);
+			ret = ProductNameTokenizerFactory.loadDictionary(propFile.getParentFile(), prop);
 		} catch (Exception e) {
 			logger.debug("ERROR LOADING DICTIONARY : {}", e.getMessage());
 		}

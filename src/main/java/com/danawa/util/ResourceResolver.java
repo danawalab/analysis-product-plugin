@@ -4,7 +4,11 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.Reader;
 import java.net.URL;
+import java.util.Map;
 import java.util.Properties;
+
+import org.json.JSONObject;
+import org.yaml.snakeyaml.Yaml;
 
 public class ResourceResolver {
 
@@ -49,6 +53,21 @@ public class ResourceResolver {
 		try {
 			reader = new FileReader(file);
 			ret.load(reader);
+		} catch (Exception e) {
+			ret = null;
+		} finally {
+			try { reader.close(); } catch (Exception ignore) { }
+		}
+		return ret;
+	}
+
+	public static final JSONObject readYmlConfig(File file) {
+		JSONObject ret = null;
+		Reader reader = null;
+		try {
+			reader = new FileReader(file);
+			Yaml yaml = new Yaml();
+			ret = new JSONObject(yaml.loadAs(reader, Map.class));
 		} catch (Exception e) {
 			ret = null;
 		} finally {

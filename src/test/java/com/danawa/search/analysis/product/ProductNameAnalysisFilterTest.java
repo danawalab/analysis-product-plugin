@@ -4,6 +4,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -11,7 +12,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.korean.KoreanWordExtractor;
@@ -27,8 +28,10 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.common.logging.Loggers;
+import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
+import org.yaml.snakeyaml.Yaml;
 
 public class ProductNameAnalysisFilterTest {
 
@@ -120,14 +123,11 @@ public class ProductNameAnalysisFilterTest {
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
 
-		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
-		if (!propFile.exists()) { return; }
-
 		File textFile = TestUtil.getFileByProperty("SYSPROP_SAMPLE_TEXT_PATH");
 		if (!textFile.exists()) { return; }
 
-		Properties prop = TestUtil.readProperties(propFile);
-		ProductNameDictionary dictionary = ProductNameTokenizerFactory.loadDictionary(null, prop);
+		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		BufferedReader reader = null;
 		Tokenizer tokenizer = null;
 		KoreanWordExtractor extractor = null;
@@ -300,6 +300,25 @@ public class ProductNameAnalysisFilterTest {
 			if (reader != null) try { reader.close(); } catch (Exception ignore) { }
 			if (stream != null) try { stream.close(); } catch (Exception ignore) { }
 			if (analyzer != null) try { analyzer.close(); } catch (Exception ignore) { }
+		}
+	}
+
+	@Test public void testReadYml() {
+		if (TestUtil.launchForBuild()) { return; }
+		String filePath = "product-name-dictionary.yml";
+		Yaml yaml = new Yaml();
+		File file = null;
+		InputStream istream = null;
+		try {
+			file = TestUtil.getFileByRoot(ProductNameAnalysisFilter.class, filePath);
+			logger.debug("FILE:{} / {}", file, file.exists());
+			istream = new FileInputStream(file);
+			JSONObject jobj = new JSONObject(yaml.loadAs(istream, Map.class));
+			logger.debug("MAP:{}", jobj.optJSONArray("dictionary").optJSONObject(1).keySet());
+		} catch (Exception e) {
+			logger.error("", e);
+		} finally {
+			try { istream.close(); } catch (Exception ignore) { }
 		}
 	}
 }

@@ -100,6 +100,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		final String action = request.param("action");
 		final StringWriter buffer = new StringWriter();
 		JSONWriter builder = new JSONWriter(buffer);
+		ProductNameDictionary dictionary = null;
 
 		if (ACTION_RELOAD_DICT.equals(action)) {
 			reloadDictionary();
@@ -107,7 +108,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				.key("action").value(action)
 			.endObject();
 		} else if (ACTION_COMPILE_DICT.equals(action)) {
-			compileDictionary();
+			compileDictionary(client, dictionary);
 			builder.object()
 				.key("action").value(action)
 			.endObject();
@@ -144,7 +145,47 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	public void compileDictionary() {
+	public void compileDictionary(NodeClient client, ProductNameDictionary koreanDictionary) {
+		try {
+			String index = ".fastcatx_dict";
+			QueryBuilder query = null;
+			query = QueryBuilders.matchAllQuery();
+			SearchSourceBuilder source = new SearchSourceBuilder();
+			source.query(query);
+			SearchRequest search = new SearchRequest(index);
+			Scroll scroll = new Scroll(TimeValue.timeValueMinutes(10L));
+			source.from(0);
+			source.size(100);
+			source.timeout(new TimeValue(60, TimeUnit.SECONDS));
+			search.source(source);
+			search.scroll(scroll);
+
+			SearchHit[] hits = null;
+			SearchResponse response = null;
+			ClearScrollRequest clearScroll = new ClearScrollRequest();
+			response = client.search(search).get();
+			String scrollId = response.getScrollId();
+			clearScroll.addScrollId(scrollId);
+			hits = response.getHits().getHits();
+			if (hits != null) {
+				for (; hits != null && hits.length > 0;) {
+					for (SearchHit hit : hits) {
+						Map<String, Object> map = hit.getSourceAsMap();
+						for (String key : map.keySet()) {
+							logger.debug("DICT:{} / {} / {}");
+						}
+					}
+					SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
+					scrollRequest.scroll(scroll);
+					response = client.searchScroll(scrollRequest).get();
+					hits = response.getHits().getHits();
+					scrollId = response.getScrollId();
+					clearScroll.addScrollId(scrollId);
+				}
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}
 	}
 
 	public void addDocument(final RestRequest request, final NodeClient client) {
@@ -688,3 +729,19 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 }
+
+// GET /_plugin/PRODUCT/analysis-tools-detail?test=test&analyzerId=standard&forQuery=true&skipFilter=true&queryWords=192.168.1.1:8090/_plugin/PRODUCT/analysis-tools-detail?test=test&analyzerId=standard&forQuery=true&skipFilter=true&queryWords=Sandisk Extream Z80 USB 16gb
+// {
+//  "query":"Sandisk Extream Z80 USB 16gb",
+//  "result":
+//  [
+//    {"key":"불용어","value":""},
+//    {"key":"모델명 규칙","value":"<strong>Z80<\/strong> ( Z , 80 , Z80 ) <br/>"},
+//    {"key":"단위명 규칙","value":"<strong>16gb<\/strong> : 16gb<br/> >>> 동의어 : 16g, 16기가<br/>"},
+//    {"key":"형태소 분리 결과","value":"Sandisk, Extream, Z, 80, Z80, USB, 16gb, Sandisk Extream Z80 USB 16gb"},
+//    {"key":"동의어 확장","value":"<strong>Sandisk<\/strong> : 샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아<br/><strong>Z<\/strong> : 지, 제트<br/> >>> 단방향 : 지, 제트<br/><strong>USB<\/strong> : 유에스비, usb용, usb형, 유에스비용, 유에스비형<br/><strong>16gb<\/strong> : 16g, 16기가<br/>"},
+//    {"key":"복합명사","value":""},
+//    {"key":"최종 결과","value":"Sandisk, 샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아, Extream, Z, 지, 제트, 80, Z80, USB, 유에스비, usb용, usb형, 유에스비용, 유에스비형, 16gb, 16g, 16기가, Sandisk Extream Z80 USB 16gb"}
+//  ],
+//  "success":true
+// }

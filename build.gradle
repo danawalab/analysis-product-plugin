@@ -34,6 +34,8 @@ task copyToDependencies(type: Copy) {
 	}
 	from ("src/main/resources") {
 		include "*.properties"
+		include "*.policy"
+		include "*.yml"
 	}
 	into "$buildDir/libs"
 }
