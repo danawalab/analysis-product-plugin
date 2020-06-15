@@ -171,9 +171,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				for (; hits != null && hits.length > 0;) {
 					for (SearchHit hit : hits) {
 						Map<String, Object> map = hit.getSourceAsMap();
-						for (String key : map.keySet()) {
-							logger.debug("DICT:{} / {} / {}");
-						}
+						logger.debug("DICT: {} / {}", map.get("type"), map.get("keyword"));
 					}
 					SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
 					scrollRequest.scroll(scroll);
