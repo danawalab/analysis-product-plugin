@@ -185,7 +185,8 @@ public class CustomDictionary extends SourceDictionary<Object> {
 	
 	@Override
 	public void addSourceLineEntry(CharSequence line) {
-		String[] kv = String.valueOf(line).split("\t");
+		// String[] kv = String.valueOf(line).split("\t");
+		String[] kv = String.valueOf(line).split("[,]");
 		if (kv.length == 1) {
 			String value = kv[0].trim();
 			addEntry(null, new Object[] { value }, null);

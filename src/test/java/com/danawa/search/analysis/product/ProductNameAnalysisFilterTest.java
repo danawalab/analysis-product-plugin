@@ -71,8 +71,8 @@ public class ProductNameAnalysisFilterTest {
 		str = "Sandisk Extream Z80 USB 16gb";
 		try {
 			option = new AnalyzerOption();
-			// option.useForQuery(true);
-			option.useForQuery(false);
+			option.useForQuery(true);
+			// option.useForQuery(false);
 			option.useSynonym(true);
 			option.useStopword(true);
 			reader = new StringReader(str);

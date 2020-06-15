@@ -24,6 +24,7 @@ import java.util.Map;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.korean.KoreanWordExtractor;
+import com.danawa.search.analysis.product.ProductNameTokenizerFactory.DictionaryRepository;
 import com.danawa.util.ContextStore;
 
 import org.apache.logging.log4j.Logger;
@@ -146,44 +147,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	public void compileDictionary(NodeClient client, ProductNameDictionary koreanDictionary) {
-		try {
-			String index = ".fastcatx_dict";
-			QueryBuilder query = null;
-			query = QueryBuilders.matchAllQuery();
-			SearchSourceBuilder source = new SearchSourceBuilder();
-			source.query(query);
-			SearchRequest search = new SearchRequest(index);
-			Scroll scroll = new Scroll(TimeValue.timeValueMinutes(10L));
-			source.from(0);
-			source.size(100);
-			source.timeout(new TimeValue(60, TimeUnit.SECONDS));
-			search.source(source);
-			search.scroll(scroll);
-
-			SearchHit[] hits = null;
-			SearchResponse response = null;
-			ClearScrollRequest clearScroll = new ClearScrollRequest();
-			response = client.search(search).get();
-			String scrollId = response.getScrollId();
-			clearScroll.addScrollId(scrollId);
-			hits = response.getHits().getHits();
-			if (hits != null) {
-				for (; hits != null && hits.length > 0;) {
-					for (SearchHit hit : hits) {
-						Map<String, Object> map = hit.getSourceAsMap();
-						logger.debug("DICT: {} / {}", map.get("type"), map.get("keyword"));
-					}
-					SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
-					scrollRequest.scroll(scroll);
-					response = client.searchScroll(scrollRequest).get();
-					hits = response.getHits().getHits();
-					scrollId = response.getScrollId();
-					clearScroll.addScrollId(scrollId);
-				}
-			}
-		} catch (Exception e) {
-			logger.error("", e);
-		}
+		logger.debug("COMPILE DICTIONARY");
+		DictionarySource repo = new DictionarySource(client);
+		ProductNameTokenizerFactory.reloadDictionary(
+			ProductNameTokenizerFactory.compileDictionary(repo, true));
 	}
 
 	public void addDocument(final RestRequest request, final NodeClient client) {
@@ -724,6 +691,103 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				files.add(file);
 			}
 			return false;
+		}
+	}
+
+	static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
+		private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
+		private static final String ES_FIELD_TYPE = "type";
+		private static final String ES_FIELD_KEYWORD = "keyword";
+		private static final String ES_FIELD_VALUE = "value";
+		private NodeClient client;
+		private SearchHit[] hits;
+		private ClearScrollRequest clearScroll;
+		private Scroll scroll;
+		private String scrollId;
+		private int rownum;
+		private CharSequence[] rowData;
+
+		public DictionarySource(NodeClient client) {
+			this.client = client;
+		}
+
+		@Override public Iterator<CharSequence[]> getSource(String type) {
+			try {
+				String index = ES_DICTIONARY_INDEX;
+				QueryBuilder query = null;
+				query = QueryBuilders.matchQuery(ES_FIELD_TYPE, type.toUpperCase());
+				logger.trace("QUERY:{}", query);
+				SearchSourceBuilder source = new SearchSourceBuilder();
+				source.query(query);
+				SearchRequest search = new SearchRequest(index);
+				clearScroll = new ClearScrollRequest();
+				scroll = new Scroll(TimeValue.timeValueMinutes(10L));
+				source.from(0);
+				source.size(100);
+				source.timeout(new TimeValue(60, TimeUnit.SECONDS));
+				search.source(source);
+				search.scroll(scroll);
+				SearchResponse response = client.search(search).get();
+				hits = response.getHits().getHits();
+				scrollId = response.getScrollId();
+				clearScroll.addScrollId(scrollId);
+				rownum = 0;
+				rowData = null;
+			} catch (Exception e) {
+				logger.error("", e);
+			}
+			return this;
+		}
+
+		@Override public boolean hasNext() {
+			boolean ret = false;
+			try {
+				for (; hits != null && hits.length > 0;) {
+					for (; rownum < hits.length;) {
+						SearchHit hit = hits[rownum];
+						Map<String, Object> map = hit.getSourceAsMap();
+						rowData = new CharSequence[] { String.valueOf(map.get(ES_FIELD_KEYWORD)), 
+							String.valueOf(map.get(ES_FIELD_VALUE)) };
+						rownum++;
+						break;
+					}
+
+					if (rowData != null) {
+						ret = true;
+						break;
+					}
+
+					SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
+					scrollRequest.scroll(scroll);
+
+					SearchResponse response = client.searchScroll(scrollRequest).get();
+					hits = response.getHits().getHits();
+					scrollId = response.getScrollId();
+					clearScroll.addScrollId(scrollId);
+					rownum = 0;
+				}
+				if (hits == null && rowData == null) {
+					try {
+						client.clearScroll(clearScroll).get();
+					} catch (Exception ignore) { }
+					ret = false;
+				}
+			} catch (Exception e) {
+				logger.error("", e);
+			}
+			return ret;
+		}
+
+		@Override public CharSequence[] next() {
+			CharSequence[] ret = rowData;
+			rowData = null;
+			return ret;
+		}
+
+		@Override public void close() {
+			try {
+				client.clearScroll(clearScroll).get();
+			} catch (Exception ignore) { }
 		}
 	}
 }
