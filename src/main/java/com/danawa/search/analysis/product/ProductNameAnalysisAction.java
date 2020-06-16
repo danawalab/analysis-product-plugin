@@ -17,14 +17,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
+import com.danawa.search.analysis.dict.CompoundDictionary;
+import com.danawa.search.analysis.dict.CustomDictionary;
+import com.danawa.search.analysis.dict.InvertMapDictionary;
+import com.danawa.search.analysis.dict.MapDictionary;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.analysis.dict.SetDictionary;
+import com.danawa.search.analysis.dict.SourceDictionary;
+import com.danawa.search.analysis.dict.SpaceDictionary;
+import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.search.analysis.product.ProductNameTokenizerFactory.DictionaryRepository;
+import com.danawa.util.CharVector;
 import com.danawa.util.ContextStore;
 
 import org.apache.logging.log4j.Logger;
@@ -73,15 +86,23 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String BASE_URI = "/_product-name-analysis";
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 	private static final String ACTION_RELOAD_DICT = "reload-dict";
+	private static final String ACTION_RESTORE_DICT = "restore-dict";
 	private static final String ACTION_COMPILE_DICT = "compile-dict";
 	private static final String ACTION_ADD_DOCUMENT = "add-document";
 	private static final String ACTION_FULL_INDEX = "full-index";
 	private static final String ACTION_SEARCH = "search";
+	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
+	private static final String ES_FIELD_TYPE = "type";
+	private static final String ES_FIELD_KEYWORD = "keyword";
+	private static final String ES_FIELD_VALUE = "value";
 
 	public static final String AND = "AND";
 	public static final String OR = "OR";
+	public static final String TAB = "\t";
 
 	private IndexingThread indexingThread;
+
+	private ProductNameDictionary dictionary;
 
 	@Inject
 	ProductNameAnalysisAction(Settings settings, RestController controller) {
@@ -101,14 +122,30 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		final String action = request.param("action");
 		final StringWriter buffer = new StringWriter();
 		JSONWriter builder = new JSONWriter(buffer);
-		ProductNameDictionary dictionary = null;
 
 		if (ACTION_RELOAD_DICT.equals(action)) {
 			reloadDictionary();
 			builder.object()
 				.key("action").value(action)
 			.endObject();
+		} else if (ACTION_RESTORE_DICT.equals(action)) {
+			if (dictionary == null) {
+				if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
+					dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY,
+						ProductNameDictionary.class);
+				}
+			}
+			restoreDictionary(client, dictionary);
+			builder.object()
+				.key("action").value(action)
+			.endObject();
 		} else if (ACTION_COMPILE_DICT.equals(action)) {
+			if (dictionary == null) {
+				if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
+					dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY,
+						ProductNameDictionary.class);
+				}
+			}
 			compileDictionary(client, dictionary);
 			builder.object()
 				.key("action").value(action)
@@ -146,11 +183,155 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	public void compileDictionary(NodeClient client, ProductNameDictionary koreanDictionary) {
-		logger.debug("COMPILE DICTIONARY");
+	public void compileDictionary(NodeClient client, ProductNameDictionary productNameDictionary) {
+		boolean exportFile = false;
 		DictionarySource repo = new DictionarySource(client);
 		ProductNameTokenizerFactory.reloadDictionary(
-			ProductNameTokenizerFactory.compileDictionary(repo, true));
+			ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
+	}
+
+	public String getTwowaySynonymWord(CharSequence word, Map<CharSequence, CharSequence[]> map) {
+		Set<CharSequence> sortedSet = new TreeSet<>();
+		CharSequence[] values = map.get(word);
+		if (values != null && !word.equals(values[0]) &&  map.containsKey(values[0])) {
+			sortedSet.addAll(Arrays.asList(values));
+			sortedSet.add(word);
+			StringBuilder sb = new StringBuilder();
+			for (CharSequence value : sortedSet) {
+				if (sb.length() > 0) { sb.append(","); }
+				sb.append(String.valueOf(value).trim());
+			}
+			return sb.toString();
+		} else {
+			return null;
+		}
+	}
+
+	public void restoreDictionary(NodeClient client, ProductNameDictionary productNameDictionary) {
+		Map<String, SourceDictionary<?>> dictionaryMap = productNameDictionary.getDictionaryMap();
+		Set<String> keySet = dictionaryMap.keySet();
+		for (String key : keySet) {
+			SourceDictionary<?> sourceDictionary = dictionaryMap.get(key);
+			logger.debug("KEY:{} / {}", key, sourceDictionary);
+			if (sourceDictionary.getClass().isAssignableFrom(SetDictionary.class)) {
+				SetDictionary dictionary = (SetDictionary) sourceDictionary;
+				Set<CharSequence> words = dictionary.set();
+				storeDictionary(client, key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(MapDictionary.class)) {
+				MapDictionary dictionary = (MapDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					StringBuilder sb = new StringBuilder();
+					for (CharSequence value : map.get(word)) {
+						if (sb.length() > 0) { sb.append(","); }
+						sb.append(String.valueOf(value).trim());
+					}
+					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+				}
+				storeDictionary(client, key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
+				SynonymDictionary dictionary = (SynonymDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					String values = getTwowaySynonymWord(word, map);
+					if (values == null) {
+						StringBuilder sb = new StringBuilder();
+						for (CharSequence value : map.get(word)) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+					} else {
+						words.add(TAB + values);
+					}
+				}
+				storeDictionary(client, key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
+				SpaceDictionary dictionary = (SpaceDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					StringBuilder sb = new StringBuilder();
+					for (CharSequence value : map.get(word)) {
+						if (sb.length() > 0) { sb.append(" "); }
+						sb.append(String.valueOf(value).trim());
+					}
+					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+				}
+				storeDictionary(client, key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
+				CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
+				Set<CharSequence> words = dictionary.map().keySet();
+				storeDictionary(client, key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
+				InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					String values = getTwowaySynonymWord(word, map);
+					if (values == null) {
+						StringBuilder sb = new StringBuilder();
+						for (CharSequence value : map.get(word)) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+					} else {
+						words.add(TAB + values);
+					}
+				}
+				storeDictionary(client, key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
+				CompoundDictionary dictionary = (CompoundDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					String values = getTwowaySynonymWord(word, map);
+					if (values == null) {
+						StringBuilder sb = new StringBuilder();
+						for (CharSequence value : map.get(word)) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+					} else {
+						words.add(TAB + values);
+					}
+				}
+				storeDictionary(client, key, dictionary.ignoreCase(), words);
+			}
+		}
+	}
+
+	public void storeDictionary(NodeClient client, String type, boolean ignoreCase, Set<CharSequence> wordSet) {
+		String indexName = ES_DICTIONARY_INDEX;
+		Map<String, Object> source = null;
+		BulkRequestBuilder builder = null;
+		try {
+			builder = client.prepareBulk();
+			int inx = 0;
+			for (CharSequence data : wordSet) {
+				String[] words = String.valueOf(data).split(TAB);
+				source = new HashMap<>();
+				source.put(ES_FIELD_TYPE, type.toUpperCase());
+				if (words.length == 1) {
+					source.put(ES_FIELD_KEYWORD, words[0]);
+				} else {
+					if (words[0].length() > 0) {
+						source.put(ES_FIELD_KEYWORD, words[0]);
+					}
+					source.put(ES_FIELD_VALUE, words[1]);
+				}
+				builder.add(client.prepareIndex(String.valueOf(indexName), "_doc").setSource(source));
+				if (inx > 0 && (inx % 1000 == 0 || inx == wordSet.size() - 1)) {
+					builder.execute().actionGet();
+					builder = client.prepareBulk();
+				}
+				inx++;
+			}
+		} catch (Exception ignore) { }
 	}
 
 	public void addDocument(final RestRequest request, final NodeClient client) {
@@ -695,10 +876,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
-		private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
-		private static final String ES_FIELD_TYPE = "type";
-		private static final String ES_FIELD_KEYWORD = "keyword";
-		private static final String ES_FIELD_VALUE = "value";
 		private NodeClient client;
 		private SearchHit[] hits;
 		private ClearScrollRequest clearScroll;
@@ -746,8 +923,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					for (; rownum < hits.length;) {
 						SearchHit hit = hits[rownum];
 						Map<String, Object> map = hit.getSourceAsMap();
-						rowData = new CharSequence[] { String.valueOf(map.get(ES_FIELD_KEYWORD)), 
-							String.valueOf(map.get(ES_FIELD_VALUE)) };
+						CharSequence keyword = CharVector.valueOf(map.get(ES_FIELD_KEYWORD));
+						CharSequence value = CharVector.valueOf(map.get(ES_FIELD_VALUE));
+						rowData = new CharSequence[] { keyword, value };
 						rownum++;
 						break;
 					}

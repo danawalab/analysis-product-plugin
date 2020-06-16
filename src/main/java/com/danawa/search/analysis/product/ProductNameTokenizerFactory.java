@@ -396,8 +396,11 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 					int cnt = 0;
 					for (; source.hasNext(); cnt++) {
 						CharSequence[] data = source.next();
-						String keyword = String.valueOf(data[0]).trim();
+						String keyword = "";
 						String value = "";
+						if (data[0] != null) {
+							keyword = String.valueOf(data[0]).trim();
+						}
 						if (data[1] != null) {
 							value = String.valueOf(data[1]).trim();
 						}

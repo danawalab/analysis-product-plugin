@@ -18,6 +18,14 @@ public abstract class SourceDictionary<E> implements ReloadableDictionary, Writa
 
 	protected boolean ignoreCase;
 
+	public boolean ignoreCase() {
+		return ignoreCase;
+	}
+
+	public void ignoreCase(boolean ignoreCase) {
+		this.ignoreCase = ignoreCase;
+	}
+
 	public SourceDictionary(boolean ignoreCase) {
 		this.ignoreCase = ignoreCase;
 	}
