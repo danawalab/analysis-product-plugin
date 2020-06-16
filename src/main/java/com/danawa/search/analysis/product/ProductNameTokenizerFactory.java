@@ -343,7 +343,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return compileDictionary(repo, false);
 	}
 
-	public static ProductNameDictionary compileDictionary(DictionaryRepository repo, boolean exportFile) {
+	public static ProductNameDictionary compileDictionary(final DictionaryRepository repo, final boolean exportFile) {
 		if (baseFile == null || configFile == null) {
 			logger.error("DICTIONARY NOT LOADED!");
 			return null;
@@ -398,17 +398,22 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 						CharSequence[] data = source.next();
 						String keyword = "";
 						String value = "";
+						String line = "";
 						if (data[0] != null) {
 							keyword = String.valueOf(data[0]).trim();
 						}
 						if (data[1] != null) {
 							value = String.valueOf(data[1]).trim();
 						}
-						String line = keyword + "," + value;
+						if (value.length() > 0) {
+							line = keyword + "," + value;
+						} else {
+							line = keyword;
+						}
 						sourceDictionary.addSourceLineEntry(line);
 					}
 					commonDictionary.addDictionary(dictionaryId, sourceDictionary);
-					logger.debug("LOAD DICTIONARY [{}] / {} / {} / {}", cnt, dictionaryId, type, dictFile.getAbsolutePath());
+					logger.debug("LOAD DICTIONARY [{}] / {} / {} / {} / {}", cnt, dictionaryId, type, tokenType, dictFile.getAbsolutePath());
 					if (exportFile) {
 						OutputStream ostream = null;
 						try {
