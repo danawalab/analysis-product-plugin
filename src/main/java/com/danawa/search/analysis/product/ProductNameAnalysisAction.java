@@ -50,6 +50,7 @@ import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -188,6 +189,39 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		DictionarySource repo = new DictionarySource(client);
 		ProductNameTokenizerFactory.reloadDictionary(
 			ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
+	}
+
+	public void deleteData(NodeClient client, String index) {
+		BulkRequestBuilder builder = null;
+		builder = client.prepareBulk();
+		SearchHit[] hits = null;
+		ClearScrollRequest clearScroll = null;
+		Scroll scroll = null;
+		String scrollId = null;
+
+		try {
+			QueryBuilder query = null;
+			query = QueryBuilders.matchAllQuery();
+			SearchSourceBuilder source = new SearchSourceBuilder();
+			source.query(query);
+			SearchRequest search = new SearchRequest(index);
+			clearScroll = new ClearScrollRequest();
+			scroll = new Scroll(TimeValue.timeValueMinutes(10L));
+			source.from(0);
+			source.size(100);
+			source.timeout(new TimeValue(60, TimeUnit.SECONDS));
+			search.source(source);
+			search.scroll(scroll);
+			SearchResponse response = client.search(search).get();
+			hits = response.getHits().getHits();
+			scrollId = response.getScrollId();
+			clearScroll.addScrollId(scrollId);
+
+			DeleteRequest request = new DeleteRequest(index, hits[0].getId());
+			builder.add(request);
+		} catch (Exception e) {
+			logger.error("", e);
+		}
 	}
 
 	public String getTwowaySynonymWord(CharSequence word, Map<CharSequence, CharSequence[]> map) {
