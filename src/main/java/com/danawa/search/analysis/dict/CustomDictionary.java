@@ -158,6 +158,8 @@ public class CustomDictionary extends SourceDictionary<Object> {
 		if (keyword == null) { return; }
 		CharVector cv = CharVector.valueOf(keyword).trim();
 		if (cv.length() == 0) { return; }
+		if (ignoreCase) { cv.ignoreCase(); }
+		wordSet.add(cv);
 		Object[] list = new Object[values.length];
 		for (int i = 0; i < values.length; i++) {
 			if (values[i] == null) { continue; }
@@ -180,13 +182,12 @@ public class CustomDictionary extends SourceDictionary<Object> {
 				wordSet.add(value);
 			// }
 		}
-		map.put(cv.removeWhitespaces(), list);
+		map.put(cv, list);
 	}
 	
 	@Override
 	public void addSourceLineEntry(CharSequence line) {
-		// String[] kv = String.valueOf(line).split("\t");
-		String[] kv = String.valueOf(line).split("[,]");
+		String[] kv = String.valueOf(line).split("\t");
 		if (kv.length == 1) {
 			String value = kv[0].trim();
 			addEntry(null, new Object[] { value }, null);

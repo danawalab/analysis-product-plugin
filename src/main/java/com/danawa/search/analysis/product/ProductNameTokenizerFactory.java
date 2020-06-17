@@ -248,7 +248,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 							preResult.setResult(e.getValue());
 							map.put(e.getKey(), preResult);
 						}
-						commonDictionary.setPreDictionary(map);
+						// commonDictionary.setPreDictionary(map);
 					}
 					sourceDictionary = spaceDictionary;
 				} else if (type == Type.CUSTOM) {
@@ -405,10 +405,18 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 						if (data[1] != null) {
 							value = String.valueOf(data[1]).trim();
 						}
-						if (value.length() > 0) {
-							line = keyword + "," + value;
+						if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+							if (keyword.length() > 0) {
+								line = keyword + "\t" + value;
+							} else {
+								line = value;
+							}
 						} else {
-							line = keyword;
+							if (value.length() > 0) {
+								line = keyword + "\t" + value;
+							} else {
+								line = keyword;
+							}
 						}
 						sourceDictionary.addSourceLineEntry(line);
 					}
@@ -448,7 +456,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 							preResult.setResult(e.getValue());
 							map.put(e.getKey(), preResult);
 						}
-						commonDictionary.setPreDictionary(map);
+						// commonDictionary.setPreDictionary(map);
 					}
 				} else if (type == Type.CUSTOM) {
 					if (tokenType != null) {

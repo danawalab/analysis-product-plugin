@@ -184,7 +184,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	public void compileDictionary(NodeClient client, ProductNameDictionary productNameDictionary) {
-		boolean exportFile = false;
+		boolean exportFile = true;
 		DictionarySource repo = new DictionarySource(client);
 		ProductNameTokenizerFactory.reloadDictionary(
 			ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
@@ -193,7 +193,22 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	public String getTwowaySynonymWord(CharSequence word, Map<CharSequence, CharSequence[]> map) {
 		Set<CharSequence> sortedSet = new TreeSet<>();
 		CharSequence[] values = map.get(word);
-		if (values != null && !word.equals(values[0]) &&  map.containsKey(values[0])) {
+		int pass = 0;
+		String s0, s1, s2;
+		if (values != null && values.length > 0) {
+			s0 = String.valueOf(word);
+			CharSequence[] target = map.get(values[0]);
+			for (int inx1 = 1; target!=null && inx1 < values.length; inx1++) {
+				s1 = String.valueOf(values[inx1]);
+				for (int inx2 = 0; inx2 < target.length; inx2++) {
+					s2 = String.valueOf(target[inx2]);
+					if (s1.equals(s2) || s0.contains(s2)) {
+						pass++;
+					}
+				}
+			}
+		}
+		if (pass == values.length) {
 			sortedSet.addAll(Arrays.asList(values));
 			sortedSet.add(word);
 			StringBuilder sb = new StringBuilder();
@@ -263,7 +278,18 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				storeDictionary(client, key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
 				CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
-				Set<CharSequence> words = dictionary.map().keySet();
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, Object[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					StringBuilder sb = new StringBuilder();
+					for (Object value : map.get(word)) {
+						if (value != null) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+					}
+					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+				}
 				storeDictionary(client, key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
 				InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
@@ -303,6 +329,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				storeDictionary(client, key, dictionary.ignoreCase(), words);
 			}
 		}
+		logger.debug("dictionary restore finished !");
 	}
 
 	public void storeDictionary(NodeClient client, String type, boolean ignoreCase, Set<CharSequence> wordSet) {
@@ -325,13 +352,16 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					source.put(ES_FIELD_VALUE, words[1]);
 				}
 				builder.add(client.prepareIndex(String.valueOf(indexName), "_doc").setSource(source));
-				if (inx > 0 && (inx % 1000 == 0 || inx == wordSet.size() - 1)) {
+				if (inx > 0 && inx % 1000 == 0) {
 					builder.execute().actionGet();
 					builder = client.prepareBulk();
 				}
 				inx++;
 			}
-		} catch (Exception ignore) { }
+			builder.execute().actionGet();
+		} catch (Exception e) { 
+			logger.error("", e);
+		}
 	}
 
 	public void addDocument(final RestRequest request, final NodeClient client) {

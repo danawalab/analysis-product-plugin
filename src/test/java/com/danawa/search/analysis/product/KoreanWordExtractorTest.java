@@ -59,19 +59,24 @@ public class KoreanWordExtractorTest {
 			logger.debug("SYNONYM:{}", syn);
 		}
 
-		word = new CharVector("센");
-		List<TagProb> result = dictionary.find(word);
-		logger.debug("RESULT:{}", result);
+		String[] compareData = { "z", "지", "제트" };
 
-		logger.debug("USER:{} / {}", userDict.contains(word), userDict.set().size());
-		logger.debug("BRAND:{} / {}", brandDict.map().containsKey(word), brandDict.getWordSet().size());
-		logger.debug("MAKER:{} / {}", makerDict.map().containsKey(word), makerDict.getWordSet().size());
-		logger.debug("SYNONYM:{}{} / {}", "", synonymDict.get(word), synonymDict.getWordSet().size());
-		logger.debug("COMPOUND:{}{} / {}", "", compoundDict.get(word), synonymDict.getWordSet().size());
-		logger.debug("SPACE:{}{} / {}", "", spaceDict.get(word), spaceDict.getWordSet().size());
-		logger.debug("STOP:{} / {}", stopDict.contains(word), stopDict.set().size());
-		logger.debug("UNIT:{} / {}", unitDict.contains(word), unitDict.set().size());
-		logger.debug("UNITSYNONYM:{}{} / {}", "", unitSynDict.get(word), unitSynDict.getWordSet().size());
+		for (String key : compareData) {
+			word = new CharVector(key);
+			List<TagProb> result = dictionary.find(word);
+			logger.debug("RESULT:{}", result);
+
+			logger.debug("USER:{} / {}", userDict.contains(word), userDict.set().size());
+			logger.debug("BRAND:{} / {}", brandDict.map().containsKey(word), brandDict.getWordSet().size());
+			logger.debug("MAKER:{} / {}", makerDict.map().containsKey(word), makerDict.getWordSet().size());
+			logger.debug("SYNONYM:{}{} / {}", "", synonymDict.get(word), synonymDict.getWordSet().size());
+			logger.debug("COMPOUND:{}{} / {}", "", compoundDict.get(word), synonymDict.getWordSet().size());
+			logger.debug("SPACE:{}{} / {}", "", spaceDict.get(word), spaceDict.getWordSet().size());
+			logger.debug("STOP:{} / {}", stopDict.contains(word), stopDict.set().size());
+			logger.debug("UNIT:{} / {}", unitDict.contains(word), unitDict.set().size());
+			logger.debug("UNITSYNONYM:{}{} / {}", "", unitSynDict.get(word), unitSynDict.getWordSet().size());
+			logger.debug("--------------------------------------------------------------------------------");
+		}
 	}
 
 	@Test public void testExtractorSimple() {
