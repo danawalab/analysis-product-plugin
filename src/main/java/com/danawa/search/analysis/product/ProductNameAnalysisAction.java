@@ -286,6 +286,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
 		String word = jobj.optString("word", "");
+		Set<String> keySet = dictionary.getDictionaryMap().keySet();
 
 		builder
 			.key("result").array();
@@ -300,19 +301,35 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				.key("prob").value(tagProb.prob())
 			.endObject();
 		}
+		for (String type : keySet) {
+			type = type.toUpperCase();
 
-		BoolQueryBuilder query = QueryBuilders.boolQuery();
-		query.should(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word));
-		query.should(QueryBuilders.matchQuery(ES_DICT_FIELD_VALUE, word));
-		Iterator<Map<String, Object>> result = SearchUtil.search(client, index, query, 0, -1, true);
-		while (result.hasNext()) {
-			Map<String, Object> data = result.next();
-			builder.object()
-				.key(ES_DICT_FIELD_TYPE).value(data.get(ES_DICT_FIELD_TYPE))
-				.key(ES_DICT_FIELD_KEYWORD).value(data.get(ES_DICT_FIELD_KEYWORD))
-				.key(ES_DICT_FIELD_VALUE).value(data.get(ES_DICT_FIELD_VALUE))
-				.key(ES_DICT_FIELD_ID).value(data.get(ES_DICT_FIELD_ID))
-			.endObject();
+			BoolQueryBuilder query = 
+				QueryBuilders.boolQuery()
+					.must(QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type))
+					.must(QueryBuilders.boolQuery()
+						.should(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word))
+						.should(QueryBuilders.matchQuery(ES_DICT_FIELD_VALUE, word))
+					);
+			Iterator<Map<String, Object>> result = SearchUtil.search(client, index, query, 0, -1, true);
+			while (result.hasNext()) {
+				Map<String, Object> data = result.next();
+				CharVector keyword = CharVector.valueOf(data.get(ES_DICT_FIELD_KEYWORD));
+				CharVector value = CharVector.valueOf(data.get(ES_DICT_FIELD_VALUE));
+				CharVector id = CharVector.valueOf(data.get(ES_DICT_FIELD_ID));
+				builder.object();
+				builder.key(ES_DICT_FIELD_TYPE).value(type);
+				if (keyword != null && keyword.length() > 0) {
+					builder.key(ES_DICT_FIELD_KEYWORD).value(keyword);
+				}
+				if (value != null && value.length() > 0) {
+					builder.key(ES_DICT_FIELD_VALUE).value(value);
+				}
+				if (id != null && id.length() > 0) {
+					builder.key(ES_DICT_FIELD_ID).value(id);
+				}
+				builder.endObject();
+			}
 		}
 		builder.endArray();
 	}
