@@ -40,6 +40,7 @@ public class KoreanWordExtractorTest {
 		SetDictionary userDict = dictionary.getDictionary(DICT_USER, SetDictionary.class);
 		CustomDictionary brandDict = dictionary.getDictionary(DICT_BRAND, CustomDictionary.class);
 		CustomDictionary makerDict= dictionary.getDictionary(DICT_MAKER, CustomDictionary.class);
+		CustomDictionary categoryDict= dictionary.getDictionary(DICT_CATEGORY, CustomDictionary.class);
 		SynonymDictionary synonymDict = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
 		CompoundDictionary compoundDict = dictionary.getDictionary(DICT_COMPOUND, CompoundDictionary.class);
 		SpaceDictionary spaceDict = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
@@ -59,7 +60,7 @@ public class KoreanWordExtractorTest {
 			logger.debug("SYNONYM:{}", syn);
 		}
 
-		String[] compareData = { "z", "지", "제트" };
+		String[] compareData = { "sandisk", "예일가구" };
 
 		for (String key : compareData) {
 			word = new CharVector(key);
@@ -67,8 +68,9 @@ public class KoreanWordExtractorTest {
 			logger.debug("RESULT:{}", result);
 
 			logger.debug("USER:{} / {}", userDict.contains(word), userDict.set().size());
-			logger.debug("BRAND:{} / {}", brandDict.map().containsKey(word), brandDict.getWordSet().size());
-			logger.debug("MAKER:{} / {}", makerDict.map().containsKey(word), makerDict.getWordSet().size());
+			logger.debug("BRAND:{} / {} / {}", brandDict.map().containsKey(word), brandDict.map().get(word), brandDict.getWordSet().size());
+			logger.debug("MAKER:{} / {} / {}", makerDict.map().containsKey(word), makerDict.map().get(word), makerDict.getWordSet().size());
+			logger.debug("CATEGORY:{} / {} / {}", categoryDict.map().containsKey(word), categoryDict.map().get(word), categoryDict.getWordSet().size());
 			logger.debug("SYNONYM:{}{} / {}", "", synonymDict.get(word), synonymDict.getWordSet().size());
 			logger.debug("COMPOUND:{}{} / {}", "", compoundDict.get(word), synonymDict.getWordSet().size());
 			logger.debug("SPACE:{}{} / {}", "", spaceDict.get(word), spaceDict.getWordSet().size());

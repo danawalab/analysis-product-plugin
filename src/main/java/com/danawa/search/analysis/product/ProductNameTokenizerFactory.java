@@ -396,20 +396,30 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 					int cnt = 0;
 					for (; source.hasNext(); cnt++) {
 						CharSequence[] data = source.next();
+						String id = "";
 						String keyword = "";
 						String value = "";
 						String line = "";
 						if (data[0] != null) {
-							keyword = String.valueOf(data[0]).trim();
+							id = String.valueOf(data[0]).trim();
 						}
 						if (data[1] != null) {
-							value = String.valueOf(data[1]).trim();
+							keyword = String.valueOf(data[1]).trim();
+						}
+						if (data[2] != null) {
+							value = String.valueOf(data[2]).trim();
 						}
 						if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
 							if (keyword.length() > 0) {
 								line = keyword + "\t" + value;
 							} else {
 								line = value;
+							}
+						} else if (type == Type.CUSTOM) {
+							if (id.length() > 0) {
+								line = keyword + "\t" + id;
+							} else {
+								line = keyword;
 							}
 						} else {
 							if (value.length() > 0) {

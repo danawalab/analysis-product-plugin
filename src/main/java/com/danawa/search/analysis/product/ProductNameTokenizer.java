@@ -56,6 +56,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 	public static final String DICT_COMPOUND= "compound";
 	public static final String DICT_MAKER = "maker";
 	public static final String DICT_BRAND = "brand";
+	public static final String DICT_CATEGORY = "category";
 
 	public static final int MAX_UNIT_LENGTH = 5;
 
