@@ -288,7 +288,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String word = jobj.optString("word", "");
 
 		builder
-			.key("dictionary").array();
+			.key("result").array();
 
 		List<TagProb> tagProbs = dictionary.find(CharVector.valueOf(word));
 		for (int inx = 0;tagProbs != null && inx < tagProbs.size(); inx++) {
