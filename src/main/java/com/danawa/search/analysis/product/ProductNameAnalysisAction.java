@@ -13,7 +13,6 @@ import java.io.StringWriter;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.text.SimpleDateFormat;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
@@ -49,18 +48,11 @@ import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.index.IndexRequestBuilder;
-import org.elasticsearch.action.search.ClearScrollRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -71,9 +63,6 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.Scroll;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -89,7 +78,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_RELOAD_DICT = "reload-dict";
 	private static final String ACTION_RESTORE_DICT = "restore-dict";
 	private static final String ACTION_COMPILE_DICT = "compile-dict";
-	private static final String ACTION_ADD_DOCUMENT = "add-document";
 	private static final String ACTION_FULL_INDEX = "full-index";
 	private static final String ACTION_SEARCH = "search";
 	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
@@ -136,7 +124,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						ProductNameDictionary.class);
 				}
 			}
-			restoreDictionary(client, dictionary);
+			restoreDictionary(request, client, dictionary);
 			builder.object()
 				.key("action").value(action)
 			.endObject();
@@ -148,11 +136,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				}
 			}
 			compileDictionary(request, client, dictionary);
-			builder.object()
-				.key("action").value(action)
-			.endObject();
-		} else if (ACTION_ADD_DOCUMENT.equals(action)) {
-			addDocument(request, client);
 			builder.object()
 				.key("action").value(action)
 			.endObject();
@@ -186,9 +169,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 	public void compileDictionary(RestRequest request, NodeClient client, ProductNameDictionary productNameDictionary) {
 		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
 		boolean exportFile = jobj.optBoolean("exportFile", true);
 
-		DictionarySource repo = new DictionarySource(client);
+		DictionarySource repo = new DictionarySource(client, index);
 		ProductNameTokenizerFactory.reloadDictionary(
 			ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
 	}
@@ -225,17 +209,20 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	public void restoreDictionary(NodeClient client, ProductNameDictionary productNameDictionary) {
+	public void restoreDictionary(RestRequest request, NodeClient client, ProductNameDictionary productNameDictionary) {
+		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
+
 		Map<String, SourceDictionary<?>> dictionaryMap = productNameDictionary.getDictionaryMap();
 		Set<String> keySet = dictionaryMap.keySet();
-		SearchUtil.deleteAllData(client, ES_DICTIONARY_INDEX);
+		SearchUtil.deleteAllData(client, index);
 		for (String key : keySet) {
 			SourceDictionary<?> sourceDictionary = dictionaryMap.get(key);
 			logger.debug("KEY:{} / {}", key, sourceDictionary);
 			if (sourceDictionary.getClass().isAssignableFrom(SetDictionary.class)) {
 				SetDictionary dictionary = (SetDictionary) sourceDictionary;
 				Set<CharSequence> words = dictionary.set();
-				storeDictionary(client, key, dictionary.ignoreCase(), words);
+				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(MapDictionary.class)) {
 				MapDictionary dictionary = (MapDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -248,7 +235,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					}
 					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
 				}
-				storeDictionary(client, key, dictionary.ignoreCase(), words);
+				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
 				SynonymDictionary dictionary = (SynonymDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -266,7 +253,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						words.add(TAB + values);
 					}
 				}
-				storeDictionary(client, key, dictionary.ignoreCase(), words);
+				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
 				SpaceDictionary dictionary = (SpaceDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -279,7 +266,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					}
 					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
 				}
-				storeDictionary(client, key, dictionary.ignoreCase(), words);
+				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
 				CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -294,7 +281,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					}
 					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
 				}
-				storeDictionary(client, key, dictionary.ignoreCase(), words);
+				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
 				InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -312,7 +299,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						words.add(TAB + values);
 					}
 				}
-				storeDictionary(client, key, dictionary.ignoreCase(), words);
+				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
 				CompoundDictionary dictionary = (CompoundDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -330,14 +317,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						words.add(TAB + values);
 					}
 				}
-				storeDictionary(client, key, dictionary.ignoreCase(), words);
+				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
 			}
 		}
 		logger.debug("dictionary restore finished !");
 	}
 
-	public void storeDictionary(NodeClient client, String type, boolean ignoreCase, Set<CharSequence> wordSet) {
-		String indexName = ES_DICTIONARY_INDEX;
+	public void storeDictionary(NodeClient client, String index, String type, boolean ignoreCase, Set<CharSequence> wordSet) {
 		Map<String, Object> source = null;
 		BulkRequestBuilder builder = null;
 		try {
@@ -355,7 +341,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					}
 					source.put(ES_FIELD_VALUE, words[1]);
 				}
-				builder.add(client.prepareIndex(String.valueOf(indexName), "_doc").setSource(source));
+				builder.add(client.prepareIndex(String.valueOf(index), "_doc").setSource(source));
 				if (inx > 0 && inx % 1000 == 0) {
 					builder.execute().actionGet();
 					builder = client.prepareBulk();
@@ -366,54 +352,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				builder.execute().actionGet();
 			}
 		} catch (Exception e) { 
-			logger.error("", e);
-		}
-	}
-
-	public void addDocument(final RestRequest request, final NodeClient client) {
-		try {
-			logger.debug("PARSING REST-BODY...");
-			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-			for (String key : jobj.keySet()) {
-				String value = jobj.optString(key, "");
-				logger.debug("PARSE VALUE {} = {}", key, value);
-			}
-		} catch (Exception e) {
-			logger.error("", e);
-		}
-		try {
-			logger.debug("TESTING SEARCH...");
-			// 문서 검색 테스트
-			ActionListener<SearchResponse> listener = new ActionListener<SearchResponse>() {
-				@Override public void onResponse(SearchResponse response) {
-					SearchHits hits = response.getHits();
-					for (SearchHit hit : hits.getHits()) {
-						Map<String, Object> map = hit.getSourceAsMap();
-						logger.debug("RESULT:{}", map);
-					}
-				}
-				@Override public void onFailure(Exception e) { }
-			};
-			SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-			sourceBuilder.query(QueryBuilders.queryStringQuery("PRODUCTNAME:상품명테스트"));
-			sourceBuilder.from(0);
-			sourceBuilder.size(5);
-			sourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
-			SearchRequest searchRequest = new SearchRequest("sample_index");
-			searchRequest.source(sourceBuilder);
-			client.search(searchRequest, listener);
-		} catch (Exception e) {
-			logger.error("", e);
-		}
-		try {
-			logger.debug("CREATE DOCUMENT...");
-			// 샘플문서 생성 테스트
-			IndexRequestBuilder builder = client.prepareIndex("sample_index", "_doc");
-			Map<String, Object> source = new HashMap<>();
-			source.put("PRODUCTNAME", "상품명테스트");
-			builder.setSource(source);
-			builder.get();
-		} catch (Exception e) {
 			logger.error("", e);
 		}
 	}
@@ -824,15 +762,16 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 	static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
 		private NodeClient client;
+		private String index;
 		private Iterator<Map<String, Object>> iterator;
 
-		public DictionarySource(NodeClient client) {
+		public DictionarySource(NodeClient client, String index) {
 			this.client = client;
+			this.index = index;
 		}
 
 		@Override public Iterator<CharSequence[]> getSource(String type) {
 			try {
-				String index = ES_DICTIONARY_INDEX;
 				QueryBuilder query = null;
 				query = QueryBuilders.matchQuery(ES_FIELD_TYPE, type.toUpperCase());
 				logger.trace("QUERY:{}", query);
