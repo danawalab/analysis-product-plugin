@@ -37,6 +37,7 @@ import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.search.analysis.product.ProductNameTokenizerFactory.DictionaryRepository;
+import com.danawa.search.util.SearchUtil;
 import com.danawa.util.CharVector;
 import com.danawa.util.ContextStore;
 
@@ -55,7 +56,6 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
@@ -147,7 +147,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						ProductNameDictionary.class);
 				}
 			}
-			compileDictionary(client, dictionary);
+			compileDictionary(request, client, dictionary);
 			builder.object()
 				.key("action").value(action)
 			.endObject();
@@ -184,44 +184,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	public void compileDictionary(NodeClient client, ProductNameDictionary productNameDictionary) {
-		boolean exportFile = true;
+	public void compileDictionary(RestRequest request, NodeClient client, ProductNameDictionary productNameDictionary) {
+		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+		boolean exportFile = jobj.optBoolean("exportFile", true);
+
 		DictionarySource repo = new DictionarySource(client);
 		ProductNameTokenizerFactory.reloadDictionary(
 			ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
-	}
-
-	public void deleteData(NodeClient client, String index) {
-		BulkRequestBuilder builder = null;
-		builder = client.prepareBulk();
-		SearchHit[] hits = null;
-		ClearScrollRequest clearScroll = null;
-		Scroll scroll = null;
-		String scrollId = null;
-
-		try {
-			QueryBuilder query = null;
-			query = QueryBuilders.matchAllQuery();
-			SearchSourceBuilder source = new SearchSourceBuilder();
-			source.query(query);
-			SearchRequest search = new SearchRequest(index);
-			clearScroll = new ClearScrollRequest();
-			scroll = new Scroll(TimeValue.timeValueMinutes(10L));
-			source.from(0);
-			source.size(100);
-			source.timeout(new TimeValue(60, TimeUnit.SECONDS));
-			search.source(source);
-			search.scroll(scroll);
-			SearchResponse response = client.search(search).get();
-			hits = response.getHits().getHits();
-			scrollId = response.getScrollId();
-			clearScroll.addScrollId(scrollId);
-
-			DeleteRequest request = new DeleteRequest(index, hits[0].getId());
-			builder.add(request);
-		} catch (Exception e) {
-			logger.error("", e);
-		}
 	}
 
 	public String getTwowaySynonymWord(CharSequence word, Map<CharSequence, CharSequence[]> map) {
@@ -259,6 +228,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	public void restoreDictionary(NodeClient client, ProductNameDictionary productNameDictionary) {
 		Map<String, SourceDictionary<?>> dictionaryMap = productNameDictionary.getDictionaryMap();
 		Set<String> keySet = dictionaryMap.keySet();
+		SearchUtil.deleteAllData(client, ES_DICTIONARY_INDEX);
 		for (String key : keySet) {
 			SourceDictionary<?> sourceDictionary = dictionaryMap.get(key);
 			logger.debug("KEY:{} / {}", key, sourceDictionary);
@@ -392,7 +362,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				}
 				inx++;
 			}
-			builder.execute().actionGet();
+			if (inx > 0) {
+				builder.execute().actionGet();
+			}
 		} catch (Exception e) { 
 			logger.error("", e);
 		}
@@ -505,42 +477,33 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 			if (trackTotal) {
 				// NOTE: 부하가 얼마나 걸릴지 체크해 봐야 할듯.
-				SearchRequest countRequest = new SearchRequest(index);
-				SearchSourceBuilder countSource = new SearchSourceBuilder().query(query).size(0).trackTotalHits(true);
-				countRequest.source(countSource);
-				SearchResponse countResponse = client.search(countRequest).get();
-				total = countResponse.getHits().getTotalHits().value;
+				total = SearchUtil.count(client, index, query);
 				logger.debug("TOTAL:{}", total);
 			}
 
-			boolean doScroll = from + size > 10000;
-			SearchRequest search = new SearchRequest(index);
-			Scroll scroll = null;
-
-			if (doScroll) {
-				logger.debug("SCROLL SEARCH");
-				scroll = new Scroll(TimeValue.timeValueMinutes(10L));
-				source.from(0);
-				source.size(100);
-				source.timeout(new TimeValue(60, TimeUnit.SECONDS));
-				search.source(source);
-				search.scroll(scroll);
-			} else {
-				logger.debug("LIMIT SEARCH {}~{}", from, size);
-				source.from(from);
-				source.size(size);
-				search.source(source);
-			}
+			boolean doScroll = (total != -1 && total > 10000) || from + size > 10000;
 
 			builder.object();
 			if (trackAnalysis) {
 				builder.key("analysis").value(analysis);
 			}
-			if (doScroll) {
-				doSearchScroll(search, scroll, from, size, total, client, builder);
-			} else {
-				doSearch(search, total, client, builder);
+
+			if (total != -1) {
+				builder.key("total").value(total);
 			}
+			builder.key("result").array();
+
+			Iterator<Map<String, Object>> iter = SearchUtil.search(client, index, query, from, size, doScroll);
+			while (iter.hasNext()) {
+				Map<String, Object> map = iter.next();
+				builder.object();
+				for (String key : map.keySet()) {
+					builder.key(key).value(map.get(key));
+				}
+				builder.endObject();
+
+			}
+			builder.endArray();
 			builder.endObject();
 		} catch (Exception e) {
 			logger.error("", e);
@@ -699,86 +662,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		return ret;
-	}
-
-
-	public void doSearchScroll(SearchRequest search, Scroll scroll, int from, int size, long total, NodeClient client, JSONWriter builder) throws Exception {
-		/**
-		 * 스크롤 스트리밍 검색. 느리지만 1만건 이상 검색결과를 추출가능함.
-		 **/
-		SearchHit[] hits = null;
-		SearchResponse response = null;
-		ClearScrollRequest clearScroll = new ClearScrollRequest();
-		response = client.search(search).get();
-		String scrollId = response.getScrollId();
-		clearScroll.addScrollId(scrollId);
-		hits = response.getHits().getHits();
-		if (hits != null) {
-			if (total != -1) {
-				builder.key("total").value(total);
-			}
-			builder.key("result").array();
-			for (int rownum = 0; hits != null && hits.length > 0;) {
-				logger.trace("FROM:{} / {}", from, rownum);
-				if (rownum + hits.length <= from) { 
-					rownum += hits.length;
-				} else {
-					for (SearchHit hit : hits) {
-						if (rownum < from) { 
-						} else {
-							Map<String, Object> map = hit.getSourceAsMap();
-							map.put("ROWNUM", rownum);
-							logger.trace("RESULT:{}", map);
-							builder.object();
-							for (String key : map.keySet()) {
-								builder.key(key).value(map.get(key));
-							}
-							builder.endObject();
-							if (--size <= 0) { break; }
-						}
-						rownum++;
-					}
-				}
-				if (size <= 0) { break; }
-				SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
-				scrollRequest.scroll(scroll);
-				response = client.searchScroll(scrollRequest).get();
-				hits = response.getHits().getHits();
-				scrollId = response.getScrollId();
-				clearScroll.addScrollId(scrollId);
-			}
-			builder.endArray();
-		}
-		client.clearScroll(clearScroll).get();
-	}
-
-	public void doSearch(SearchRequest search, long total, NodeClient client, JSONWriter builder) throws Exception {
-		/**
-		 * 단순 검색. 빠르지만 1만건 이상 검색결과 검색 불가능
-		 **/
-		SearchHit[] hits = null;
-		SearchResponse response = null;
-		response = client.search(search).get();
-		hits = response.getHits().getHits();
-		if (hits != null) {
-			if (total != -1) {
-				builder.key("total").value(total);
-			}
-			builder.key("result").array();
-			int rownum = 0;
-			for (SearchHit hit : hits) {
-				Map<String, Object> map = hit.getSourceAsMap();
-				map.put("ROWNUM", rownum);
-				logger.trace("RESULT:{}", map);
-				builder.object();
-				for (String key : map.keySet()) {
-					builder.key(key).value(map.get(key));
-				}
-				builder.endObject();
-				rownum++;
-			}
-			builder.endArray();
-		}
 	}
 
 	public static TokenStream getAnalyzer(String str) {
@@ -941,12 +824,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 	static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
 		private NodeClient client;
-		private SearchHit[] hits;
-		private ClearScrollRequest clearScroll;
-		private Scroll scroll;
-		private String scrollId;
-		private int rownum;
-		private CharSequence[] rowData;
+		private Iterator<Map<String, Object>> iterator;
 
 		public DictionarySource(NodeClient client) {
 			this.client = client;
@@ -958,22 +836,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				QueryBuilder query = null;
 				query = QueryBuilders.matchQuery(ES_FIELD_TYPE, type.toUpperCase());
 				logger.trace("QUERY:{}", query);
-				SearchSourceBuilder source = new SearchSourceBuilder();
-				source.query(query);
-				SearchRequest search = new SearchRequest(index);
-				clearScroll = new ClearScrollRequest();
-				scroll = new Scroll(TimeValue.timeValueMinutes(10L));
-				source.from(0);
-				source.size(100);
-				source.timeout(new TimeValue(60, TimeUnit.SECONDS));
-				search.source(source);
-				search.scroll(scroll);
-				SearchResponse response = client.search(search).get();
-				hits = response.getHits().getHits();
-				scrollId = response.getScrollId();
-				clearScroll.addScrollId(scrollId);
-				rownum = 0;
-				rowData = null;
+				iterator = SearchUtil.search(client, index, query, 0, -1, true);
 			} catch (Exception e) {
 				logger.error("", e);
 			}
@@ -981,56 +844,17 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		@Override public boolean hasNext() {
-			boolean ret = false;
-			try {
-				for (; hits != null && hits.length > 0;) {
-					for (; rownum < hits.length;) {
-						SearchHit hit = hits[rownum];
-						Map<String, Object> map = hit.getSourceAsMap();
-						CharSequence keyword = CharVector.valueOf(map.get(ES_FIELD_KEYWORD));
-						CharSequence value = CharVector.valueOf(map.get(ES_FIELD_VALUE));
-						rowData = new CharSequence[] { keyword, value };
-						rownum++;
-						break;
-					}
-
-					if (rowData != null) {
-						ret = true;
-						break;
-					}
-
-					SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
-					scrollRequest.scroll(scroll);
-
-					SearchResponse response = client.searchScroll(scrollRequest).get();
-					hits = response.getHits().getHits();
-					scrollId = response.getScrollId();
-					clearScroll.addScrollId(scrollId);
-					rownum = 0;
-				}
-				if (hits == null && rowData == null) {
-					try {
-						client.clearScroll(clearScroll).get();
-					} catch (Exception ignore) { }
-					ret = false;
-				}
-			} catch (Exception e) {
-				logger.error("", e);
-			}
-			return ret;
+			return iterator.hasNext();
 		}
 
 		@Override public CharSequence[] next() {
-			CharSequence[] ret = rowData;
-			rowData = null;
-			return ret;
+			Map<String, Object> data = iterator.next();
+			CharSequence keyword = CharVector.valueOf(data.get(ES_FIELD_KEYWORD));
+			CharSequence value = CharVector.valueOf(data.get(ES_FIELD_VALUE));
+			return new CharSequence[] { keyword, value };
 		}
 
-		@Override public void close() {
-			try {
-				client.clearScroll(clearScroll).get();
-			} catch (Exception ignore) { }
-		}
+		@Override public void close() { }
 	}
 }
 
