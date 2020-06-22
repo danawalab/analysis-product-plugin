@@ -493,6 +493,37 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		});
 	}
 
+	public static int[] getDictionaryInfo(SourceDictionary<?> sourceDictionary) {
+		int[] ret = {0, 0};
+		if (sourceDictionary.getClass().isAssignableFrom(SetDictionary.class)) {
+			SetDictionary dictionary = (SetDictionary) sourceDictionary;
+			ret[0] = dictionary.set().size();
+		} else if (sourceDictionary.getClass().isAssignableFrom(MapDictionary.class)) {
+			MapDictionary dictionary = (MapDictionary) sourceDictionary;
+			ret[0] = dictionary.map().keySet().size();
+		} else if (sourceDictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
+			SynonymDictionary dictionary = (SynonymDictionary) sourceDictionary;
+			ret[0] = dictionary.map().keySet().size();
+			ret[1] = dictionary.getWordSet().size();
+		} else if (sourceDictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
+			SpaceDictionary dictionary = (SpaceDictionary) sourceDictionary;
+			ret[0] = dictionary.map().keySet().size();
+			ret[1] = dictionary.getWordSet().size();
+		} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
+			CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
+			ret[0] = dictionary.map().keySet().size();
+			ret[1] = dictionary.getWordSet().size();
+		} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
+			InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
+			ret[0] = dictionary.map().keySet().size();
+		} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
+			CompoundDictionary dictionary = (CompoundDictionary) sourceDictionary;
+			ret[0] = dictionary.map().keySet().size();
+			ret[1] = dictionary.getWordSet().size();
+		}
+		return ret;
+	}
+
 	public static String getTwowaySynonymWord(CharSequence word, Map<CharSequence, CharSequence[]> map) {
 		Set<CharSequence> sortedSet = new TreeSet<>();
 		CharSequence[] values = map.get(word);
@@ -535,7 +566,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 			if (sourceDictionary.getClass().isAssignableFrom(SetDictionary.class)) {
 				SetDictionary dictionary = (SetDictionary) sourceDictionary;
 				Set<CharSequence> words = dictionary.set();
-				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+				repo.restore(key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(MapDictionary.class)) {
 				MapDictionary dictionary = (MapDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -548,7 +579,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 					}
 					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
 				}
-				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+				repo.restore(key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
 				SynonymDictionary dictionary = (SynonymDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -566,7 +597,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 						words.add(TAB + values);
 					}
 				}
-				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+				repo.restore(key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
 				SpaceDictionary dictionary = (SpaceDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -579,7 +610,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 					}
 					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
 				}
-				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+				repo.restore(key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
 				CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -594,7 +625,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 					}
 					words.add(String.valueOf(word) + TAB + String.valueOf(word) + TAB + String.valueOf(sb));
 				}
-				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+				repo.restore(key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
 				InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -612,7 +643,7 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 						words.add(TAB + values);
 					}
 				}
-				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+				repo.restore(key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
 				CompoundDictionary dictionary = (CompoundDictionary) sourceDictionary;
 				Set<CharSequence> words = new HashSet<>();
@@ -630,13 +661,13 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 						words.add(TAB + values);
 					}
 				}
-				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+				repo.restore(key, dictionary.ignoreCase(), words);
 			}
 		}
 		logger.debug("dictionary restore finished !");
 	}
 
-	protected static Dictionary<TagProb, PreResult<CharSequence>> loadSystemDictionary(File baseFile, JSONObject prop, String basePath) {
+	public static Dictionary<TagProb, PreResult<CharSequence>> loadSystemDictionary(File baseFile, JSONObject prop, String basePath) {
 		File systemDictFile = getDictionaryFile(baseFile, prop, basePath);
 		long st = System.nanoTime();
 		boolean ignoreCase = getIgnoreCase(prop);
@@ -646,9 +677,9 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return tagProbDictionary;
 	}
 
-	static abstract class DictionaryRepository {
+	public static abstract class DictionaryRepository {
 		public abstract Iterator<CharSequence[]> getSource(String type);
+		public abstract void restore(String type, boolean ignoreCase, Set<CharSequence> wordSet);
 		public abstract void close();
-		public abstract void storeDictionary(String type, boolean ignoreCase, Set<CharSequence> wordSet);
 	}
 }

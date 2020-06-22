@@ -1,39 +1,24 @@
 package com.danawa.search.analysis.product;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.text.SimpleDateFormat;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.danawa.search.analysis.dict.CompoundDictionary;
-import com.danawa.search.analysis.dict.CustomDictionary;
-import com.danawa.search.analysis.dict.InvertMapDictionary;
-import com.danawa.search.analysis.dict.MapDictionary;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
-import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SourceDictionary;
-import com.danawa.search.analysis.dict.SpaceDictionary;
-import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.ProductNameTokenizerFactory.DictionaryRepository;
+import com.danawa.search.index.DanawaBulkTextIndexer;
+import com.danawa.search.index.DanawaSearchQueryBuilder;
 import com.danawa.search.util.SearchUtil;
 import com.danawa.util.CharVector;
 import com.danawa.util.ContextStore;
@@ -41,10 +26,6 @@ import com.danawa.util.ContextStore;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
-import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.client.node.NodeClient;
@@ -61,7 +42,6 @@ import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
@@ -87,14 +67,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ES_DICT_FIELD_KEYWORD = "keyword";
 	private static final String ES_DICT_FIELD_VALUE = "value";
 
-	public static final String AND = "AND";
-	public static final String OR = "OR";
 	public static final String TAB = "\t";
 
 	private static ProductNameDictionary dictionary;
 
-	private IndexingThread indexingThread;
-
+	private DanawaBulkTextIndexer indexingThread;
 
 	@Inject
 	ProductNameAnalysisAction(Settings settings, RestController controller) {
@@ -191,49 +168,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		for (String key : keySet) {
 			String type = key.toUpperCase();
 			SourceDictionary<?> sourceDictionary = dictionaryMap.get(key);
-			QueryBuilder query = QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type);
-			long indexCount = SearchUtil.count(client, index, query);
+			int[] info = ProductNameTokenizerFactory.getDictionaryInfo(sourceDictionary);
+			long indexCount = SearchUtil.count(client, index, QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type));
 			builder.object()
-				.key(ES_DICT_FIELD_TYPE).value(type);
-			if (sourceDictionary.getClass().isAssignableFrom(SetDictionary.class)) {
-				SetDictionary dictionary = (SetDictionary) sourceDictionary;
-				builder .key("class").value(SetDictionary.class.getSimpleName())
-					.key("count").value(dictionary.set().size())
-					.key("indexCount").value(indexCount);
-			} else if (sourceDictionary.getClass().isAssignableFrom(MapDictionary.class)) {
-				MapDictionary dictionary = (MapDictionary) sourceDictionary;
-				builder .key("class").value(MapDictionary.class.getSimpleName())
-					.key("count").value(dictionary.map().keySet().size())
-					.key("indexCount").value(indexCount);
-			} else if (sourceDictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
-				SynonymDictionary dictionary = (SynonymDictionary) sourceDictionary;
-				builder .key("class").value(SynonymDictionary.class.getSimpleName())
-					.key("count").value(dictionary.map().keySet().size())
-					.key("indexCount").value(indexCount)
-					.key("words").value(dictionary.getWordSet().size());
-			} else if (sourceDictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
-				SpaceDictionary dictionary = (SpaceDictionary) sourceDictionary;
-				builder .key("class").value(SpaceDictionary.class.getSimpleName())
-					.key("count").value(dictionary.map().keySet().size())
-					.key("indexCount").value(indexCount)
-					.key("words").value(dictionary.getWordSet().size());
-			} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
-				CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
-				builder .key("class").value(CustomDictionary.class.getSimpleName())
-					.key("count").value(dictionary.map().keySet().size())
-					.key("indexCount").value(indexCount)
-					.key("words").value(dictionary.getWordSet().size());
-			} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
-				InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
-				builder .key("class").value(InvertMapDictionary.class.getSimpleName())
-					.key("count").value(dictionary.map().keySet().size())
-					.key("indexCount").value(indexCount);
-			} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
-				CompoundDictionary dictionary = (CompoundDictionary) sourceDictionary;
-				builder .key("class").value(CompoundDictionary.class.getSimpleName())
-					.key("count").value(dictionary.map().keySet().size())
-					.key("indexCount").value(indexCount)
-					.key("words").value(dictionary.getWordSet().size());
+				.key(ES_DICT_FIELD_TYPE).value(type)
+				.key("class").value(sourceDictionary.getClass().getSimpleName())
+				.key("count").value(info[0])
+				.key("indexCount").value(indexCount);
+			if (info[1] != 0) {
+				builder.key("words").value(info[1]);
 			}
 			builder.endObject();
 		}
@@ -318,7 +261,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 		synchronized (this) {
 			if (indexingThread == null || !indexingThread.running()) {
-				indexingThread = new IndexingThread(indexName, path, enc, flush, client);
+				indexingThread = new DanawaBulkTextIndexer(indexName, path, enc, flush, client);
 				indexingThread.start();
 			} else {
 				ret = indexingThread.count();
@@ -349,7 +292,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				analysis = new JSONObject();
 			}
 
-			QueryBuilder query = buildQuery(stream, fields, analysis);
+			QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, analysis);
 
 			logger.debug("Q:{}", query.toString());
 
@@ -395,160 +338,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	public static QueryBuilder buildQuery(TokenStream stream, String[] fields, JSONObject analysis) {
-		QueryBuilder ret = null;
-
-		boolean doAnalysis = analysis != null;
-		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
-		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
-		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
-		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
-
-		try {
-			stream.reset();
-			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
-			ret = mainQuery;
-			JSONObject mainAnalysis = null;
-			if (doAnalysis) {
-				mainAnalysis = new JSONObject();
-				mainAnalysis.put(AND, new JSONArray());
-				analysis.put(AND, mainAnalysis);
-			}
-			while (stream.incrementToken()) {
-				String term = String.valueOf(termAttr);
-				String type = typeAttr.type();
-				logger.debug("TOKEN:{} / {}", term, typeAttr.type());
-
-				JSONArray termAnalysis = null;
-				if (doAnalysis) {
-					termAnalysis = new JSONArray();
-					termAnalysis.put(term);
-				}
-				QueryBuilder termQuery = QueryBuilders.multiMatchQuery(term, fields);
-
-				List<CharSequence> synonyms = null;
-				if (synAttr != null && (synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
-					JSONObject subAnalysis = null;
-					if (doAnalysis) {
-						subAnalysis = new JSONObject();
-						subAnalysis.put(OR, new JSONArray());
-					}
-					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
-					subQuery.should().add(termQuery);
-					for (int sinx = 0; sinx < synonyms.size(); sinx++) {
-						String synonym = String.valueOf(synonyms.get(sinx));
-						if (doAnalysis) {
-							subAnalysis.getJSONArray(OR).put(synonym);
-						}
-						if (synonym.indexOf(" ") == -1) {
-							subQuery.should().add(QueryBuilders.multiMatchQuery(synonym, fields));
-						} else {
-							BoolQueryBuilder inQuery = QueryBuilders.boolQuery();
-							for (String field : fields) {
-								inQuery.should().add(QueryBuilders.matchPhraseQuery(field, synonym).slop(3));
-							}
-							subQuery.should().add(inQuery);
-						}
-						logger.debug(" |_synonym : {}", synonym);
-					}
-					if (doAnalysis) {
-						termAnalysis.put(subAnalysis);
-					}
-					termQuery = subQuery;
-				}
-				if (extAttr != null && extAttr.size() > 0) {
-					JSONObject subAnalysis = null;
-					if (doAnalysis) {
-						subAnalysis = new JSONObject();
-						subAnalysis.put(AND, new JSONArray());
-					}
-					BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
-					Iterator<String> termIter = extAttr.iterator();
-					for (; termIter.hasNext();) {
-						String exTerm = termIter.next();
-						String exType = typeAttr.type();
-						synonyms = synAttr.getSynonyms();
-						if (synonyms == null || synonyms.size() == 0) {
-							subQuery.must().add(QueryBuilders.multiMatchQuery(exTerm, fields));
-							if (doAnalysis) {
-								subAnalysis.getJSONArray(AND).put(exTerm);
-							}
-						} else {
-							JSONObject inAnalysis = null;
-							if (doAnalysis) {
-								inAnalysis = new JSONObject();
-								inAnalysis.put(OR, new JSONArray());
-							}
-							BoolQueryBuilder inQuery = QueryBuilders.boolQuery();
-							inQuery.should().add(QueryBuilders.multiMatchQuery(exTerm, fields));
-							if (doAnalysis) {
-								inAnalysis.getJSONArray(OR).put(exTerm);
-							}
-							for (int sinx = 0; sinx < synonyms.size(); sinx++) {
-								String synonym = String.valueOf(synonyms.get(sinx));
-								if (doAnalysis) {
-									inAnalysis.getJSONArray(OR).put(synonym);
-								}
-								if (synonym.indexOf(" ") == -1) {
-									inQuery.should().add(QueryBuilders.multiMatchQuery(synonym, fields));
-								} else {
-									BoolQueryBuilder in2Query = QueryBuilders.boolQuery();
-									for (String field : fields) {
-										in2Query.should().add(QueryBuilders.matchPhraseQuery(field, synonym).slop(3));
-									}
-									inQuery.should().add(inQuery);
-								}
-							}
-							if (doAnalysis) {
-								subAnalysis.getJSONArray(AND).put(inAnalysis);
-							}
-							subQuery.must().add(inQuery);
-						}
-						logger.debug("a-term:{} / type:{} / synonoym:{}", exTerm, exType, synonyms);
-					}
-					BoolQueryBuilder parent = QueryBuilders.boolQuery();
-					parent.should().add(termQuery);
-					parent.should().add(subQuery);
-					termQuery = parent;
-					if (doAnalysis) {
-						termAnalysis.put(subAnalysis);
-					}
-				}
-				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
-					{
-						BoolQueryBuilder inQuery = QueryBuilders.boolQuery();
-						for (String field : fields) {
-							inQuery.should().add(QueryBuilders.matchPhraseQuery(field, term).slop(10));
-						}
-						termQuery = inQuery;
-					}
-					BoolQueryBuilder query = QueryBuilders.boolQuery();
-					query.should(termQuery);
-					query.should(mainQuery);
-					ret = query;
-					if (doAnalysis) {
-						JSONArray jarr = new JSONArray();
-						jarr.put(termAnalysis);
-						jarr.put(mainAnalysis);
-						analysis.remove(AND);
-						analysis.put(OR, jarr);
-					}
-				} else {
-					mainQuery.must().add(termQuery);
-					if (doAnalysis) {
-						mainAnalysis.getJSONArray(AND).put(termAnalysis);
-					}
-				}
-			}
-		} catch (Exception e) {
-			logger.error("", e);
-		} finally {
-			try { stream.close(); } catch (Exception ignore) { }
-		}
-
-		return ret;
-	}
-
 	private static ProductNameDictionary getDictionary() {
 		if (dictionary == null && contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
 			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
@@ -557,7 +346,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private static TokenStream getAnalyzer(String str) {
-		// TODO 토크나이저/분석기를 동적으로 가져올수 없으므로 자체 캐시를 사용하도록 한다.
+		// TODO: 토크나이저/분석기를 동적으로 가져올수 없으므로 자체 캐시를 사용하도록 한다.
 		TokenStream tstream = null;
 		Reader reader = null;
 		Tokenizer tokenizer = null;
@@ -572,138 +361,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		tokenizer.setReader(reader);
 		tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 		return tstream;
-	}
-
-	public static class IndexingThread extends Thread implements FileFilter {
-		private String indexName;
-		private String path;
-		private String enc;
-		private int flush;
-		private NodeClient client;
-		private boolean running; 
-		private int count;
-		List<File> files;
-		private static final Pattern ptnHead = Pattern.compile("\\x5b[%]([a-zA-Z0-9_-]+)[%]\\x5d");
-
-		public IndexingThread(String indexName, String path, String enc, int flush, NodeClient client) {
-			this.indexName = indexName;
-			this.path = path;
-			this.enc = enc;
-			this.flush = flush;
-			this.client = client;
-		}
-
-		public boolean running() {
-			return running;
-		}
-
-		public int count() {
-			return count;
-		}
-
-		@Override public void run() {
-			running = true;
-			count = 0;
-			files = new ArrayList<>();
-			String[] paths = path.split(",");
-			for (String path : paths) {
-				path = path.trim();
-				File base = new File(path);
-				if (!base.exists()) { 
-					logger.debug("BASE FILE NOT FOUND : {}", base);
-				} else {
-					if (base.isDirectory()) {
-						base.listFiles(this);
-					} else {
-						files.add(base);
-					}
-				}
-			}
-
-			if (files.size() > 0) {
-				BufferedReader reader = null;
-				InputStream istream = null;
-				long time = System.currentTimeMillis();
-				boolean isSourceFile = false;
-				try {
-					BulkRequestBuilder builder = null;
-					Map<String, Object> source;
-					
-					for (File file : files) {
-						if (!file.exists()) {
-							logger.debug("FILE NOT FOUND : {}", file);
-							continue;
-						}
-						isSourceFile = false;
-						istream =  new FileInputStream(file);
-						reader = new BufferedReader(new InputStreamReader(istream, String.valueOf(enc)));
-						logger.debug("PARSING FILE..{}", file);
-						builder = client.prepareBulk();
-						for (String line; (line = reader.readLine()) != null; count++) {
-							Matcher mat = ptnHead.matcher(line);
-							String key = null;
-							int offset = 0;
-							source = new HashMap<>();
-							while (mat.find()) {
-								isSourceFile = true;
-								if (key != null) {
-									fieldValue(source, key, line.substring(offset, mat.start()));
-								}
-								key = mat.group(1);
-								offset = mat.end();
-							}
-							if (isSourceFile) {
-								fieldValue(source, key, line.substring(offset));
-
-								builder.add(client.prepareIndex(String.valueOf(indexName), "_doc").setSource(source));
-								if (count > 0 && count % flush == 0) {
-									builder.execute().actionGet();
-									builder = client.prepareBulk();
-								}
-								if (count > 0 && count % 100000 == 0) {
-									logger.debug("{} ROWS FLUSHED! in {}ms", count, System.currentTimeMillis() - time);
-								}
-							} else {
-								logger.debug("{} IS NOT SOURCEFILE", file);
-								// 소스파일이 아니므로 바로 다음파일로.
-								break;
-							}
-						}
-						builder.execute().actionGet();
-						try { reader.close(); } catch (Exception ignore) { }
-					}
-					logger.debug("TOTAL {} ROWS in {}ms", count, System.currentTimeMillis() - time);
-				} catch (Exception e) {
-					logger.error("", e);
-				} finally {
-					try { reader.close(); } catch (Exception ignore) { }
-				}
-			} else {
-				logger.debug("THERE'S NO SOURCE FILE(S) FOUND");
-			}
-			running = false;
-		}
-
-		private void fieldValue(Map<String, Object> source, String key , String value) throws Exception {
-			if ("".equals(key)) {
-			} else if ("REGISTERDATE".equals(key)) {
-				SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
-				source.put(key, sdf.parse(value));
-			} else {
-				source.put(key, value);
-			}
-			logger.trace("ROW:{} / {}", key, value);
-		}
-
-		@Override public boolean accept(File file) {
-			if (!file.exists()) { return false; }
-			if (file.isDirectory()) {
-				file.listFiles(this);
-			} else if (file.isFile()) {
-				files.add(file);
-			}
-			return false;
-		}
 	}
 
 	public static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
@@ -727,7 +384,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			return this;
 		}
 
-		@Override public void storeDictionary(String type, boolean ignoreCase, Set<CharSequence> wordSet) {
+		@Override public void restore(String type, boolean ignoreCase, Set<CharSequence> wordSet) {
 			Map<String, Object> source = null;
 			BulkRequestBuilder builder = null;
 			try {

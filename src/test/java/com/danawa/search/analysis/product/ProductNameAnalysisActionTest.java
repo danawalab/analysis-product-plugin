@@ -6,6 +6,7 @@ import java.io.Reader;
 import java.io.StringReader;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.index.DanawaSearchQueryBuilder;
 import com.danawa.util.TestUtil;
 
 import org.apache.logging.log4j.Logger;
@@ -44,7 +45,7 @@ public class ProductNameAnalysisActionTest {
 		String[] fields = new String[] { "PRODUCTNAME" };
 
 		stream = getAnalyzer(dictionary, text);
-		QueryBuilder query = ProductNameAnalysisAction.buildQuery(stream, fields, analysis);
+		QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, analysis);
 		logger.debug("Q:{}", query.toString());
 		logger.debug("ANALYSIS:{}", analysis);
 		assertTrue(true);
