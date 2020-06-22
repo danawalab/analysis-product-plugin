@@ -1,7 +1,6 @@
 package com.danawa.search.analysis.product;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
-import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.ContextStore;
 
 import org.apache.logging.log4j.Logger;
@@ -19,7 +18,6 @@ public class ProductNameAnalysisFilterFactory extends AbstractTokenFilterFactory
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
 	private ProductNameDictionary dictionary;
-	private KoreanWordExtractor extractor;
 	private AnalyzerOption option;
 
 	public ProductNameAnalysisFilterFactory(IndexSettings indexSettings, Environment env, String name, Settings settings) {
@@ -38,8 +36,7 @@ public class ProductNameAnalysisFilterFactory extends AbstractTokenFilterFactory
 		logger.trace("ProductNameAnalysisFilter::create {}", this);
 		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
 			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
-			extractor = new KoreanWordExtractor(dictionary);
 		}
-		return new ProductNameAnalysisFilter(tokenStream, extractor, dictionary, option);
+		return new ProductNameAnalysisFilter(tokenStream, dictionary, option);
 	}
 }

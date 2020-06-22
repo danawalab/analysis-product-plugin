@@ -53,7 +53,6 @@ public class ProductNameAnalysisFilterTest {
 		TokenStream tstream = null;
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
-		KoreanWordExtractor extractor = null;
 		AnalyzerOption option = null;
 		String str = "";
 		str = "10.5cmx12cm";
@@ -77,10 +76,9 @@ public class ProductNameAnalysisFilterTest {
 			option.useStopword(true);
 			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary, true);
-			extractor = new KoreanWordExtractor(dictionary);
 			tokenizer.setReader(reader);
 			// tstream = tokenizer;
-			tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
+			tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 			tstream.reset();
 			CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
 			OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);
@@ -130,7 +128,6 @@ public class ProductNameAnalysisFilterTest {
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		BufferedReader reader = null;
 		Tokenizer tokenizer = null;
-		KoreanWordExtractor extractor = null;
 		AnalyzerOption option = null;
 		ProductNameAnalysisFilter tstream = null;
 
@@ -144,9 +141,8 @@ public class ProductNameAnalysisFilterTest {
 				logger.trace("TEST:{}", rl);
 				tokenizer = new ProductNameTokenizer(dictionary, false);
 				tokenizer.setReader(new StringReader(rl));
-				extractor = new KoreanWordExtractor(dictionary);
 				option = new AnalyzerOption();
-				tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
+				tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 				tstream.reset();
 				CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
 				OffsetAttribute offsetAttr = tstream.addAttribute(OffsetAttribute.class);

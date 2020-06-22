@@ -54,15 +54,15 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		super(input);
 	}
 
-	public ProductNameAnalysisFilter(TokenStream input, KoreanWordExtractor extractor, ProductNameDictionary dictionary, AnalyzerOption option) {
+	public ProductNameAnalysisFilter(TokenStream input, ProductNameDictionary dictionary, AnalyzerOption option) {
 		super(input);
-		this.extractor = extractor;
 		if (dictionary != null) {
 			this.dictionary = dictionary;
 			this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
 			this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
 			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		}
+		this.extractor = new KoreanWordExtractor(dictionary);
 		this.option = option;
 		extraTermAttribute.init(this);
 		termList = new ArrayList<>();

@@ -6,7 +6,6 @@ import java.io.Reader;
 import java.io.StringReader;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
-import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.TestUtil;
 
 import org.apache.logging.log4j.Logger;
@@ -55,19 +54,16 @@ public class ProductNameAnalysisActionTest {
 		TokenStream tstream = null;
 		Reader reader = null;
 		Tokenizer tokenizer = null;
-		KoreanWordExtractor extractor = null;
 		AnalyzerOption option = null;
 
-		extractor = new KoreanWordExtractor(dictionary);
 		option = new AnalyzerOption();
 		option.useForQuery(true);
 		option.useSynonym(true);
 		option.useStopword(true);
 		reader = new StringReader(str);
 		tokenizer = new ProductNameTokenizer(dictionary, false);
-		extractor = new KoreanWordExtractor(dictionary);
 		tokenizer.setReader(reader);
-		tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
+		tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 		return tstream;
 	}
 }

@@ -16,14 +16,11 @@ import java.text.SimpleDateFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
 import com.danawa.search.analysis.dict.CustomDictionary;
@@ -35,7 +32,6 @@ import com.danawa.search.analysis.dict.SourceDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
 import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
-import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.product.ProductNameTokenizerFactory.DictionaryRepository;
 import com.danawa.search.util.SearchUtil;
@@ -83,6 +79,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_RESTORE_DICT = "restore-dict";
 	private static final String ACTION_COMPILE_DICT = "compile-dict";
 	private static final String ACTION_FULL_INDEX = "full-index";
+	private static final String ACTION_TEST = "test";
 	private static final String ACTION_SEARCH = "search";
 	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
 	private static final String ES_DICT_FIELD_ID = "id";
@@ -94,9 +91,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	public static final String OR = "OR";
 	public static final String TAB = "\t";
 
+	private static ProductNameDictionary dictionary;
+
 	private IndexingThread indexingThread;
 
-	private ProductNameDictionary dictionary;
 
 	@Inject
 	ProductNameAnalysisAction(Settings settings, RestController controller) {
@@ -116,52 +114,39 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		final String action = request.param("action");
 		final StringWriter buffer = new StringWriter();
 		JSONWriter builder = new JSONWriter(buffer);
-		if (dictionary == null) {
-			if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
-				dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY,
-						ProductNameDictionary.class);
-			}
-		}
 
 		if (ACTION_RELOAD_DICT.equals(action)) {
 			reloadDictionary();
-			builder.object()
-				.key("action").value(action)
-			.endObject();
+			builder.object().key("action").value(action).endObject();
 		} else if (ACTION_INFO_DICT.equals(action)) {
-			builder.object()
-				.key("action").value(action);
+			builder.object().key("action").value(action);
 			infoDictionary(request, client, builder);
 			builder.endObject();
 		} else if (ACTION_FIND_DICT.equals(action)) {
-			builder.object()
-				.key("action").value(action);
+			builder.object().key("action").value(action);
 			findDictionary(request, client, builder);
 			builder.endObject();
 		} else if (ACTION_RESTORE_DICT.equals(action)) {
-			restoreDictionary(request, client, dictionary);
-			builder.object()
-				.key("action").value(action)
-			.endObject();
+			restoreDictionary(request, client);
+			builder.object().key("action").value(action).endObject();
 		} else if (ACTION_COMPILE_DICT.equals(action)) {
-			compileDictionary(request, client, dictionary);
-			builder.object()
-				.key("action").value(action)
-			.endObject();
+			compileDictionary(request, client);
+			builder.object().key("action").value(action).endObject();
 		} else if (ACTION_FULL_INDEX.equals(action)) {
 			SpecialPermission.check();
 			int count = AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
 				return bulkIndex(request, client);
 			});
-			builder.object()
-				.key("action").value(action);
+			builder.object().key("action").value(action);
 			if (count > 0) {
-				builder.key("working").value("true")
-					.key("count").value(count);
+				builder.key("working").value("true").key("count").value(count);
 			} else {
 				builder.key("working").value("false");
 			}
 			builder.endObject();
+		} else if (ACTION_TEST.equals(action)) {
+			testAction(request, client);
+			builder.object().key("action").value(action).endObject();
 		} else if (ACTION_SEARCH.equals(action)) {
 			search(request, client, builder);
 		}
@@ -170,65 +155,38 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		};
 	}
 
-	public void reloadDictionary() {
+	private void testAction(RestRequest request, NodeClient client) {
+		// TEST
+
+	}
+
+	private void reloadDictionary() {
 		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
 			ProductNameTokenizerFactory.reloadDictionary();
 		}
 	}
 
-	public void compileDictionary(RestRequest request, NodeClient client, ProductNameDictionary productNameDictionary) {
+	private void compileDictionary(RestRequest request, NodeClient client) {
 		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
 		boolean exportFile = jobj.optBoolean("exportFile", true);
-
 		DictionarySource repo = new DictionarySource(client, index);
 		ProductNameTokenizerFactory.reloadDictionary(
 			ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
 	}
 
-	public String getTwowaySynonymWord(CharSequence word, Map<CharSequence, CharSequence[]> map) {
-		Set<CharSequence> sortedSet = new TreeSet<>();
-		CharSequence[] values = map.get(word);
-		int pass = 0;
-		String s0, s1, s2;
-		if (values != null && values.length > 0) {
-			s0 = String.valueOf(word);
-			CharSequence[] target = map.get(values[0]);
-			for (int inx1 = 1; target!=null && inx1 < values.length; inx1++) {
-				s1 = String.valueOf(values[inx1]);
-				for (int inx2 = 0; inx2 < target.length; inx2++) {
-					s2 = String.valueOf(target[inx2]);
-					if (s1.equals(s2) || s0.contains(s2)) {
-						pass++;
-					}
-				}
-			}
-		}
-		if (pass == values.length) {
-			sortedSet.addAll(Arrays.asList(values));
-			sortedSet.add(word);
-			StringBuilder sb = new StringBuilder();
-			for (CharSequence value : sortedSet) {
-				if (sb.length() > 0) { sb.append(","); }
-				sb.append(String.valueOf(value).trim());
-			}
-			return sb.toString();
-		} else {
-			return null;
-		}
-	}
-
-	public void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
+	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
 		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
+		ProductNameDictionary productNameDictionary = getDictionary();
 		builder
 			.key("dictionary").array()
 				.object()
 				.key(ES_DICT_FIELD_TYPE).value("SYSTEM")
 				.key("class").value(TagProbDictionary.class.getSimpleName())
-				.key("count").value(this.dictionary.size())
+				.key("count").value(productNameDictionary.size())
 				.endObject();
-		Map<String, SourceDictionary<?>> dictionaryMap = this.dictionary.getDictionaryMap();
+		Map<String, SourceDictionary<?>> dictionaryMap = productNameDictionary.getDictionaryMap();
 		Set<String> keySet = dictionaryMap.keySet();
 		for (String key : keySet) {
 			String type = key.toUpperCase();
@@ -240,58 +198,59 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			if (sourceDictionary.getClass().isAssignableFrom(SetDictionary.class)) {
 				SetDictionary dictionary = (SetDictionary) sourceDictionary;
 				builder .key("class").value(SetDictionary.class.getSimpleName())
-						.key("count").value(dictionary.set().size())
-						.key("indexCount").value(indexCount);
+					.key("count").value(dictionary.set().size())
+					.key("indexCount").value(indexCount);
 			} else if (sourceDictionary.getClass().isAssignableFrom(MapDictionary.class)) {
 				MapDictionary dictionary = (MapDictionary) sourceDictionary;
 				builder .key("class").value(MapDictionary.class.getSimpleName())
-						.key("count").value(dictionary.map().keySet().size())
-						.key("indexCount").value(indexCount);
+					.key("count").value(dictionary.map().keySet().size())
+					.key("indexCount").value(indexCount);
 			} else if (sourceDictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
 				SynonymDictionary dictionary = (SynonymDictionary) sourceDictionary;
 				builder .key("class").value(SynonymDictionary.class.getSimpleName())
-						.key("count").value(dictionary.map().keySet().size())
-						.key("indexCount").value(indexCount)
-						.key("words").value(dictionary.getWordSet().size());
+					.key("count").value(dictionary.map().keySet().size())
+					.key("indexCount").value(indexCount)
+					.key("words").value(dictionary.getWordSet().size());
 			} else if (sourceDictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
 				SpaceDictionary dictionary = (SpaceDictionary) sourceDictionary;
 				builder .key("class").value(SpaceDictionary.class.getSimpleName())
-						.key("count").value(dictionary.map().keySet().size())
-						.key("indexCount").value(indexCount)
-						.key("words").value(dictionary.getWordSet().size());
+					.key("count").value(dictionary.map().keySet().size())
+					.key("indexCount").value(indexCount)
+					.key("words").value(dictionary.getWordSet().size());
 			} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
 				CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
 				builder .key("class").value(CustomDictionary.class.getSimpleName())
-						.key("count").value(dictionary.map().keySet().size())
-						.key("indexCount").value(indexCount)
-						.key("words").value(dictionary.getWordSet().size());
+					.key("count").value(dictionary.map().keySet().size())
+					.key("indexCount").value(indexCount)
+					.key("words").value(dictionary.getWordSet().size());
 			} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
 				InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
 				builder .key("class").value(InvertMapDictionary.class.getSimpleName())
-						.key("count").value(dictionary.map().keySet().size())
-						.key("indexCount").value(indexCount);
+					.key("count").value(dictionary.map().keySet().size())
+					.key("indexCount").value(indexCount);
 			} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
 				CompoundDictionary dictionary = (CompoundDictionary) sourceDictionary;
 				builder .key("class").value(CompoundDictionary.class.getSimpleName())
-						.key("count").value(dictionary.map().keySet().size())
-						.key("indexCount").value(indexCount)
-						.key("words").value(dictionary.getWordSet().size());
+					.key("count").value(dictionary.map().keySet().size())
+					.key("indexCount").value(indexCount)
+					.key("words").value(dictionary.getWordSet().size());
 			}
 			builder.endObject();
 		}
 		builder.endArray();
 	}
 
-	public void findDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
+	private void findDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
 		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
 		String word = jobj.optString("word", "");
-		Set<String> keySet = dictionary.getDictionaryMap().keySet();
+		ProductNameDictionary productNameDictionary = getDictionary();
+		Set<String> keySet = productNameDictionary.getDictionaryMap().keySet();
 
 		builder
 			.key("result").array();
 
-		List<TagProb> tagProbs = dictionary.find(CharVector.valueOf(word));
+		List<TagProb> tagProbs = productNameDictionary.find(CharVector.valueOf(word));
 		for (int inx = 0;tagProbs != null && inx < tagProbs.size(); inx++) {
 			TagProb tagProb = tagProbs.get(inx);
 			builder.object()
@@ -334,155 +293,12 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		builder.endArray();
 	}
 
-	public void restoreDictionary(RestRequest request, NodeClient client, ProductNameDictionary productNameDictionary) {
+	private void restoreDictionary(RestRequest request, NodeClient client) {
 		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
-
-		Map<String, SourceDictionary<?>> dictionaryMap = productNameDictionary.getDictionaryMap();
-		Set<String> keySet = dictionaryMap.keySet();
 		SearchUtil.deleteAllData(client, index);
-		for (String key : keySet) {
-			SourceDictionary<?> sourceDictionary = dictionaryMap.get(key);
-			logger.debug("KEY:{} / {}", key, sourceDictionary);
-			if (sourceDictionary.getClass().isAssignableFrom(SetDictionary.class)) {
-				SetDictionary dictionary = (SetDictionary) sourceDictionary;
-				Set<CharSequence> words = dictionary.set();
-				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
-			} else if (sourceDictionary.getClass().isAssignableFrom(MapDictionary.class)) {
-				MapDictionary dictionary = (MapDictionary) sourceDictionary;
-				Set<CharSequence> words = new HashSet<>();
-				Map<CharSequence, CharSequence[]> map = dictionary.map();
-				for (CharSequence word : map.keySet()) {
-					StringBuilder sb = new StringBuilder();
-					for (CharSequence value : map.get(word)) {
-						if (sb.length() > 0) { sb.append(","); }
-						sb.append(String.valueOf(value).trim());
-					}
-					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
-				}
-				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
-			} else if (sourceDictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
-				SynonymDictionary dictionary = (SynonymDictionary) sourceDictionary;
-				Set<CharSequence> words = new HashSet<>();
-				Map<CharSequence, CharSequence[]> map = dictionary.map();
-				for (CharSequence word : map.keySet()) {
-					String values = getTwowaySynonymWord(word, map);
-					if (values == null) {
-						StringBuilder sb = new StringBuilder();
-						for (CharSequence value : map.get(word)) {
-							if (sb.length() > 0) { sb.append(","); }
-							sb.append(String.valueOf(value).trim());
-						}
-						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
-					} else {
-						words.add(TAB + values);
-					}
-				}
-				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
-			} else if (sourceDictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
-				SpaceDictionary dictionary = (SpaceDictionary) sourceDictionary;
-				Set<CharSequence> words = new HashSet<>();
-				Map<CharSequence, CharSequence[]> map = dictionary.map();
-				for (CharSequence word : map.keySet()) {
-					StringBuilder sb = new StringBuilder();
-					for (CharSequence value : map.get(word)) {
-						if (sb.length() > 0) { sb.append(" "); }
-						sb.append(String.valueOf(value).trim());
-					}
-					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
-				}
-				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
-			} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
-				CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
-				Set<CharSequence> words = new HashSet<>();
-				Map<CharSequence, Object[]> map = dictionary.map();
-				for (CharSequence word : map.keySet()) {
-					StringBuilder sb = new StringBuilder();
-					for (Object value : map.get(word)) {
-						if (value != null) {
-							if (sb.length() > 0) { sb.append(","); }
-							sb.append(String.valueOf(value).trim());
-						}
-					}
-					words.add(String.valueOf(word) + TAB + String.valueOf(word) + TAB + String.valueOf(sb));
-				}
-				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
-			} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
-				InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
-				Set<CharSequence> words = new HashSet<>();
-				Map<CharSequence, CharSequence[]> map = dictionary.map();
-				for (CharSequence word : map.keySet()) {
-					String values = getTwowaySynonymWord(word, map);
-					if (values == null) {
-						StringBuilder sb = new StringBuilder();
-						for (CharSequence value : map.get(word)) {
-							if (sb.length() > 0) { sb.append(","); }
-							sb.append(String.valueOf(value).trim());
-						}
-						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
-					} else {
-						words.add(TAB + values);
-					}
-				}
-				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
-			} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
-				CompoundDictionary dictionary = (CompoundDictionary) sourceDictionary;
-				Set<CharSequence> words = new HashSet<>();
-				Map<CharSequence, CharSequence[]> map = dictionary.map();
-				for (CharSequence word : map.keySet()) {
-					String values = getTwowaySynonymWord(word, map);
-					if (values == null) {
-						StringBuilder sb = new StringBuilder();
-						for (CharSequence value : map.get(word)) {
-							if (sb.length() > 0) { sb.append(","); }
-							sb.append(String.valueOf(value).trim());
-						}
-						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
-					} else {
-						words.add(TAB + values);
-					}
-				}
-				storeDictionary(client, index, key, dictionary.ignoreCase(), words);
-			}
-		}
-		logger.debug("dictionary restore finished !");
-	}
-
-	public void storeDictionary(NodeClient client, String index, String type, boolean ignoreCase, Set<CharSequence> wordSet) {
-		Map<String, Object> source = null;
-		BulkRequestBuilder builder = null;
-		try {
-			builder = client.prepareBulk();
-			int inx = 0;
-			for (CharSequence data : wordSet) {
-				String[] words = String.valueOf(data).split(TAB);
-				source = new HashMap<>();
-				source.put(ES_DICT_FIELD_TYPE, type.toUpperCase());
-				if (words.length == 1) {
-					source.put(ES_DICT_FIELD_KEYWORD, words[0]);
-				} else if (words.length == 2) {
-					if (words[0].length() > 0) {
-						source.put(ES_DICT_FIELD_KEYWORD, words[0]);
-					}
-					source.put(ES_DICT_FIELD_VALUE, words[1]);
-				} else {
-					source.put(ES_DICT_FIELD_KEYWORD, words[0]);
-					source.put(ES_DICT_FIELD_VALUE, words[1]);
-					source.put(ES_DICT_FIELD_ID, words[2]);
-				}
-				builder.add(client.prepareIndex(String.valueOf(index), "_doc").setSource(source));
-				if (inx > 0 && inx % 1000 == 0) {
-					builder.execute().actionGet();
-					builder = client.prepareBulk();
-				}
-				inx++;
-			}
-			if (inx > 0) {
-				builder.execute().actionGet();
-			}
-		} catch (Exception e) { 
-			logger.error("", e);
-		}
+		DictionarySource repo = new DictionarySource(client, index);
+		ProductNameTokenizerFactory.restoreDictionary(repo, index);
 	}
 
 	private int bulkIndex(final RestRequest request, final NodeClient client) {
@@ -574,6 +390,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			builder.endObject();
 		} catch (Exception e) {
 			logger.error("", e);
+		} finally {
+			try { stream.close(); } catch (Exception ignore) { }
 		}
 	}
 
@@ -731,33 +549,32 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return ret;
 	}
 
-	public static TokenStream getAnalyzer(String str) {
-		/**
-		 * FIXME: ES 에서 동적으로 분석기를 가져오는 방법을 생각해 본다.
-		 **/
+	private static ProductNameDictionary getDictionary() {
+		if (dictionary == null && contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
+			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+		}
+		return dictionary;
+	}
+
+	private static TokenStream getAnalyzer(String str) {
+		// TODO 토크나이저/분석기를 동적으로 가져올수 없으므로 자체 캐시를 사용하도록 한다.
 		TokenStream tstream = null;
 		Reader reader = null;
 		Tokenizer tokenizer = null;
-		ProductNameDictionary dictionary = null;
-		KoreanWordExtractor extractor = null;
+		ProductNameDictionary dictionary = getDictionary();
 		AnalyzerOption option = null;
-		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
-			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
-			extractor = new KoreanWordExtractor(dictionary);
-		}
 		option = new AnalyzerOption();
 		option.useForQuery(true);
 		option.useSynonym(true);
 		option.useStopword(true);
 		reader = new StringReader(str);
 		tokenizer = new ProductNameTokenizer(dictionary, false);
-		extractor = new KoreanWordExtractor(dictionary);
 		tokenizer.setReader(reader);
-		tstream = new ProductNameAnalysisFilter(tokenizer, extractor, dictionary, option);
+		tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 		return tstream;
 	}
 
-	static class IndexingThread extends Thread implements FileFilter {
+	public static class IndexingThread extends Thread implements FileFilter {
 		private String indexName;
 		private String path;
 		private String enc;
@@ -889,7 +706,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
+	public static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
 		private NodeClient client;
 		private String index;
 		private Iterator<Map<String, Object>> iterator;
@@ -908,6 +725,43 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				logger.error("", e);
 			}
 			return this;
+		}
+
+		@Override public void storeDictionary(String type, boolean ignoreCase, Set<CharSequence> wordSet) {
+			Map<String, Object> source = null;
+			BulkRequestBuilder builder = null;
+			try {
+				builder = client.prepareBulk();
+				int inx = 0;
+				for (CharSequence data : wordSet) {
+					String[] words = String.valueOf(data).split(TAB);
+					source = new HashMap<>();
+					source.put(ES_DICT_FIELD_TYPE, type.toUpperCase());
+					if (words.length == 1) {
+						source.put(ES_DICT_FIELD_KEYWORD, words[0]);
+					} else if (words.length == 2) {
+						if (words[0].length() > 0) {
+							source.put(ES_DICT_FIELD_KEYWORD, words[0]);
+						}
+						source.put(ES_DICT_FIELD_VALUE, words[1]);
+					} else {
+						source.put(ES_DICT_FIELD_KEYWORD, words[0]);
+						source.put(ES_DICT_FIELD_VALUE, words[1]);
+						source.put(ES_DICT_FIELD_ID, words[2]);
+					}
+					builder.add(client.prepareIndex(String.valueOf(index), "_doc").setSource(source));
+					if (inx > 0 && inx % 1000 == 0) {
+						builder.execute().actionGet();
+						builder = client.prepareBulk();
+					}
+					inx++;
+				}
+				if (inx > 0) {
+					builder.execute().actionGet();
+				}
+			} catch (Exception e) { 
+				logger.error("", e);
+			}
 		}
 
 		@Override public boolean hasNext() {

@@ -1,7 +1,6 @@
 package com.danawa.search.analysis.product;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
-import com.danawa.search.analysis.korean.KoreanWordExtractor;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.Tokenizer;
@@ -27,10 +26,8 @@ public class ProductNameAnalyzer extends Analyzer {
 	@Override
 	protected TokenStreamComponents createComponents(String fieldName) {
 		Tokenizer tokenizer = new ProductNameTokenizer(dictionary, false);
-		// Tokenizer tokenizer = new TestTokenizer(dictionary);
 		TokenStream stream = tokenizer;
-		KoreanWordExtractor extractor = new KoreanWordExtractor(dictionary);
-		stream = new ProductNameAnalysisFilter(stream, extractor, dictionary, option);
+		stream = new ProductNameAnalysisFilter(stream, dictionary, option);
 		return new TokenStreamComponents(tokenizer, stream);
 	}
 }

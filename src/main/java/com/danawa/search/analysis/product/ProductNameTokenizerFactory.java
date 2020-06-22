@@ -5,10 +5,14 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
 import com.danawa.search.analysis.dict.CustomDictionary;
@@ -63,6 +67,8 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	private static final String ATTR_DICTIONARY_TOKEN_TYPE = "tokenType";
 	private static final String ATTR_DICTIONARY_IGNORECASE = "ignoreCase";
 	private static final String ATTR_DICTIONARY_FILE_PATH = "filePath";
+
+	public static final String TAB = "\t";
 
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
@@ -487,6 +493,149 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		});
 	}
 
+	public static String getTwowaySynonymWord(CharSequence word, Map<CharSequence, CharSequence[]> map) {
+		Set<CharSequence> sortedSet = new TreeSet<>();
+		CharSequence[] values = map.get(word);
+		int pass = 0;
+		String s0, s1, s2;
+		if (values != null && values.length > 0) {
+			s0 = String.valueOf(word);
+			CharSequence[] target = map.get(values[0]);
+			for (int inx1 = 1; target!=null && inx1 < values.length; inx1++) {
+				s1 = String.valueOf(values[inx1]);
+				for (int inx2 = 0; inx2 < target.length; inx2++) {
+					s2 = String.valueOf(target[inx2]);
+					if (s1.equals(s2) || s0.contains(s2)) {
+						pass++;
+					}
+				}
+			}
+		}
+		if (pass == values.length) {
+			sortedSet.addAll(Arrays.asList(values));
+			sortedSet.add(word);
+			StringBuilder sb = new StringBuilder();
+			for (CharSequence value : sortedSet) {
+				if (sb.length() > 0) { sb.append(","); }
+				sb.append(String.valueOf(value).trim());
+			}
+			return sb.toString();
+		} else {
+			return null;
+		}
+	}
+
+	public static void restoreDictionary(final DictionaryRepository repo, String index) {
+		ProductNameDictionary productNameDictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+		Map<String, SourceDictionary<?>> dictionaryMap = productNameDictionary.getDictionaryMap();
+		Set<String> keySet = dictionaryMap.keySet();
+		for (String key : keySet) {
+			SourceDictionary<?> sourceDictionary = dictionaryMap.get(key);
+			logger.debug("KEY:{} / {}", key, sourceDictionary);
+			if (sourceDictionary.getClass().isAssignableFrom(SetDictionary.class)) {
+				SetDictionary dictionary = (SetDictionary) sourceDictionary;
+				Set<CharSequence> words = dictionary.set();
+				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(MapDictionary.class)) {
+				MapDictionary dictionary = (MapDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					StringBuilder sb = new StringBuilder();
+					for (CharSequence value : map.get(word)) {
+						if (sb.length() > 0) { sb.append(","); }
+						sb.append(String.valueOf(value).trim());
+					}
+					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+				}
+				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(SynonymDictionary.class)) {
+				SynonymDictionary dictionary = (SynonymDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					String values = getTwowaySynonymWord(word, map);
+					if (values == null) {
+						StringBuilder sb = new StringBuilder();
+						for (CharSequence value : map.get(word)) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+					} else {
+						words.add(TAB + values);
+					}
+				}
+				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(SpaceDictionary.class)) {
+				SpaceDictionary dictionary = (SpaceDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					StringBuilder sb = new StringBuilder();
+					for (CharSequence value : map.get(word)) {
+						if (sb.length() > 0) { sb.append(" "); }
+						sb.append(String.valueOf(value).trim());
+					}
+					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+				}
+				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(CustomDictionary.class)) {
+				CustomDictionary dictionary = (CustomDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, Object[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					StringBuilder sb = new StringBuilder();
+					for (Object value : map.get(word)) {
+						if (value != null) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+					}
+					words.add(String.valueOf(word) + TAB + String.valueOf(word) + TAB + String.valueOf(sb));
+				}
+				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(InvertMapDictionary.class)) {
+				InvertMapDictionary dictionary = (InvertMapDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					String values = getTwowaySynonymWord(word, map);
+					if (values == null) {
+						StringBuilder sb = new StringBuilder();
+						for (CharSequence value : map.get(word)) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+					} else {
+						words.add(TAB + values);
+					}
+				}
+				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+			} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
+				CompoundDictionary dictionary = (CompoundDictionary) sourceDictionary;
+				Set<CharSequence> words = new HashSet<>();
+				Map<CharSequence, CharSequence[]> map = dictionary.map();
+				for (CharSequence word : map.keySet()) {
+					String values = getTwowaySynonymWord(word, map);
+					if (values == null) {
+						StringBuilder sb = new StringBuilder();
+						for (CharSequence value : map.get(word)) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+					} else {
+						words.add(TAB + values);
+					}
+				}
+				repo.storeDictionary(key, dictionary.ignoreCase(), words);
+			}
+		}
+		logger.debug("dictionary restore finished !");
+	}
+
 	protected static Dictionary<TagProb, PreResult<CharSequence>> loadSystemDictionary(File baseFile, JSONObject prop, String basePath) {
 		File systemDictFile = getDictionaryFile(baseFile, prop, basePath);
 		long st = System.nanoTime();
@@ -500,5 +649,6 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 	static abstract class DictionaryRepository {
 		public abstract Iterator<CharSequence[]> getSource(String type);
 		public abstract void close();
+		public abstract void storeDictionary(String type, boolean ignoreCase, Set<CharSequence> wordSet);
 	}
 }
