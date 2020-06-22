@@ -6,6 +6,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -26,6 +27,11 @@ import com.danawa.util.ContextStore;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
+import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.client.node.NodeClient;
@@ -132,9 +138,128 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		};
 	}
 
-	private void testAction(RestRequest request, NodeClient client) {
-		// TEST
+	private static final String FULL_STRING = ProductNameTokenizer.FULL_STRING;
+	private static final String MODEL_NAME = ProductNameTokenizer.MODEL_NAME;
+	private static final String UNIT = ProductNameTokenizer.UNIT;
+	private static final String RESTRICTED = "RESTRICTED";
+	private static final String NORMAL_SET = "NORMAL_SET";
+	private static final String FINAL_SET = "FINAL_SET";
 
+	private void testAction(RestRequest request, NodeClient client) {
+		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+		String text = jobj.optString("text", "");
+		boolean useForQuery = jobj.optBoolean("useForQuery", true);
+		boolean useSynonym = jobj.optBoolean("useSynonym", true);
+		boolean useStopword = jobj.optBoolean("useStopword", true);
+		TokenStream stream = getAnalyzer(text, useForQuery, useSynonym, useStopword);
+		analyzeTextDetail(stream);
+	}
+
+	public static void analyzeTextDetail(TokenStream stream) {
+		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
+		SynonymAttribute synAtt = stream.addAttribute(SynonymAttribute.class);
+		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
+		Map<String, List<List<String>>> result = new HashMap<>();
+		List<List<String>> wordList = null;
+		List<String> words = null;
+		result.put(FULL_STRING, new ArrayList<>());
+		result.put(MODEL_NAME, new ArrayList<>());
+		result.put(UNIT, new ArrayList<>());
+		result.put(RESTRICTED, new  ArrayList<>());
+		result.put(NORMAL_SET, new ArrayList<>());
+		result.put(FINAL_SET, new ArrayList<>());
+
+		// QUERYING..
+		// TOKEN:Sandisk Extream Z80 USB 16gb / 0~28 / <FULL_STRING> / [null|[]]
+		// TOKEN:Sandisk / 0~7 / <ALPHA> / [[샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아]|[]]
+		// |_synonym : 샌디스크
+		// |_synonym : 산디스크
+		// |_synonym : 센디스크
+		// |_synonym : 샌디스크 코리아
+		// |_synonym : 산디스크 코리아
+		// TOKEN:Extream / 8~15 / <ALPHA> / [null|[]]
+		// TOKEN:Z80 / 16~19 / <MODEL_NAME> / [null|[Z, 80]]
+		// a-term:Z / type:<ALPHA>
+		// a-term:80 / type:<NUMBER>
+		// TOKEN:USB / 20~23 / <ALPHA> / [[유에스비, usb용, usb형, 유에스비용, 유에스비형]|[]]
+		// |_synonym : 유에스비
+		// |_synonym : usb용
+		// |_synonym : usb형
+		// |_synonym : 유에스비용
+		// |_synonym : 유에스비형
+		// TOKEN:16gb / 24~28 / <UNIT> / [[16g, 16기가]|[]]
+		// |_synonym : 16g
+		// |_synonym : 16기가
+
+		// INDEXING..
+		// TOKEN:Sandisk / 0~7 / <HANGUL> / [null|[]]
+		// TOKEN:Extream / 8~15 / <ALPHA> / [null|[]]
+		// TOKEN:Z80 / 16~19 / <MODEL_NAME> / [null|[]]
+		// TOKEN:Z / 16~17 / <ALPHA> / [null|[]]
+		// TOKEN:80 / 17~19 / <NUMBER> / [null|[]]
+		// TOKEN:USB / 20~23 / <ALPHA> / [null|[]]
+		// TOKEN:16gb / 24~28 / <UNIT> / [null|[]]
+		// TOKEN:16 / 24~26 / <NUMBER> / [null|[]]
+
+		String term = null;
+		String type = null;
+		String typePrev = null;
+		int[] offset = { 0, 0 };
+		int[] offsetPrev = { 0, 0 };
+		try {
+			stream.reset();
+			while (stream.incrementToken()) {
+				typePrev = type;
+				offsetPrev = new int[] { offset[0], offset[1] };
+				term = String.valueOf(termAttr);
+				type = typeAttr.type();
+				offset = new int[] { offAttr.startOffset(), offAttr.endOffset() };
+				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+					// 전체 단어
+					setAnalyzedResult(result, term, FULL_STRING);
+				} else if (ProductNameTokenizer.MODEL_NAME.equals(type)) {
+					// 모델명의 경우 색인시와 질의시 추출방법이 서로 다르다.
+					setAnalyzedResult(result, term, MODEL_NAME, FINAL_SET);
+				} else if (ProductNameTokenizer.UNIT.equals(type)) {
+					setAnalyzedResult(result, term, UNIT, NORMAL_SET, FINAL_SET);
+				} else {
+					setAnalyzedResult(result, term, NORMAL_SET, FINAL_SET);
+					if (ProductNameTokenizer.MODEL_NAME.equals(typePrev) && offset[0] < offsetPrev[1]) {
+						wordList = result.get(MODEL_NAME);
+						words = wordList.get(wordList.size() - 1);
+						words.add(term);
+						type = typePrev;
+						offset = new int[] { offsetPrev[0], offsetPrev[1] };
+					} else if (ProductNameTokenizer.UNIT.equals(typePrev) && offset[0] < offsetPrev[1]) {
+						wordList = result.get(UNIT);
+						words = wordList.get(wordList.size() - 1);
+						words.add(term);
+						type = typePrev;
+						offset = new int[] { offsetPrev[0], offsetPrev[1] };
+					}
+				}
+			}
+			for (String key : result.keySet()) {
+				logger.debug("TYPE:{}", key);
+				wordList = result.get(key);
+				logger.debug("  {}", wordList);
+			}
+		} catch (Exception ignore) {
+		} finally {
+			try { stream.close(); } catch (Exception ignore) { }
+		}
+	}
+
+	private static void setAnalyzedResult(Map<String, List<List<String>>> result, String term, String... types) {
+		List<List<String>> wordList = null;
+		List<String> words = null;
+		for (String type : types) {
+			wordList = result.get(type);
+			wordList.add(words = new ArrayList<>());
+			words.add(term);
+		}
 	}
 
 	private void reloadDictionary() {
@@ -146,10 +271,17 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void compileDictionary(RestRequest request, NodeClient client) {
 		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
+		boolean distribute = jobj.optBoolean("distribute", true);
 		boolean exportFile = jobj.optBoolean("exportFile", true);
 		DictionarySource repo = new DictionarySource(client, index);
-		ProductNameTokenizerFactory.reloadDictionary(
-			ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
+		ProductNameTokenizerFactory.reloadDictionary(ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
+		if (distribute) {
+			distributeDictionary();
+		}
+	}
+
+	public void distributeDictionary() {
+
 	}
 
 	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
@@ -273,8 +405,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void search(final RestRequest request, final NodeClient client, final JSONWriter builder) {
 		TokenStream stream = null;
 		try {
-			logger.debug("TESTING SEARCH...");
-			
 			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 			String index = jobj.optString("index", "");
 			String[] fields = jobj.optString("fields", "").split("[,]");
@@ -285,7 +415,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			boolean trackAnalysis = jobj.optBoolean("analysis", false);
 
 			logger.debug("ANALYZE TEXT : {}", text);
-			stream = getAnalyzer(text);
+			stream = getAnalyzer(text, true, true, true);
 
 			JSONObject analysis = null;
 			if (trackAnalysis) {
@@ -303,11 +433,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 			if (trackTotal) {
 				// NOTE: 부하가 얼마나 걸릴지 체크해 봐야 할듯.
+				long time = System.nanoTime();
 				total = SearchUtil.count(client, index, query);
-				logger.debug("TOTAL:{}", total);
+				time = System.nanoTime() - time;
+				logger.debug("TOTAL:{} takes {} ns", total, ((int) Math.round(time * 100.0 / 1000000.0)) / 100.0);
 			}
 
-			boolean doScroll = (total != -1 && total > 10000) || from + size > 10000;
+			boolean doScroll = from + size > 10000;
 
 			builder.object();
 			if (trackAnalysis) {
@@ -345,7 +477,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return dictionary;
 	}
 
-	private static TokenStream getAnalyzer(String str) {
+	private static TokenStream getAnalyzer(String str, boolean useForQuery, boolean useSynonym, boolean useStopword) {
 		// TODO: 토크나이저/분석기를 동적으로 가져올수 없으므로 자체 캐시를 사용하도록 한다.
 		TokenStream tstream = null;
 		Reader reader = null;
@@ -353,9 +485,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		ProductNameDictionary dictionary = getDictionary();
 		AnalyzerOption option = null;
 		option = new AnalyzerOption();
-		option.useForQuery(true);
-		option.useSynonym(true);
-		option.useStopword(true);
+		option.useForQuery(useForQuery);
+		option.useSynonym(useSynonym);
+		option.useStopword(useStopword);
 		reader = new StringReader(str);
 		tokenizer = new ProductNameTokenizer(dictionary, false);
 		tokenizer.setReader(reader);

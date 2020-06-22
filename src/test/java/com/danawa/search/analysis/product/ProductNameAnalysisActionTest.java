@@ -44,23 +44,37 @@ public class ProductNameAnalysisActionTest {
 
 		String[] fields = new String[] { "PRODUCTNAME" };
 
-		stream = getAnalyzer(dictionary, text);
+		stream = getAnalyzer(dictionary, text, true, true, true);
 		QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, analysis);
 		logger.debug("Q:{}", query.toString());
 		logger.debug("ANALYSIS:{}", analysis);
 		assertTrue(true);
 	}
 
-	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str) {
+	@Test public void testAnalyzeDetail() {
+		if (TestUtil.launchForBuild()) { return; }
+		ProductNameDictionary dictionary = null;
+		// dictionary = TestUtil.loadDictionary();
+		dictionary = TestUtil.loadTestDictionary();
+		String str = "";
+		str = "Sandisk Extream Z80 USB 16gb";
+		boolean useForQuery = false;
+		boolean useSynonym = true;
+		boolean useStopword = true;
+		TokenStream stream = getAnalyzer(dictionary, str, useForQuery, useSynonym, useStopword);
+		ProductNameAnalysisAction.analyzeTextDetail(stream);
+	}
+
+	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str, boolean useForQuery, boolean useSynonym, boolean useStopword) {
 		TokenStream tstream = null;
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		AnalyzerOption option = null;
 
 		option = new AnalyzerOption();
-		option.useForQuery(true);
-		option.useSynonym(true);
-		option.useStopword(true);
+		option.useForQuery(useForQuery);
+		option.useSynonym(useSynonym);
+		option.useStopword(useStopword);
 		reader = new StringReader(str);
 		tokenizer = new ProductNameTokenizer(dictionary, false);
 		tokenizer.setReader(reader);
