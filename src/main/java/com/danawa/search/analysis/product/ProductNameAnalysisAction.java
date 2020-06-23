@@ -193,13 +193,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
 		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
-		SynonymAttribute synAtt = stream.addAttribute(SynonymAttribute.class);
+		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
 		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
 		Map<String, List<List<String>>> result = new HashMap<>();
 		List<List<String>> wordList = null;
 		List<String> words = null;
 		List<String> words2 = null;
-		List<CharSequence> synonyms = synAtt.getSynonyms();
+		List<CharSequence> synonyms = synAttr.getSynonyms();
 		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
 			result.put(key, new ArrayList<>());
 		}
@@ -249,7 +249,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				term = String.valueOf(termAttr);
 				type = typeAttr.type();
 				offset = new int[] { offAttr.startOffset(), offAttr.endOffset() };
-				logger.trace("TERM:{} / {}", term, setName);
+				logger.trace("TERM:{} / {}", term, type);
 				if (!FULL_STRING_SET.equals(setNamePrev) && offset[0] < offsetPrev[1]) {
 					// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
 					wordList = result.get(setNamePrev);
@@ -281,31 +281,46 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					setAnalyzedResult(result, term, NORMAL_SET, FINAL_SET);
 				}
 
-				Iterator<String> iter = extAttr.iterator();
-				if (iter != null && iter.hasNext()) {
-					wordList = result.get(setName);
-					words = wordList.get(wordList.size() - 1);
-					while (iter.hasNext()) {
-						String s = iter.next();
-						words.add(s);
-						setAnalyzedResult(result, s, NORMAL_SET, FINAL_SET);
-					}
-				}
-
-				if ((synonyms = synAtt.getSynonyms()) != null && synonyms.size() > 0) {
-					wordList = result.get(SYNONYM_SET);
-					wordList.add(words = new ArrayList<>());
-					words.add(term);
-					wordList = result.get(setName);
-					words2 = wordList.get(wordList.size() - 1);
-					logger.trace("[{}] {} / {}", setName, term, synonyms);
-					for (CharSequence synonym : synonyms) {
-						String s = String.valueOf(synonym);
-						words.add(s);
-						if (!NORMAL_SET.equals(setName)) {
-							words2.add(s);
+				if (!FULL_STRING_SET.equals(setName)) {
+					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+						wordList = result.get(SYNONYM_SET);
+						wordList.add(words = new ArrayList<>());
+						words.add(term);
+						wordList = result.get(setName);
+						words2 = wordList.get(wordList.size() - 1);
+						logger.trace("SYNONYM [{}] {} / {}", setName, term, synonyms);
+						for (CharSequence synonym : synonyms) {
+							String s = String.valueOf(synonym);
+							words.add(s);
+							if (!NORMAL_SET.equals(setName)) {
+								words2.add(s);
+							}
+							setAnalyzedResult(result, s, FINAL_SET);
 						}
-						setAnalyzedResult(result, s, FINAL_SET);
+					}
+
+					Iterator<String> iter = extAttr.iterator();
+					if (iter != null && iter.hasNext()) {
+						wordList = result.get(setName);
+						words = wordList.get(wordList.size() - 1);
+						while (iter.hasNext()) {
+							String s = iter.next();
+							logger.trace("EXT [{}] {} / {} / {} / {}", setName, term, s, words, wordList);
+							words.add(s);
+							setAnalyzedResult(result, s, FINAL_SET);
+							synonyms = synAttr.getSynonyms();
+							if (synonyms != null && synonyms.size() > 0) {
+								logger.trace("EXT-SYN [{}] {} / {} / {} / {}", setName, term, s, synonyms, wordList);
+								setAnalyzedResult(result, s, SYNONYM_SET);
+								wordList = result.get(SYNONYM_SET);
+								List<String> list = wordList.get(wordList.size() - 1);
+								for (CharSequence synonym : synonyms) {
+									s = String.valueOf(synonym);
+									list.add(s);
+									setAnalyzedResult(result, s, FINAL_SET);
+								}
+							}
+						}
 					}
 				}
 			}
@@ -423,7 +438,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				.endArray()
 				.key("success").value(true)
 				.endObject();
-			logger.trace("RESULT:{}", String.valueOf(writer));
 		} catch (Exception e) {
 			logger.error("", e);
 		}

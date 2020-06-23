@@ -1028,6 +1028,9 @@ public class ProductNameParsingRule {
 		for (int qinx = 0; qinx < queue.size(); qinx++) {
 			// modifiable 을 특별 용도로 사용한다.
 			e0 = queue.get(qinx);
+			if (e0.type == FULL_STRING) {
+				continue;
+			}
 			testEntry(e0, null);
 			if (e0.subEntry != null) {
 				for (int inx = 0; inx < e0.subEntry.size(); inx++) {
