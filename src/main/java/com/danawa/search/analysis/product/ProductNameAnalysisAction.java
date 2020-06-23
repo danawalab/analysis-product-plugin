@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SourceDictionary;
@@ -138,12 +139,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		};
 	}
 
-	private static final String FULL_STRING = ProductNameTokenizer.FULL_STRING;
-	private static final String MODEL_NAME = ProductNameTokenizer.MODEL_NAME;
-	private static final String UNIT = ProductNameTokenizer.UNIT;
-	private static final String RESTRICTED = "RESTRICTED";
-	private static final String NORMAL_SET = "NORMAL_SET";
-	private static final String FINAL_SET = "FINAL_SET";
+	private static final String FULL_STRING_SET = "00_FULL_STRING_SET";
+	private static final String MODEL_NAME_SET = "02_MODEL_NAME_SET";
+	private static final String UNIT_SET = "03_UNIT_SET";
+	private static final String RESTRICTED_SET = "01_RESTRICTED_SET";
+	private static final String NORMAL_SET = "04_NORMAL_SET";
+	private static final String FINAL_SET = "07_FINAL_SET";
+	private static final String SYNONYM_SET = "05_SYNONYM_SET";
 
 	private void testAction(RestRequest request, NodeClient client) {
 		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
@@ -151,8 +153,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useForQuery = jobj.optBoolean("useForQuery", true);
 		boolean useSynonym = jobj.optBoolean("useSynonym", true);
 		boolean useStopword = jobj.optBoolean("useStopword", true);
-		TokenStream stream = getAnalyzer(text, useForQuery, useSynonym, useStopword);
-		analyzeTextDetail(stream);
+		TokenStream stream = null;
+		try {
+			stream = getAnalyzer(text, useForQuery, useSynonym, useStopword);
+			analyzeTextDetail(stream);
+		} finally {
+			try { stream.close(); } catch (Exception ignore) { }
+		}
 	}
 
 	public static void analyzeTextDetail(TokenStream stream) {
@@ -164,10 +171,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		Map<String, List<List<String>>> result = new HashMap<>();
 		List<List<String>> wordList = null;
 		List<String> words = null;
-		result.put(FULL_STRING, new ArrayList<>());
-		result.put(MODEL_NAME, new ArrayList<>());
-		result.put(UNIT, new ArrayList<>());
-		result.put(RESTRICTED, new  ArrayList<>());
+		List<String> words2 = null;
+		List<CharSequence> synonyms = synAtt.getSynonyms();
+		result.put(FULL_STRING_SET, new ArrayList<>());
+		result.put(MODEL_NAME_SET, new ArrayList<>());
+		result.put(UNIT_SET, new ArrayList<>());
+		result.put(RESTRICTED_SET, new  ArrayList<>());
+		result.put(SYNONYM_SET, new ArrayList<>());
 		result.put(NORMAL_SET, new ArrayList<>());
 		result.put(FINAL_SET, new ArrayList<>());
 
@@ -205,50 +215,81 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		String term = null;
 		String type = null;
-		String typePrev = null;
+		String setName = null;
+		String setNamePrev = null;
 		int[] offset = { 0, 0 };
 		int[] offsetPrev = { 0, 0 };
 		try {
 			stream.reset();
 			while (stream.incrementToken()) {
-				typePrev = type;
+				setNamePrev = setName;
 				offsetPrev = new int[] { offset[0], offset[1] };
 				term = String.valueOf(termAttr);
 				type = typeAttr.type();
 				offset = new int[] { offAttr.startOffset(), offAttr.endOffset() };
-				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+				logger.debug("TERM:{} / {}", term, setNamePrev);
+				if (!FULL_STRING_SET.equals(setNamePrev) && offset[0] < offsetPrev[1]) {
+					// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
+					wordList = result.get(setNamePrev);
+					if (wordList != null) {
+						words = wordList.get(wordList.size() - 1);
+						words.add(term);
+						setName = setNamePrev;
+						offset = new int[] { offsetPrev[0], offsetPrev[1] };
+						setAnalyzedResult(result, term, NORMAL_SET, FINAL_SET);
+					}
+				} else if (ProductNameTokenizer.FULL_STRING.equals(type)) {
 					// 전체 단어
-					setAnalyzedResult(result, term, FULL_STRING);
+					setName = FULL_STRING_SET;
+					setAnalyzedResult(result, term, FULL_STRING_SET, FINAL_SET);
 				} else if (ProductNameTokenizer.MODEL_NAME.equals(type)) {
 					// 모델명의 경우 색인시와 질의시 추출방법이 서로 다르다.
-					setAnalyzedResult(result, term, MODEL_NAME, FINAL_SET);
+					setName = MODEL_NAME_SET;
+					setAnalyzedResult(result, term, MODEL_NAME_SET, FINAL_SET);
 				} else if (ProductNameTokenizer.UNIT.equals(type)) {
-					setAnalyzedResult(result, term, UNIT, NORMAL_SET, FINAL_SET);
+					// 단위명
+					setName = UNIT_SET;
+					setAnalyzedResult(result, term, UNIT_SET, NORMAL_SET, FINAL_SET);
 				} else {
+					// 일반단어
+					setName = NORMAL_SET;
 					setAnalyzedResult(result, term, NORMAL_SET, FINAL_SET);
-					if (ProductNameTokenizer.MODEL_NAME.equals(typePrev) && offset[0] < offsetPrev[1]) {
-						wordList = result.get(MODEL_NAME);
-						words = wordList.get(wordList.size() - 1);
-						words.add(term);
-						type = typePrev;
-						offset = new int[] { offsetPrev[0], offsetPrev[1] };
-					} else if (ProductNameTokenizer.UNIT.equals(typePrev) && offset[0] < offsetPrev[1]) {
-						wordList = result.get(UNIT);
-						words = wordList.get(wordList.size() - 1);
-						words.add(term);
-						type = typePrev;
-						offset = new int[] { offsetPrev[0], offsetPrev[1] };
+				}
+
+				Iterator<String> iter = extAttr.iterator();
+				if (iter != null && iter.hasNext()) {
+					wordList = result.get(setName);
+					words = wordList.get(wordList.size() - 1);
+					while (iter.hasNext()) {
+						String s = iter.next();
+						words.add(s);
+						setAnalyzedResult(result, s, NORMAL_SET, FINAL_SET);
+					}
+				}
+
+				if ((synonyms = synAtt.getSynonyms()) != null && synonyms.size() > 0) {
+					wordList = result.get(SYNONYM_SET);
+					wordList.add(words = new ArrayList<>());
+					words.add(term);
+					wordList = result.get(setName);
+					words2 = wordList.get(wordList.size() - 1);
+					for (CharSequence synonym : synonyms) {
+						String s = String.valueOf(synonym);
+						if (!NORMAL_SET.equals(setName)) {
+							words.add(s);
+						}
+						words2.add(s);
+						setAnalyzedResult(result, s, FINAL_SET);
 					}
 				}
 			}
-			for (String key : result.keySet()) {
+			for (String key : new TreeSet<String>(result.keySet())) {
 				logger.debug("TYPE:{}", key);
 				wordList = result.get(key);
 				logger.debug("  {}", wordList);
 			}
-		} catch (Exception ignore) {
-		} finally {
-			try { stream.close(); } catch (Exception ignore) { }
+		} catch (Exception e) {
+			logger.error("", e);
 		}
 	}
 
@@ -568,19 +609,3 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		@Override public void close() { }
 	}
 }
-
-// GET /_plugin/PRODUCT/analysis-tools-detail?test=test&analyzerId=standard&forQuery=true&skipFilter=true&queryWords=192.168.1.1:8090/_plugin/PRODUCT/analysis-tools-detail?test=test&analyzerId=standard&forQuery=true&skipFilter=true&queryWords=Sandisk Extream Z80 USB 16gb
-// {
-//  "query":"Sandisk Extream Z80 USB 16gb",
-//  "result":
-//  [
-//    {"key":"불용어","value":""},
-//    {"key":"모델명 규칙","value":"<strong>Z80<\/strong> ( Z , 80 , Z80 ) <br/>"},
-//    {"key":"단위명 규칙","value":"<strong>16gb<\/strong> : 16gb<br/> >>> 동의어 : 16g, 16기가<br/>"},
-//    {"key":"형태소 분리 결과","value":"Sandisk, Extream, Z, 80, Z80, USB, 16gb, Sandisk Extream Z80 USB 16gb"},
-//    {"key":"동의어 확장","value":"<strong>Sandisk<\/strong> : 샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아<br/><strong>Z<\/strong> : 지, 제트<br/> >>> 단방향 : 지, 제트<br/><strong>USB<\/strong> : 유에스비, usb용, usb형, 유에스비용, 유에스비형<br/><strong>16gb<\/strong> : 16g, 16기가<br/>"},
-//    {"key":"복합명사","value":""},
-//    {"key":"최종 결과","value":"Sandisk, 샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아, Extream, Z, 지, 제트, 80, Z80, USB, 유에스비, usb용, usb형, 유에스비용, 유에스비형, 16gb, 16g, 16기가, Sandisk Extream Z80 USB 16gb"}
-//  ],
-//  "success":true
-// }
