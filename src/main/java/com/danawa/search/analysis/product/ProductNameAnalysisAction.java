@@ -7,6 +7,7 @@ import java.io.StringWriter;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -66,7 +67,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_RESTORE_DICT = "restore-dict";
 	private static final String ACTION_COMPILE_DICT = "compile-dict";
 	private static final String ACTION_FULL_INDEX = "full-index";
-	private static final String ACTION_TEST = "test";
+	private static final String ACTION_ANALYZE_TEXT = "analyze-text";
 	private static final String ACTION_SEARCH = "search";
 	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
 	private static final String ES_DICT_FIELD_ID = "id";
@@ -74,8 +75,33 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ES_DICT_FIELD_KEYWORD = "keyword";
 	private static final String ES_DICT_FIELD_VALUE = "value";
 
+	private static final String TAG_BR = "<br/>";
+	private static final String TAG_STRONG = "<strong>${TEXT}</strong>";
+	private static final String COMMA = ",";
+
 	public static final String TAB = "\t";
 
+	private static final String FULL_STRING_SET = "00_FULL_STRING_SET";
+	private static final String RESTRICTED_SET = "01_RESTRICTED_SET";
+	private static final String MODEL_NAME_SET = "02_MODEL_NAME_SET";
+	private static final String UNIT_SET = "03_UNIT_SET";
+	private static final String NORMAL_SET = "04_NORMAL_SET";
+	private static final String SYNONYM_SET = "05_SYNONYM_SET";
+	private static final String COMPOUND_SET = "06_COMPOUND_SET";
+	private static final String FINAL_SET = "07_FINAL_SET";
+	private static final Map<String, String> ANALYSIS_RESULT_LABELS;
+	static {
+		Map<String, String> map = new HashMap<>();
+		map.put(FULL_STRING_SET, "전체질의어");
+		map.put(RESTRICTED_SET, "불용어");
+		map.put(MODEL_NAME_SET, "모델명 규칙");
+		map.put(UNIT_SET, "단위명 규칙");
+		map.put(NORMAL_SET, "형태소 분리 결과");
+		map.put(SYNONYM_SET, "동의어 확장");
+		map.put(COMPOUND_SET, "복합명사");
+		map.put(FINAL_SET, "최종 결과");
+		ANALYSIS_RESULT_LABELS = Collections.unmodifiableMap(map);
+	}
 	private static ProductNameDictionary dictionary;
 
 	private DanawaBulkTextIndexer indexingThread;
@@ -128,9 +154,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				builder.key("working").value("false");
 			}
 			builder.endObject();
-		} else if (ACTION_TEST.equals(action)) {
-			testAction(request, client);
-			builder.object().key("action").value(action).endObject();
+		} else if (ACTION_ANALYZE_TEXT.equals(action)) {
+			analyzeTextAction(request, client, builder);
 		} else if (ACTION_SEARCH.equals(action)) {
 			search(request, client, builder);
 		}
@@ -139,30 +164,32 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		};
 	}
 
-	private static final String FULL_STRING_SET = "00_FULL_STRING_SET";
-	private static final String MODEL_NAME_SET = "02_MODEL_NAME_SET";
-	private static final String UNIT_SET = "03_UNIT_SET";
-	private static final String RESTRICTED_SET = "01_RESTRICTED_SET";
-	private static final String NORMAL_SET = "04_NORMAL_SET";
-	private static final String FINAL_SET = "07_FINAL_SET";
-	private static final String SYNONYM_SET = "05_SYNONYM_SET";
+	private void analyzeTextAction(RestRequest request, NodeClient client, JSONWriter writer) {
+		String text = request.param("queryWords", "");
+		boolean detail = request.paramAsBoolean("detail", true);
+		boolean useForQuery = request.paramAsBoolean("forQuery", true);
+		boolean useSynonym = true;
+		boolean useStopword = true;
 
-	private void testAction(RestRequest request, NodeClient client) {
-		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-		String text = jobj.optString("text", "");
-		boolean useForQuery = jobj.optBoolean("useForQuery", true);
-		boolean useSynonym = jobj.optBoolean("useSynonym", true);
-		boolean useStopword = jobj.optBoolean("useStopword", true);
+		if (text == null || text.length() == 0) {
+			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+			text = jobj.optString("text", "");
+			detail = jobj.optBoolean("detail", true);
+			useForQuery = jobj.optBoolean("useForQuery", true);
+			useSynonym = jobj.optBoolean("useSynonym", true);
+			useStopword = jobj.optBoolean("useStopword", true);
+		}
+
 		TokenStream stream = null;
 		try {
 			stream = getAnalyzer(text, useForQuery, useSynonym, useStopword);
-			analyzeTextDetail(stream);
+			analyzeTextDetail(text, stream, detail, writer);
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
 		}
 	}
 
-	public static void analyzeTextDetail(TokenStream stream) {
+	public static void analyzeTextDetail(String text, TokenStream stream, boolean detail, JSONWriter writer) {
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
 		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
@@ -173,14 +200,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		List<String> words = null;
 		List<String> words2 = null;
 		List<CharSequence> synonyms = synAtt.getSynonyms();
-		result.put(FULL_STRING_SET, new ArrayList<>());
-		result.put(MODEL_NAME_SET, new ArrayList<>());
-		result.put(UNIT_SET, new ArrayList<>());
-		result.put(RESTRICTED_SET, new  ArrayList<>());
-		result.put(SYNONYM_SET, new ArrayList<>());
-		result.put(NORMAL_SET, new ArrayList<>());
-		result.put(FINAL_SET, new ArrayList<>());
-
+		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
+			result.put(key, new ArrayList<>());
+		}
 		// QUERYING..
 		// TOKEN:Sandisk Extream Z80 USB 16gb / 0~28 / <FULL_STRING> / [null|[]]
 		// TOKEN:Sandisk / 0~7 / <ALPHA> / [[샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아]|[]]
@@ -227,7 +249,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				term = String.valueOf(termAttr);
 				type = typeAttr.type();
 				offset = new int[] { offAttr.startOffset(), offAttr.endOffset() };
-				logger.debug("TERM:{} / {}", term, setNamePrev);
+				logger.trace("TERM:{} / {}", term, setName);
 				if (!FULL_STRING_SET.equals(setNamePrev) && offset[0] < offsetPrev[1]) {
 					// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
 					wordList = result.get(setNamePrev);
@@ -250,6 +272,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					// 단위명
 					setName = UNIT_SET;
 					setAnalyzedResult(result, term, UNIT_SET, NORMAL_SET, FINAL_SET);
+				} else if (ProductNameTokenizer.COMPOUND.equals(type)) {
+					setName = COMPOUND_SET;
+					setAnalyzedResult(result, term, COMPOUND_SET, NORMAL_SET, FINAL_SET);
 				} else {
 					// 일반단어
 					setName = NORMAL_SET;
@@ -273,21 +298,132 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					words.add(term);
 					wordList = result.get(setName);
 					words2 = wordList.get(wordList.size() - 1);
+					logger.trace("[{}] {} / {}", setName, term, synonyms);
 					for (CharSequence synonym : synonyms) {
 						String s = String.valueOf(synonym);
+						words.add(s);
 						if (!NORMAL_SET.equals(setName)) {
-							words.add(s);
+							words2.add(s);
 						}
-						words2.add(s);
 						setAnalyzedResult(result, s, FINAL_SET);
 					}
 				}
 			}
-			for (String key : new TreeSet<String>(result.keySet())) {
-				logger.debug("TYPE:{}", key);
-				wordList = result.get(key);
-				logger.debug("  {}", wordList);
+			writer.object()
+				.key("query").value(text)
+				.key("resutl").array();
+			if (detail) {
+				for (String key : new TreeSet<String>(result.keySet())) {
+					String label = ANALYSIS_RESULT_LABELS.get(key);
+					wordList = result.get(key);
+					logger.trace("TYPE:{} / {}", label, wordList);
+					StringBuilder data = new StringBuilder();
+
+					if (FULL_STRING_SET.equals(key)) {
+						if (wordList != null && wordList.size() > 0) {
+							words = wordList.get(0);
+							if (words != null && words.size() > 0) {
+								data.append(words.get(0));
+							}
+						}
+					} else if (RESTRICTED_SET.equals(key)) {
+						for (List<String> item : wordList) {
+							if (data.length() > 0) { data.append(COMMA).append(" "); }
+							if (item.size() > 0) {
+								data.append(item.get(0));
+							}
+						}
+					} else if (MODEL_NAME_SET.equals(key)) {
+						for (List<String> item : wordList) {
+							if (data.length() > 0) { data.append(TAG_BR); }
+							for (int inx = 0; inx < item.size(); inx++) {
+								String w = item.get(inx);
+								if (inx == 0) {
+									data.append(TAG_STRONG.replaceAll("[$][{]TEXT[}]", w))
+										.append(" ( ").append(w);
+								} else {
+									if (inx > 0) { data.append(", "); }
+									data.append(w);
+								}
+							}
+							data.append(" ) ");
+						}
+					} else if (UNIT_SET.equals(key)) {
+						for (List<String> item : wordList) {
+							if (data.length() > 0) { data.append(TAG_BR); }
+							for (int inx = 0; inx < item.size(); inx++) {
+								String w = item.get(inx);
+								if (inx == 0) {
+									data.append(TAG_STRONG.replaceAll("[$][{]TEXT[}]", w)).append(" : ");
+								} else {
+									if (inx > 1) { data.append(", "); }
+									data.append(w);
+								}
+							}
+							if (MODEL_NAME_SET.equals(key)) {
+								data.append(" ) ");
+							}
+						}
+					} else if (NORMAL_SET.equals(key)) {
+						for (List<String> item : wordList) {
+							if (data.length() > 0) { data.append(COMMA).append(" "); }
+							if (item.size() > 0) {
+								data.append(item.get(0));
+							}
+						}
+					} else if (SYNONYM_SET.equals(key)) {
+						for (List<String> item : wordList) {
+							if (data.length() > 0) { data.append(TAG_BR); }
+							for (int inx = 0; inx < item.size(); inx++) {
+								String w = item.get(inx);
+								if (inx == 0) {
+									data.append(TAG_STRONG.replaceAll("[$][{]TEXT[}]", w)).append(" : ");
+								} else {
+									if (inx > 1) { data.append(", "); }
+									data.append(w);
+								}
+							}
+						}
+					} else if (COMPOUND_SET.equals(key)) {
+						for (List<String> item : wordList) {
+							if (data.length() > 0) { data.append(TAG_BR); }
+							for (int inx = 0; inx < item.size(); inx++) {
+								String w = item.get(inx);
+								if (inx == 0) {
+									data.append(TAG_STRONG.replaceAll("[$][{]TEXT[}]", w)).append(" : ");
+								} else {
+									if (inx > 1) { data.append(", "); }
+									data.append(w);
+								}
+							}
+						}
+					} else if (FINAL_SET.equals(key)) {
+						for (List<String> item : wordList) {
+							if (data.length() > 0) { data.append(COMMA).append(" "); }
+							if (item.size() > 0) {
+								data.append(item.get(0));
+							}
+						}
+					}
+					writer.object()
+						.key("key").value(label)
+						.key("value").value(data);
+					writer.endObject();
+				}
+			} else {
+				wordList = result.get(FINAL_SET);
+				logger.trace("RESULT:{}", wordList);
+				for (List<String> item : wordList) {
+					if (item.size() > 0) {
+						writer.value(item.get(0));
+					}
+				}
 			}
+			writer
+				.endArray()
+				.key("success").value(true)
+				.endObject();
+			logger.trace("RESULT:{}", String.valueOf(writer));
 		} catch (Exception e) {
 			logger.error("", e);
 		}

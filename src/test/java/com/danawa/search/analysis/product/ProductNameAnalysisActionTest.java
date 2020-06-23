@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.io.Reader;
 import java.io.StringReader;
+import java.io.StringWriter;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
@@ -15,6 +16,7 @@ import org.apache.lucene.analysis.Tokenizer;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.json.JSONObject;
+import org.json.JSONWriter;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -53,6 +55,7 @@ public class ProductNameAnalysisActionTest {
 
 	@Test public void testAnalyzeDetail() {
 		if (TestUtil.launchForBuild()) { return; }
+		// 상세분석
 		// GET /_plugin/PRODUCT/analysis-tools-detail?test=test&analyzerId=standard&forQuery=true&skipFilter=true&queryWords=192.168.1.1:8090/_plugin/PRODUCT/analysis-tools-detail?test=test&analyzerId=standard&forQuery=true&skipFilter=true&queryWords=Sandisk Extream Z80 USB 16gb
 		// {
 		//  "query":"Sandisk Extream Z80 USB 16gb",
@@ -69,19 +72,39 @@ public class ProductNameAnalysisActionTest {
 		//  "success":true
 		// }
 
+		// 간략분석
+		// GET /management/analysis/analysis-tools.json?pluginId=PRODUCT&analyzerId=standard&forQuery=true&queryWords=Sandisk Extream Z80 USB 16gb
+		// {
+		//  "query":"Sandisk Extream Z80 USB 16gb",
+		//  "result":[
+		//    "Sandisk",
+		//    "Extream",
+		//    "Z",
+		//    "80",
+		//    "USB",
+		//    "16gb",
+		//    "Sandisk Extream Z80 USB 16gb"
+		//  ],
+		//  "success":true
+		//}
+
 		ProductNameDictionary dictionary = null;
 		dictionary = TestUtil.loadDictionary();
 		// dictionary = TestUtil.loadTestDictionary();
 		String str = "";
-		str = "Sandisk Extream Z80 USB 16gb";
+		str = "Sandisk Extream Z80 USB 16gb 스위스알파인클럽";
 		// str = "nt-ok123";
 		boolean useForQuery;
 		useForQuery = true;
 		// useForQuery = false;
 		boolean useSynonym = true;
 		boolean useStopword = true;
+		boolean detail;
+		detail = true;
+		// detail = false;
 		TokenStream stream = getAnalyzer(dictionary, str, useForQuery, useSynonym, useStopword);
-		ProductNameAnalysisAction.analyzeTextDetail(stream);
+		JSONWriter writer = new JSONWriter(new StringWriter());
+		ProductNameAnalysisAction.analyzeTextDetail(str, stream, detail, writer);
 	}
 
 	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str, boolean useForQuery, boolean useSynonym, boolean useStopword) {
