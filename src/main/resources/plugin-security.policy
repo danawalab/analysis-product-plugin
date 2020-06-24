@@ -1,9 +1,9 @@
 /**
  * 시스템의 모든 권한을 얻고자 한다면 다음 줄을 추가한다.
- * permission java.security.AllPermission "", "";
+ * permission java.security.AllPermission "*", "*";
  **/
 
 grant {
-  permission java.net.SocketPermission "*", "accept,connect";
+  permission java.net.SocketPermission "*", "accept,connect,resolve";
   permission java.io.FilePermission "<<ALL FILES>>", "read, write, delete, execute";
 };

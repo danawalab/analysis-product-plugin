@@ -1,9 +1,14 @@
 package com.danawa.search.analysis.product;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -43,9 +48,11 @@ import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestController;
@@ -172,20 +179,76 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, buffer.toString()));
 		};
 	}
-
 	public void testAction(RestRequest request, NodeClient client, JSONWriter writer) {
+		logger.debug("TEST-ACTION");
+	}
+
+	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body) {
+		String localNodeId = client.getLocalNodeId();
 		NodesInfoRequest infoRequest = new NodesInfoRequest();
-		infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true);
+		infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true).indices(true);
 		try {
 			NodesInfoResponse response = client.admin().cluster().nodesInfo(infoRequest).get();
 			List<NodeInfo> nodes = response.getNodes();
 			for (NodeInfo node : nodes) {
-				logger.debug("NODE:{} / {}", node.getHttp(), node.getPlugins().getPluginInfos());
+				// 자기자신이 아닌경우에만 전파
+				if (localNodeId.equals(node.getNode().getId())) {
+					continue;
+				}
+				logger.debug("NODE:{}", node);
+				boolean hasPlugin = false;
+				TransportAddress address = node.getHttp().getAddress().publishAddress();
+				// 상품명분석기 플러그인을 가진 노드에만 전파
+				List<PluginInfo> plugins = node.getPlugins().getPluginInfos();
+				for (PluginInfo info : plugins) {
+					if (hasPlugin = info.getClassname().equals(AnalysisProductNamePlugin.class.getName())) {
+						break;
+					}
+				}
+				if (hasPlugin) {
+					logger.debug("NODE: {}:{}", address.getAddress(), address.getPort());
+					doRestRequest(address.getAddress(), address.getPort(), action, body);
+				}
 			}
 		} catch (Exception e) {
 			logger.error("", e);
 		}
-		// client.admin().cluster().nodesInfo(nodesInfoRequest, new RestActionListener<NodesInfoResponse>(channel) {
+	}
+
+	private void doRestRequest(final String address, final int port, final String action, final JSONObject body) {
+		SpecialPermission.check();
+		AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
+			HttpURLConnection con = null;
+			OutputStream ostream = null;
+			BufferedReader reader = null;
+			try {
+				String url = "http://" + address + ":" + port + BASE_URI + "/" + action;
+				logger.debug("SEND REQUEST {}", url);
+				con = (HttpURLConnection) new URL(url).openConnection();
+				con.setRequestMethod("POST");
+				// con.setRequestProperty("user", "");
+				// con.setRequestProperty("password", "");
+				con.setRequestProperty("Content-Type", "application/json");
+				con.setDoOutput(true);
+				ostream = con.getOutputStream();
+				ostream.write(String.valueOf(body).getBytes());
+				ostream.flush();
+				int responseCode = con.getResponseCode();
+				if (responseCode == HttpURLConnection.HTTP_CREATED) {
+					logger.debug("RESPONSE:{}", responseCode);
+					reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
+					for (String rl; (rl = reader.readLine()) != null;) {
+						logger.trace("", rl);
+					}
+				}
+			} catch (Exception e) { 
+				logger.error("", e);
+			} finally {
+				try { ostream.close(); } catch (Exception ignore) { }
+				try { reader.close(); } catch (Exception ignore) { }
+			}
+			return 0;
+		});
 	}
 
 	private void analyzeTextAction(RestRequest request, NodeClient client, JSONWriter writer) {
@@ -228,37 +291,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
 			result.put(key, new ArrayList<>());
 		}
-		// QUERYING..
-		// TOKEN:Sandisk Extream Z80 USB 16gb / 0~28 / <FULL_STRING> / [null|[]]
-		// TOKEN:Sandisk / 0~7 / <ALPHA> / [[샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아]|[]]
-		// |_synonym : 샌디스크
-		// |_synonym : 산디스크
-		// |_synonym : 센디스크
-		// |_synonym : 샌디스크 코리아
-		// |_synonym : 산디스크 코리아
-		// TOKEN:Extream / 8~15 / <ALPHA> / [null|[]]
-		// TOKEN:Z80 / 16~19 / <MODEL_NAME> / [null|[Z, 80]]
-		// a-term:Z / type:<ALPHA>
-		// a-term:80 / type:<NUMBER>
-		// TOKEN:USB / 20~23 / <ALPHA> / [[유에스비, usb용, usb형, 유에스비용, 유에스비형]|[]]
-		// |_synonym : 유에스비
-		// |_synonym : usb용
-		// |_synonym : usb형
-		// |_synonym : 유에스비용
-		// |_synonym : 유에스비형
-		// TOKEN:16gb / 24~28 / <UNIT> / [[16g, 16기가]|[]]
-		// |_synonym : 16g
-		// |_synonym : 16기가
-
-		// INDEXING..
-		// TOKEN:Sandisk / 0~7 / <HANGUL> / [null|[]]
-		// TOKEN:Extream / 8~15 / <ALPHA> / [null|[]]
-		// TOKEN:Z80 / 16~19 / <MODEL_NAME> / [null|[]]
-		// TOKEN:Z / 16~17 / <ALPHA> / [null|[]]
-		// TOKEN:80 / 17~19 / <NUMBER> / [null|[]]
-		// TOKEN:USB / 20~23 / <ALPHA> / [null|[]]
-		// TOKEN:16gb / 24~28 / <UNIT> / [null|[]]
-		// TOKEN:16 / 24~26 / <NUMBER> / [null|[]]
 
 		String term = null;
 		String type = null;
@@ -492,12 +524,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		DictionarySource repo = new DictionarySource(client, index);
 		ProductNameTokenizerFactory.reloadDictionary(ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
 		if (distribute) {
-			distributeDictionary();
+			jobj.put("distribute", false);
+			this.distribute(request, client, ACTION_COMPILE_DICT, jobj);
 		}
-	}
-
-	public void distributeDictionary() {
-
 	}
 
 	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {

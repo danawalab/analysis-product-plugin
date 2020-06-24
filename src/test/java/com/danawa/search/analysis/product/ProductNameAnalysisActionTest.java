@@ -55,39 +55,6 @@ public class ProductNameAnalysisActionTest {
 
 	@Test public void testAnalyzeDetail() {
 		if (TestUtil.launchForBuild()) { return; }
-		// 상세분석
-		// GET /_plugin/PRODUCT/analysis-tools-detail?test=test&analyzerId=standard&forQuery=true&skipFilter=true&queryWords=192.168.1.1:8090/_plugin/PRODUCT/analysis-tools-detail?test=test&analyzerId=standard&forQuery=true&skipFilter=true&queryWords=Sandisk Extream Z80 USB 16gb
-		// {
-		//  "query":"Sandisk Extream Z80 USB 16gb",
-		//  "result":
-		//  [
-		//    {"key":"불용어","value":""},
-		//    {"key":"모델명 규칙","value":"<strong>Z80<\/strong> ( Z , 80 , Z80 ) <br/>"},
-		//    {"key":"단위명 규칙","value":"<strong>16gb<\/strong> : 16gb<br/> >>> 동의어 : 16g, 16기가<br/>"},
-		//    {"key":"형태소 분리 결과","value":"Sandisk, Extream, Z, 80, Z80, USB, 16gb, Sandisk Extream Z80 USB 16gb"},
-		//    {"key":"동의어 확장","value":"<strong>Sandisk<\/strong> : 샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아<br/><strong>Z<\/strong> : 지, 제트<br/> >>> 단방향 : 지, 제트<br/><strong>USB<\/strong> : 유에스비, usb용, usb형, 유에스비용, 유에스비형<br/><strong>16gb<\/strong> : 16g, 16기가<br/>"},
-		//    {"key":"복합명사","value":""},
-		//    {"key":"최종 결과","value":"Sandisk, 샌디스크, 산디스크, 센디스크, 샌디스크 코리아, 산디스크 코리아, Extream, Z, 지, 제트, 80, Z80, USB, 유에스비, usb용, usb형, 유에스비용, 유에스비형, 16gb, 16g, 16기가, Sandisk Extream Z80 USB 16gb"}
-		//  ],
-		//  "success":true
-		// }
-
-		// 간략분석
-		// GET /management/analysis/analysis-tools.json?pluginId=PRODUCT&analyzerId=standard&forQuery=true&queryWords=Sandisk Extream Z80 USB 16gb
-		// {
-		//  "query":"Sandisk Extream Z80 USB 16gb",
-		//  "result":[
-		//    "Sandisk",
-		//    "Extream",
-		//    "Z",
-		//    "80",
-		//    "USB",
-		//    "16gb",
-		//    "Sandisk Extream Z80 USB 16gb"
-		//  ],
-		//  "success":true
-		//}
-
 		String index = ".fastcatx_dict";
 		ProductNameDictionary dictionary = null;
 		dictionary = TestUtil.loadDictionary();
