@@ -88,6 +88,7 @@ public class ProductNameAnalysisActionTest {
 		//  "success":true
 		//}
 
+		String index = ".fastcatx_dict";
 		ProductNameDictionary dictionary = null;
 		dictionary = TestUtil.loadDictionary();
 		// dictionary = TestUtil.loadTestDictionary();
@@ -104,7 +105,7 @@ public class ProductNameAnalysisActionTest {
 		// detail = false;
 		TokenStream stream = getAnalyzer(dictionary, str, useForQuery, useSynonym, useStopword);
 		JSONWriter writer = new JSONWriter(new StringWriter());
-		ProductNameAnalysisAction.analyzeTextDetail(str, stream, detail, writer);
+		ProductNameAnalysisAction.analyzeTextDetail(str, stream, detail, index, writer);
 	}
 
 	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str, boolean useForQuery, boolean useSynonym, boolean useStopword) {

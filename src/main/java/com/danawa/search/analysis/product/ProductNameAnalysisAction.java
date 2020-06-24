@@ -35,7 +35,6 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
@@ -190,11 +189,12 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private void analyzeTextAction(RestRequest request, NodeClient client, JSONWriter writer) {
-		String text = request.param("queryWords", "");
+		String index = request.param("index", "");
+		String text = request.param("text", "");
 		boolean detail = request.paramAsBoolean("detail", true);
-		boolean useForQuery = request.paramAsBoolean("forQuery", true);
-		boolean useSynonym = true;
-		boolean useStopword = true;
+		boolean useForQuery = request.paramAsBoolean("useForQuery", true);
+		boolean useSynonym = request.paramAsBoolean("useSynonym", true);
+		boolean useStopword = request.paramAsBoolean("useStopword", true);
 
 		if (text == null || text.length() == 0) {
 			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
@@ -208,13 +208,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		TokenStream stream = null;
 		try {
 			stream = getAnalyzer(text, useForQuery, useSynonym, useStopword);
-			analyzeTextDetail(text, stream, detail, writer);
+			analyzeTextDetail(text, stream, detail, index, writer);
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
 		}
 	}
 
-	public static void analyzeTextDetail(String text, TokenStream stream, boolean detail, JSONWriter writer) {
+	public static void analyzeTextDetail(String text, TokenStream stream, boolean detail, String index, JSONWriter writer) {
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
 		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
