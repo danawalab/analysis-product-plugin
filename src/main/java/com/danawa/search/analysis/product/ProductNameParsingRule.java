@@ -245,7 +245,7 @@ public class ProductNameParsingRule {
 							e0.length = (e1.start + e1.length - e0.start);
 							e0.endOffset = e1.endOffset;
 							e0.type = HANGUL;
-							for (int rinx = qinx + linx - 1; rinx >= qinx; rinx--) {
+							for (int rinx = qinx + linx; rinx >= qinx; rinx--) {
 								queue.remove(rinx);
 							}
 							if (passFlag == 1) {
@@ -261,21 +261,21 @@ public class ProductNameParsingRule {
 									start += e1.length;
 									startOffset += e1.length;
 								}
-								queue.remove(qinx);
 								qinx += splits.length - 1;
 							} else if (passFlag == 2) {
 								// 금칙어 규칙은 아래의 경우 (사용자,동의어,브랜드,메이커) 와 다르게
 								// 통합시, 분리시 동시체크를 할 필요가 없으므로 다른 로직을 적용
 								e0.modifiable = false;
-								queue.set(qinx, e0);
+								queue.add(qinx, e0);
 							} else {
-								queue.set(qinx, e0);
+								queue.add(qinx, e0);
 							}
 						}
 						break;
 					}
 				}
 			}
+			e0 = queue.get(qinx);
 
 			// 한글인 경우 (사전에 등록된 단어 중) 숫자로 시작하고 단위명으로 끝나는것을 분리한다.
 			if (e0.type == HANGUL && e0.modifiable) {
@@ -1731,7 +1731,13 @@ public class ProductNameParsingRule {
 			int ret = 0;
 			ret = this.startOffset - entry.startOffset;
 			if (ret == 0) {
-				ret = entry.endOffset - this.endOffset;
+				if (this.startOffset == this.endOffset) {
+					ret = -1;
+				} else if (entry.startOffset == entry.endOffset) {
+					ret = 1;
+				} else {
+					ret = entry.endOffset - this.endOffset;
+				}
 			}
 			return ret;
 		}

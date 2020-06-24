@@ -41,7 +41,7 @@ public class SearchUtil {
 			query = QueryBuilders.matchAllQuery();
 			SearchSourceBuilder source = new SearchSourceBuilder();
 			source.query(query);
-			SearchRequest search = new SearchRequest(index);
+			SearchRequest search = new SearchRequest(index.split("[,]"));
 			clearScroll = new ClearScrollRequest();
 			scroll = new Scroll(DEFAULT_SCROLL_KEEP_ALIVE);
 			source.from(0);
@@ -82,7 +82,7 @@ public class SearchUtil {
 	public static long count(NodeClient client, String index, QueryBuilder query) {
 		long ret = 0;
 		try {
-			SearchRequest countRequest = new SearchRequest(index);
+			SearchRequest countRequest = new SearchRequest(index.split("[,]"));
 			SearchSourceBuilder countSource = new SearchSourceBuilder().query(query).size(0).trackTotalHits(true);
 			countRequest.source(countSource);
 			SearchResponse countResponse = client.search(countRequest).get();
@@ -123,7 +123,7 @@ public class SearchUtil {
 			try {
 				SearchSourceBuilder source = new SearchSourceBuilder();
 				source.query(query);
-				SearchRequest search = new SearchRequest(index);
+				SearchRequest search = new SearchRequest(index.split("[,]"));
 				source.from(from);
 				source.size(size);
 				source.timeout(timeOut);
@@ -210,7 +210,7 @@ public class SearchUtil {
 				this.client = client;
 				SearchSourceBuilder source = new SearchSourceBuilder();
 				source.query(query);
-				SearchRequest search = new SearchRequest(index);
+				SearchRequest search = new SearchRequest(index.split("[,]"));
 				clearScroll = new ClearScrollRequest();
 				scroll = new Scroll(scrollKeepAlive);
 				source.from(0);
