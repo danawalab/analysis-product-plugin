@@ -71,8 +71,10 @@ public class ProductNameAnalysisActionTest {
 		detail = true;
 		// detail = false;
 		TokenStream stream = getAnalyzer(dictionary, str, useForQuery, useSynonym, useStopword);
-		JSONWriter writer = new JSONWriter(new StringWriter());
-		ProductNameAnalysisAction.analyzeTextDetail(str, stream, detail, index, writer);
+		StringWriter buffer = new StringWriter();
+		JSONWriter writer = new JSONWriter(buffer);
+		ProductNameAnalysisAction.analyzeTextDetail(null, str, stream, detail, index, writer);
+		logger.debug("RESULT : {}", String.valueOf(writer));
 	}
 
 	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str, boolean useForQuery, boolean useSynonym, boolean useStopword) {

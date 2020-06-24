@@ -159,10 +159,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			compileDictionary(request, client);
 			builder.object().key("action").value(action).endObject();
 		} else if (ACTION_FULL_INDEX.equals(action)) {
-			SpecialPermission.check();
-			int count = AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
-				return bulkIndex(request, client);
-			});
+			int count = bulkIndex(request, client);
 			builder.object().key("action").value(action);
 			if (count > 0) {
 				builder.key("working").value("true").key("count").value(count);
@@ -183,7 +180,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		logger.debug("TEST-ACTION");
 	}
 
-	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body) {
+	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body, boolean selfDist) {
 		String localNodeId = client.getLocalNodeId();
 		NodesInfoRequest infoRequest = new NodesInfoRequest();
 		infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true).indices(true);
@@ -192,7 +189,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			List<NodeInfo> nodes = response.getNodes();
 			for (NodeInfo node : nodes) {
 				// 자기자신이 아닌경우에만 전파
-				if (localNodeId.equals(node.getNode().getId())) {
+				if (!selfDist && localNodeId.equals(node.getNode().getId())) {
 					continue;
 				}
 				logger.debug("NODE:{}", node);
@@ -215,9 +212,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
-	private void doRestRequest(final String address, final int port, final String action, final JSONObject body) {
+	private String doRestRequest(final String address, final int port, final String action, final JSONObject body) {
 		SpecialPermission.check();
-		AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
+		return AccessController.doPrivileged((PrivilegedAction<String>) () -> {
+			StringBuilder sb = new StringBuilder();
 			HttpURLConnection con = null;
 			OutputStream ostream = null;
 			BufferedReader reader = null;
@@ -226,8 +224,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				logger.debug("SEND REQUEST {}", url);
 				con = (HttpURLConnection) new URL(url).openConnection();
 				con.setRequestMethod("POST");
-				// con.setRequestProperty("user", "");
-				// con.setRequestProperty("password", "");
 				con.setRequestProperty("Content-Type", "application/json");
 				con.setDoOutput(true);
 				ostream = con.getOutputStream();
@@ -238,8 +234,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					logger.debug("RESPONSE:{}", responseCode);
 					reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
 					for (String rl; (rl = reader.readLine()) != null;) {
-						logger.trace("", rl);
+						sb.append(rl).append("\r\n");
 					}
+					logger.debug("RESPONSE:{}", sb);
 				}
 			} catch (Exception e) { 
 				logger.error("", e);
@@ -247,7 +244,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				try { ostream.close(); } catch (Exception ignore) { }
 				try { reader.close(); } catch (Exception ignore) { }
 			}
-			return 0;
+			return String.valueOf(sb);
 		});
 	}
 
@@ -271,19 +268,35 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		TokenStream stream = null;
 		try {
 			stream = getAnalyzer(text, useForQuery, useSynonym, useStopword);
-			analyzeTextDetail(text, stream, detail, index, writer);
+			analyzeTextDetail(client, text, stream, detail, index, writer);
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
 		}
 	}
 
-	public static void analyzeTextDetail(String text, TokenStream stream, boolean detail, String index, JSONWriter writer) {
+	public static boolean isOneWaySynonym(NodeClient client, String index, String word) {
+		boolean ret = false;
+		if (client != null && index != null && !"".equals(index)) {
+			BoolQueryBuilder query = QueryBuilders.boolQuery()
+				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, ProductNameTokenizer.DICT_SYNONYM.toUpperCase()))
+				.must(QueryBuilders.boolQuery()
+					.should(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word))
+				);
+			if (SearchUtil.count(client, index, query) > 0) {
+				ret = true;
+			}
+		}
+		return ret;
+	}
+
+	public static void analyzeTextDetail(NodeClient client, String text, TokenStream stream, boolean detail, String index, JSONWriter writer) {
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
 		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
 		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
 		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
 		Map<String, List<List<String>>> result = new HashMap<>();
+		Map<String, Boolean> synonymWayMap = new HashMap<>();
 		List<List<String>> wordList = null;
 		List<String> words = null;
 		List<String> words2 = null;
@@ -298,6 +311,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String setNamePrev = null;
 		int[] offset = { 0, 0 };
 		int[] offsetPrev = { 0, 0 };
+		boolean oneWaySynonym = false;
 		try {
 			stream.reset();
 			while (stream.incrementToken()) {
@@ -345,7 +359,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						words.add(term);
 						wordList = result.get(setName);
 						words2 = wordList.get(wordList.size() - 1);
-						logger.trace("SYNONYM [{}] {} / {}", setName, term, synonyms);
+						oneWaySynonym = isOneWaySynonym(client, index, term);
+						synonymWayMap.put(term, oneWaySynonym);
+						logger.trace("SYNONYM [{}] {} / {} / {}", setName, term, oneWaySynonym, synonyms);
 						for (CharSequence synonym : synonyms) {
 							String s = String.valueOf(synonym);
 							words.add(s);
@@ -367,7 +383,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
 							synonyms = synAttr.getSynonyms();
 							if (synonyms != null && synonyms.size() > 0) {
-								logger.trace("EXT-SYN [{}] {} / {} / {} / {}", setName, term, s, synonyms, wordList);
+								oneWaySynonym = isOneWaySynonym(client, index, s);
+								synonymWayMap.put(s, oneWaySynonym);
+								logger.trace("EXT-SYN [{}] {} / {} / {} / {} / {}", setName, term, s, oneWaySynonym, synonyms, wordList);
 								setAnalyzedResult(result, s, ANALYZE_SET_SYNONYM);
 								wordList = result.get(ANALYZE_SET_SYNONYM);
 								List<String> list = wordList.get(wordList.size() - 1);
@@ -381,6 +399,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					}
 				}
 			}
+			logger.debug("SYNONYM-WAY : {}", synonymWayMap);
 			writer.object()
 				.key("query").value(text)
 				.key("resutl").array();
@@ -525,7 +544,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		ProductNameTokenizerFactory.reloadDictionary(ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
 		if (distribute) {
 			jobj.put("distribute", false);
-			this.distribute(request, client, ACTION_COMPILE_DICT, jobj);
+			distribute(request, client, ACTION_COMPILE_DICT, jobj, false);
 		}
 	}
 
@@ -583,13 +602,12 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		for (String type : keySet) {
 			type = type.toUpperCase();
 
-			BoolQueryBuilder query = 
-				QueryBuilders.boolQuery()
-					.must(QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type))
-					.must(QueryBuilders.boolQuery()
-						.should(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word))
-						.should(QueryBuilders.matchQuery(ES_DICT_FIELD_VALUE, word))
-					);
+			BoolQueryBuilder query = QueryBuilders.boolQuery()
+				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type))
+				.must(QueryBuilders.boolQuery()
+					.should(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word))
+					.should(QueryBuilders.matchQuery(ES_DICT_FIELD_VALUE, word))
+				);
 			Iterator<Map<String, Object>> result = SearchUtil.search(client, index, query, 0, -1, true);
 			while (result.hasNext()) {
 				Map<String, Object> data = result.next();
@@ -622,29 +640,32 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private int bulkIndex(final RestRequest request, final NodeClient client) {
-		int ret = 0;
-		String path = null;
-		String enc = null;
-		String indexName = null;
-		int flush = 5000;
-		try {
-			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-			path = jobj.optString("path", "");
-			enc = jobj.optString("enc", "euc-kr");
-			indexName = jobj.optString("index", "");
-			flush = jobj.optInt("flush", 50000);
-		} catch (Exception e) {
-			logger.error("", e);
-		}
-		synchronized (this) {
-			if (indexingThread == null || !indexingThread.running()) {
-				indexingThread = new DanawaBulkTextIndexer(indexName, path, enc, flush, client);
-				indexingThread.start();
-			} else {
-				ret = indexingThread.count();
+		SpecialPermission.check();
+		return AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
+			int ret = 0;
+			String path = null;
+			String enc = null;
+			String indexName = null;
+			int flush = 5000;
+			try {
+				JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+				path = jobj.optString("path", "");
+				enc = jobj.optString("enc", "euc-kr");
+				indexName = jobj.optString("index", "");
+				flush = jobj.optInt("flush", 50000);
+			} catch (Exception e) {
+				logger.error("", e);
 			}
-		}
-		return ret;
+			synchronized (this) {
+				if (indexingThread == null || !indexingThread.running()) {
+					indexingThread = new DanawaBulkTextIndexer(indexName, path, enc, flush, client);
+					indexingThread.start();
+				} else {
+					ret = indexingThread.count();
+				}
+			}
+			return ret;
+		});
 	}
 
 	private void search(final RestRequest request, final NodeClient client, final JSONWriter builder) {
