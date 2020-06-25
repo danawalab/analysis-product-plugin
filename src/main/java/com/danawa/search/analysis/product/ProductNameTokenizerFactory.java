@@ -5,10 +5,12 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Map;
 import java.util.Set;
@@ -524,36 +526,85 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 		return ret;
 	}
 
-	public static String getTwowaySynonymWord(CharSequence word, Map<CharSequence, CharSequence[]> map) {
-		Set<CharSequence> sortedSet = new TreeSet<>();
-		CharSequence[] values = map.get(word);
-		int pass = 0;
-		String s0, s1, s2;
-		if (values != null && values.length > 0) {
-			s0 = String.valueOf(word);
-			CharSequence[] target = map.get(values[0]);
-			for (int inx1 = 1; target!=null && inx1 < values.length; inx1++) {
-				s1 = String.valueOf(values[inx1]);
-				for (int inx2 = 0; inx2 < target.length; inx2++) {
-					s2 = String.valueOf(target[inx2]);
-					if (s1.equals(s2) || s0.contains(s2)) {
-						pass++;
+	public static List<CharSequence> getTwowaySynonymWord(CharSequence mainWord, Map<CharSequence, CharSequence[]> synonymMap) {
+		CharSequence word = null;
+		Map<CharSequence, List<CharSequence>> map = new HashMap<>();
+		List<CharSequence> keys = new ArrayList<>();
+		List<CharSequence> values = null;
+		CharSequence[] synonyms = null;
+		CharSequence[] subSynonyms = null;
+		map.put(mainWord, values = new ArrayList<>());
+		keys.addAll(map.keySet());
+		values.addAll(Arrays.asList(synonymMap.get(mainWord)));
+
+		for (int kinx = 0; kinx < keys.size(); kinx++) {
+			word = keys.get(kinx);
+			synonyms = synonymMap.get(word);
+			logger.trace("SYN {} : {}", word, synonyms);
+
+			for (int sinx = 0; sinx < synonyms.length; sinx++) {
+				CharSequence synonym = synonyms[sinx];
+				if (keys.contains(synonym)) { continue; }
+				subSynonyms = synonymMap.get(synonym);
+				if (subSynonyms != null && synonyms.length > 0) {
+					for (CharSequence subSynonym : subSynonyms) {
+						if (mainWord.equals(subSynonym)) {
+							map.put(synonym, values = new ArrayList<>());
+							keys.add(synonym);
+							values.addAll(Arrays.asList(subSynonyms));
+							break;
+						}
 					}
 				}
 			}
 		}
-		if (pass == values.length) {
-			sortedSet.addAll(Arrays.asList(values));
-			sortedSet.add(word);
-			StringBuilder sb = new StringBuilder();
-			for (CharSequence value : sortedSet) {
-				if (sb.length() > 0) { sb.append(","); }
-				sb.append(String.valueOf(value).trim());
-			}
-			return sb.toString();
-		} else {
-			return null;
+		if (map.size() > 1) {
+			normalizeSynonymMap(map);
 		}
+		logger.trace("MAP:{}", map);
+		if (map.size() > 1) {
+			keys.clear();
+			keys.addAll(new TreeSet<CharSequence>(map.keySet()));
+			return keys;
+		}
+		return null;
+	}
+
+	public static void normalizeSynonymMap(Map<CharSequence, List<CharSequence>> map) {
+		CharSequence word = null;
+		List<CharSequence> keys = new ArrayList<>();
+		List<CharSequence> values = null;
+		keys.addAll(map.keySet());
+		// 키값에 없는 동의어 제거
+		for (int inx = 0; inx < keys.size(); inx++) {
+			word = keys.get(inx);
+			values = map.get(word);
+			for (int vinx = 0; vinx < values.size(); vinx++) {
+				CharSequence value = values.get(vinx);
+				if (!keys.contains(value)) {
+					values.remove(vinx);
+					vinx--;
+				}
+			}
+		}
+		List<CharSequence> delete = new ArrayList<>();
+		// 동의어에 없는 키값 제거
+		logger.trace("MAP:{}", map);
+		for (int sinx = 0; sinx < keys.size(); sinx++) {
+			word = keys.get(sinx);
+			for (int tinx = 0; tinx < keys.size(); tinx++) {
+				if (sinx == tinx) { continue; }
+				values = map.get(keys.get(tinx));
+				if (!values.contains(word)) {
+					delete.add(word);
+					break;
+				}
+			}
+		}
+		for (CharSequence key : delete) {
+			map.remove(key);
+		}
+		logger.trace("MAP:{}", map);
 	}
 
 	public static void restoreDictionary(final DictionaryRepository repo, String index) {
@@ -585,16 +636,29 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 				Set<CharSequence> words = new HashSet<>();
 				Map<CharSequence, CharSequence[]> map = dictionary.map();
 				for (CharSequence word : map.keySet()) {
-					String values = getTwowaySynonymWord(word, map);
-					if (values == null) {
+					List<CharSequence> twoway = getTwowaySynonymWord(word, map);
+					{
+						// 단방향 동의어에서 양방향을 뺀 나머지 값들만 저장한다.
 						StringBuilder sb = new StringBuilder();
 						for (CharSequence value : map.get(word)) {
+							if (twoway != null && twoway.contains(value)) { continue; }
 							if (sb.length() > 0) { sb.append(","); }
 							sb.append(String.valueOf(value).trim());
 						}
-						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
-					} else {
-						words.add(TAB + values);
+						if (sb.length() > 0) {
+							words.add(String.valueOf(word) + TAB + String.valueOf(sb));
+						}
+					}
+					if (twoway != null && twoway.size() > 0) {
+						// 양방향 동의어를 저장한다.
+						StringBuilder sb = new StringBuilder();
+						for (CharSequence value : twoway) {
+							if (sb.length() > 0) { sb.append(","); }
+							sb.append(String.valueOf(value).trim());
+						}
+						if (sb.length() > 0) {
+							words.add(TAB + String.valueOf(sb));
+						}
 					}
 				}
 				repo.restore(key, dictionary.ignoreCase(), words);
@@ -631,17 +695,12 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 				Set<CharSequence> words = new HashSet<>();
 				Map<CharSequence, CharSequence[]> map = dictionary.map();
 				for (CharSequence word : map.keySet()) {
-					String values = getTwowaySynonymWord(word, map);
-					if (values == null) {
-						StringBuilder sb = new StringBuilder();
-						for (CharSequence value : map.get(word)) {
-							if (sb.length() > 0) { sb.append(","); }
-							sb.append(String.valueOf(value).trim());
-						}
-						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
-					} else {
-						words.add(TAB + values);
+					StringBuilder sb = new StringBuilder();
+					for (CharSequence value : map.get(word)) {
+						if (sb.length() > 0) { sb.append(","); }
+						sb.append(String.valueOf(value).trim());
 					}
+					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
 				}
 				repo.restore(key, dictionary.ignoreCase(), words);
 			} else if (sourceDictionary.getClass().isAssignableFrom(CompoundDictionary.class)) {
@@ -649,17 +708,12 @@ public class ProductNameTokenizerFactory extends AbstractTokenizerFactory {
 				Set<CharSequence> words = new HashSet<>();
 				Map<CharSequence, CharSequence[]> map = dictionary.map();
 				for (CharSequence word : map.keySet()) {
-					String values = getTwowaySynonymWord(word, map);
-					if (values == null) {
-						StringBuilder sb = new StringBuilder();
-						for (CharSequence value : map.get(word)) {
-							if (sb.length() > 0) { sb.append(","); }
-							sb.append(String.valueOf(value).trim());
-						}
-						words.add(String.valueOf(word) + TAB + String.valueOf(sb));
-					} else {
-						words.add(TAB + values);
+					StringBuilder sb = new StringBuilder();
+					for (CharSequence value : map.get(word)) {
+						if (sb.length() > 0) { sb.append(","); }
+						sb.append(String.valueOf(value).trim());
 					}
+					words.add(String.valueOf(word) + TAB + String.valueOf(sb));
 				}
 				repo.restore(key, dictionary.ignoreCase(), words);
 			}

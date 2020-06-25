@@ -81,8 +81,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		extraTermAttribute.init(this);
 
 		while (true) {
-// 임시코드. 테스트시 무한루프에 의한 프리징 방지
-// try { Thread.sleep(300); } catch (Exception ignore) { }
 			if (termList.size() == 0) {
 				if (tokenAttribute.isState(TokenInfoAttribute.STATE_INPUT_FINISHED)) {
 					ret = false;

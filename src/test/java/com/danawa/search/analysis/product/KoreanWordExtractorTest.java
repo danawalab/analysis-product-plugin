@@ -19,7 +19,12 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
 
@@ -61,16 +66,17 @@ public class KoreanWordExtractorTest {
 		}
 
 		String[] compareData = { "sandisk", "예일가구" };
+		compareData = new String[] { "z", "지", "제트", "zett", "jet", "sandisk", "산디스크" };
 
 		for (String key : compareData) {
 			word = new CharVector(key);
 			List<TagProb> result = dictionary.find(word);
-			logger.debug("RESULT:{}", result);
-
+			logger.debug("");
+			logger.debug("RESULT-FOR {}:{}", word, result);
 			logger.debug("USER:{} / {}", userDict.contains(word), userDict.set().size());
 			logger.debug("BRAND:{} / {} / {}", brandDict.map().containsKey(word), brandDict.map().get(word), brandDict.getWordSet().size());
 			logger.debug("MAKER:{} / {} / {}", makerDict.map().containsKey(word), makerDict.map().get(word), makerDict.getWordSet().size());
-			logger.debug("CATEGORY:{} / {} / {}", categoryDict.map().containsKey(word), categoryDict.map().get(word), categoryDict.getWordSet().size());
+			logger.debug("CATEGORY:{} / {} / {}", categoryDict.map().containsKey(word), categoryDict.map().get(word), makerDict.getWordSet().size());
 			logger.debug("SYNONYM:{}{} / {}", "", synonymDict.get(word), synonymDict.getWordSet().size());
 			logger.debug("COMPOUND:{}{} / {}", "", compoundDict.get(word), synonymDict.getWordSet().size());
 			logger.debug("SPACE:{}{} / {}", "", spaceDict.get(word), spaceDict.getWordSet().size());
@@ -79,6 +85,68 @@ public class KoreanWordExtractorTest {
 			logger.debug("UNITSYNONYM:{}{} / {}", "", unitSynDict.get(word), unitSynDict.getWordSet().size());
 			logger.debug("--------------------------------------------------------------------------------");
 		}
+	}
+
+	@Test public void testSynonymDictionary() {
+		if (TestUtil.launchForBuild()) { return; }
+		ProductNameDictionary dictionary = null;
+		dictionary = TestUtil.loadDictionary();
+		// dictionary = TestUtil.loadTestDictionary();
+		SynonymDictionary synonymDict = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
+		CharSequence word = null;
+		word = new CharVector("sandisk");
+		word = new CharVector("z");
+		List<CharSequence> words = ProductNameTokenizerFactory.getTwowaySynonymWord(word, synonymDict.map());
+		logger.debug("SYNONYMS:{}", words);
+	}
+
+	@Test public void testSynonymsAlign() {
+		if (TestUtil.launchForBuild()) { return; }
+
+		// 단방향
+		// SYN z : [지, 제트]
+		// SYN 지 : [Z]
+		// SYN 제트 : [ZETT, Z, JET]
+		// MAP:{지=[Z], 제트=[ZETT, Z, JET], z=[지, 제트]}
+
+		// 단방향
+		// SYN laurenolivia : [장혁준]
+		// MAP:{laurenolivia=[장혁준]}
+
+		// 양방향
+		// SYN sandisk : [샌디스크, 산디스크, 센디스크, 샌디스크코리아, 산디스크코리아]
+		// SYN 샌디스크 : [산디스크, SANDISK, 센디스크, 샌디스크코리아, 산디스크코리아]
+		// SYN 산디스크 : [샌디스크, SANDISK, 센디스크, 샌디스크코리아, 산디스크코리아]
+		// SYN 센디스크 : [샌디스크, 산디스크, SANDISK, 샌디스크코리아, 산디스크코리아]
+		// SYN 샌디스크코리아 : [샌디스크, 산디스크, SANDISK, 센디스크, 산디스크코리아]
+		// SYN 산디스크코리아 : [샌디스크, 산디스크, SANDISK, 센디스크, 샌디스크코리아]
+		// MAP:{샌디스크=[산디스크, SANDISK, 센디스크, 샌디스크코리아, 산디스크코리아],
+		//   sandisk=[샌디스크, 산디스크, 센디스크, 샌디스크코리아, 산디스크코리아],
+		//   센디스크=[샌디스크, 산디스크, SANDISK, 샌디스크코리아, 산디스크코리아],
+		//   산디스크코리아=[샌디스크, 산디스크, SANDISK, 센디스크, 샌디스크코리아],
+		//   산디스크=[샌디스크, SANDISK, 센디스크, 샌디스크코리아, 산디스크코리아],
+		//   샌디스크코리아=[샌디스크, 산디스크, SANDISK, 센디스크, 산디스크코리아]}
+
+		Map<CharSequence, List<CharSequence>> synonymMap = new HashMap<>();
+		makeSynonymMapData(synonymMap, "z", new String[] { "지", "제트" });
+		makeSynonymMapData(synonymMap, "지", new String[] { "z" });
+		makeSynonymMapData(synonymMap, "제트", new String[] { "zett", "z", "JET" });
+
+		ProductNameTokenizerFactory.normalizeSynonymMap(synonymMap);
+		List<CharSequence> list = new ArrayList<>();
+		logger.debug("ALLIGNED-MAP:{}", synonymMap);
+		if (synonymMap.size() > 1) {
+			list.addAll(new TreeSet<CharSequence>(synonymMap.keySet()));
+		}
+		logger.debug("TWO-WAY-SYNONYM:{}", list);
+	}
+
+	private void makeSynonymMapData(Map<CharSequence, List<CharSequence>> map, String key, String[] data) {
+		List<CharSequence> list = new ArrayList<>();
+		for (String item : data) {
+			list.add(new CharVector(item, true));
+		}
+		map.put(new CharVector(key, true), list);
 	}
 
 	@Test public void testExtractorSimple() {
