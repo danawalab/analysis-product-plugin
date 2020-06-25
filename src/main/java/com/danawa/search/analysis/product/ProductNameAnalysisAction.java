@@ -192,7 +192,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				if (!selfDist && localNodeId.equals(node.getNode().getId())) {
 					continue;
 				}
-				logger.debug("NODE:{}", node);
 				boolean hasPlugin = false;
 				TransportAddress address = node.getHttp().getAddress().publishAddress();
 				// 상품명분석기 플러그인을 가진 노드에만 전파
@@ -231,12 +230,12 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				ostream.flush();
 				int responseCode = con.getResponseCode();
 				if (responseCode == HttpURLConnection.HTTP_CREATED) {
-					logger.debug("RESPONSE:{}", responseCode);
+					logger.trace("RESPONSE:{}", responseCode);
 					reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
 					for (String rl; (rl = reader.readLine()) != null;) {
 						sb.append(rl).append("\r\n");
 					}
-					logger.debug("RESPONSE:{}", sb);
+					logger.trace("RESPONSE:{}", sb);
 				}
 			} catch (Exception e) { 
 				logger.error("", e);
@@ -258,6 +257,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		if (text == null || text.length() == 0) {
 			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+			index = jobj.optString("index", "");
 			text = jobj.optString("text", "");
 			detail = jobj.optBoolean("detail", true);
 			useForQuery = jobj.optBoolean("useForQuery", true);
@@ -279,12 +279,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		if (client != null && index != null && !"".equals(index)) {
 			BoolQueryBuilder query = QueryBuilders.boolQuery()
 				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, ProductNameTokenizer.DICT_SYNONYM.toUpperCase()))
-				.must(QueryBuilders.boolQuery()
-					.should(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word))
+				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word)
 				);
-			if (SearchUtil.count(client, index, query) > 0) {
+			logger.trace("Q:{}", query);
+			long count = 0;
+			if ((count = SearchUtil.count(client, index, query)) > 0) {
 				ret = true;
 			}
+			logger.trace("SYNONYM:{}-{} = {}", index, word, count);
 		}
 		return ret;
 	}
@@ -680,7 +682,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			boolean trackTotal = jobj.optBoolean("total", false);
 			boolean trackAnalysis = jobj.optBoolean("analysis", false);
 
-			logger.debug("ANALYZE TEXT : {}", text);
+			logger.trace("ANALYZE TEXT : {}", text);
 			stream = getAnalyzer(text, true, true, true);
 
 			JSONObject analysis = null;
@@ -690,7 +692,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 			QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, analysis);
 
-			logger.debug("Q:{}", query.toString());
+			logger.trace("Q:{}", query.toString());
 
 			SearchSourceBuilder source = new SearchSourceBuilder();
 			source.query(query);
