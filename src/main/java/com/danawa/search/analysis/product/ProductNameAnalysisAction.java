@@ -476,7 +476,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								}
 							}
 							if (synonymWayMap.containsKey(word)) {
-								analyzed.append(data).append(TAG_BR).append("&gt;&gt;&gt; 동의어 : ");
+								analyzed.append(data).append(TAG_BR).append(">>> 동의어 : ");
 								data = new StringBuilder();
 								words = synonymMap.get(word);
 								for (int inx = 1; inx < words.size(); inx++) {
@@ -512,7 +512,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								}
 							}
 							if (synonymWayMap.containsKey(word) && synonymWayMap.get(word)) {
-								analyzed.append(data).append(TAG_BR).append("&gt;&gt;&gt; 단방향 : ").append(data);
+								analyzed.append(data).append(TAG_BR).append(">>> 단방향 : ").append(data);
 							} else {
 								analyzed.append(data);
 							}
