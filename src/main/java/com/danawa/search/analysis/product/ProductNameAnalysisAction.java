@@ -35,7 +35,6 @@ import com.danawa.util.ContextStore;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.synonym.SynonymMap;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
@@ -178,6 +177,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, buffer.toString()));
 		};
 	}
+
+	private JSONObject parseRequestBody(RestRequest request) {
+		JSONObject ret = new JSONObject();
+		try {
+			ret = new JSONObject(new JSONTokener(request.content().utf8ToString()));
+		} catch (Exception ignore) { }
+		return ret;
+	}
+
 	public void testAction(RestRequest request, NodeClient client, JSONWriter writer) {
 		logger.debug("TEST-ACTION");
 	}
@@ -250,23 +258,23 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private void analyzeTextAction(RestRequest request, NodeClient client, JSONWriter writer) {
-		String index = request.param("index", "");
+		JSONObject jparam = new JSONObject();
+		String index = request.param("index", ES_DICTIONARY_INDEX);
 		String text = request.param("text", "");
 		boolean detail = request.paramAsBoolean("detail", true);
 		boolean useForQuery = request.paramAsBoolean("useForQuery", true);
 		boolean useSynonym = request.paramAsBoolean("useSynonym", true);
 		boolean useStopword = request.paramAsBoolean("useStopword", true);
 		boolean test = false;
-
-		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-		if (text == null || text.length() == 0) {
-			index = jobj.optString("index", "");
-			text = jobj.optString("text", "");
-			detail = jobj.optBoolean("detail", true);
-			useForQuery = jobj.optBoolean("useForQuery", true);
-			useSynonym = jobj.optBoolean("useSynonym", true);
-			useStopword = jobj.optBoolean("useStopword", true);
-			test = jobj.optBoolean("test", false);
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+			text = jparam.optString("text", "");
+			detail = jparam.optBoolean("detail", true);
+			useForQuery = jparam.optBoolean("useForQuery", true);
+			useSynonym = jparam.optBoolean("useSynonym", true);
+			useStopword = jparam.optBoolean("useStopword", true);
+			test = jparam.optBoolean("test", false);
 		}
 
 		TokenStream stream = null;
@@ -278,7 +286,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		if (test) {
-			distribute(request, client, ACTION_TEST, jobj, true);
+			distribute(request, client, ACTION_TEST, jparam, true);
 		}
 	}
 
@@ -420,7 +428,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					}
 				}
 			}
-			logger.debug("SYNONYM-WAY : {}", synonymWayMap);
+			logger.trace("SYNONYM-WAY : {}", synonymWayMap);
 			writer.object()
 				.key("query").value(text)
 				.key("resutl").array();
@@ -476,7 +484,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								}
 							}
 							if (synonymWayMap.containsKey(word)) {
-								analyzed.append(data).append(TAG_BR).append(">>> 동의어 : ");
+								analyzed.append(data).append(TAG_BR).append(" >>> 동의어 : ");
 								data = new StringBuilder();
 								words = synonymMap.get(word);
 								for (int inx = 1; inx < words.size(); inx++) {
@@ -512,7 +520,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								}
 							}
 							if (synonymWayMap.containsKey(word) && synonymWayMap.get(word)) {
-								analyzed.append(data).append(TAG_BR).append(">>> 단방향 : ").append(data);
+								analyzed.append(data).append(TAG_BR).append(" >>> 단방향 : ").append(data);
 							} else {
 								analyzed.append(data);
 							}
@@ -578,21 +586,37 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private void compileDictionary(RestRequest request, NodeClient client) {
-		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
-		boolean distribute = jobj.optBoolean("distribute", true);
-		boolean exportFile = jobj.optBoolean("exportFile", true);
+		JSONObject jparam = new JSONObject();
+		String index = request.param("index", ES_DICTIONARY_INDEX);
+		boolean exportFile = request.paramAsBoolean("exportFile", false);
+		boolean distribute = request.paramAsBoolean("distribute", false);
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+			exportFile = jparam.optBoolean("exportFile", false);
+			distribute = jparam.optBoolean("distribute", false);
+		} else {
+			jparam.put("index", index);
+			jparam.put("exportFile", exportFile);
+			jparam.put("distribute", distribute);
+		}
+
 		DictionarySource repo = new DictionarySource(client, index);
 		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionary(repo, exportFile));
 		if (distribute) {
-			jobj.put("distribute", false);
-			distribute(request, client, ACTION_COMPILE_DICT, jobj, false);
+			jparam.put("distribute", false);
+			distribute(request, client, ACTION_COMPILE_DICT, jparam, false);
 		}
 	}
 
 	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
-		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
+		JSONObject jparam = new JSONObject();
+		String index = request.param("index", ES_DICTIONARY_INDEX);
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+		}
+
 		ProductNameDictionary productNameDictionary = getDictionary();
 		builder
 			.key("dictionary").array()
@@ -622,9 +646,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private void findDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
-		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
-		String word = jobj.optString("word", "");
+		JSONObject jparam = new JSONObject();
+		String index = request.param("index", ES_DICTIONARY_INDEX);
+		String word = request.param("word", "");
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+			word = jparam.optString("word", "");
+		}
+
 		ProductNameDictionary productNameDictionary = getDictionary();
 		Set<String> keySet = productNameDictionary.getDictionaryMap().keySet();
 
@@ -674,8 +704,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private void restoreDictionary(RestRequest request, NodeClient client) {
-		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
+		JSONObject jparam = new JSONObject();
+		String index = request.param("index", ES_DICTIONARY_INDEX);
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+		}
+
 		SearchUtil.deleteAllData(client, index);
 		DictionarySource repo = new DictionarySource(client, index);
 		ProductNameDictionary.restoreDictionary(repo, index);
@@ -689,12 +724,12 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			String enc = null;
 			String indexName = null;
 			int flush = 5000;
+			JSONObject jparam = parseRequestBody(request);
 			try {
-				JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-				path = jobj.optString("path", "");
-				enc = jobj.optString("enc", "euc-kr");
-				indexName = jobj.optString("index", "");
-				flush = jobj.optInt("flush", 50000);
+				path = jparam.optString("path", "");
+				enc = jparam.optString("enc", "euc-kr");
+				indexName = jparam.optString("index", "");
+				flush = jparam.optInt("flush", 50000);
 			} catch (Exception e) {
 				logger.error("", e);
 			}
@@ -711,34 +746,40 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private void search(final RestRequest request, final NodeClient client, final JSONWriter builder) {
+		JSONObject jparam = new JSONObject();
+		String index = request.param("index", "");
+		String[] fields = request.param("fields", "").split("[,]");
+		String text = request.param("text", "");
+		int from = request.paramAsInt("from", 0);
+		int size = request.paramAsInt("size", 20);
+		boolean trackTotal = request.paramAsBoolean("total", false);
+		boolean trackAnalysis = request.paramAsBoolean("analysis", false);
+		boolean useScroll = request.paramAsBoolean("scroll", false);
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			index = jparam.optString("index", "");
+			fields = jparam.optString("fields", "").split("[,]");
+			text = jparam.optString("text", "");
+			from = jparam.optInt("from", 0);
+			size = jparam.optInt("size", 20);
+			trackTotal = jparam.optBoolean("total", false);
+			trackAnalysis = jparam.optBoolean("analysis", false);
+			useScroll = jparam.optBoolean("scroll", false);
+		}
+
 		TokenStream stream = null;
 		try {
-			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
-			String index = jobj.optString("index", "");
-			String[] fields = jobj.optString("fields", "").split("[,]");
-			String text = jobj.optString("text", "");
-			int from = jobj.optInt("from", 0);
-			int size = jobj.optInt("size", 20);
-			boolean trackTotal = jobj.optBoolean("total", false);
-			boolean trackAnalysis = jobj.optBoolean("analysis", false);
-
 			logger.trace("ANALYZE TEXT : {}", text);
 			stream = getAnalyzer(text, true, true, true);
-
 			JSONObject analysis = null;
 			if (trackAnalysis) {
 				analysis = new JSONObject();
 			}
-
 			QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, analysis);
-
 			logger.trace("Q:{}", query.toString());
-
 			SearchSourceBuilder source = new SearchSourceBuilder();
 			source.query(query);
-
 			long total = -1;
-
 			if (trackTotal) {
 				// NOTE: 부하가 얼마나 걸릴지 체크해 봐야 할듯.
 				long time = System.nanoTime();
@@ -746,19 +787,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				time = System.nanoTime() - time;
 				logger.debug("TOTAL:{} takes {} ns", total, ((int) Math.round(time * 100.0 / 1000000.0)) / 100.0);
 			}
-
-			boolean doScroll = from + size > 10000;
-
+			boolean doScroll = !useScroll ? false : from + size > 10000;
 			builder.object();
 			if (trackAnalysis) {
 				builder.key("analysis").value(analysis);
 			}
-
 			if (total != -1) {
 				builder.key("total").value(total);
 			}
 			builder.key("result").array();
-
 			Iterator<Map<String, Object>> iter = SearchUtil.search(client, index, query, from, size, doScroll);
 			while (iter.hasNext()) {
 				Map<String, Object> map = iter.next();
@@ -767,7 +804,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					builder.key(key).value(map.get(key));
 				}
 				builder.endObject();
-
 			}
 			builder.endArray();
 			builder.endObject();

@@ -1,0 +1,1055 @@
+################################################################################
+# 사전색인 생성용 맵핑
+PUT /.fastcatx_dict
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 1,
+    "analysis": {
+      "analyzer": {
+        "comma_analyzer": {
+          "tokenizer": "comma_tokenizer",
+          "filter": ["lowercase_filter"]
+        },
+        "keyword_analyzer": {
+          "tokenizer": "keyword_tokenizer",
+          "filter": ["lowercase_filter"]
+        }
+      },
+      "tokenizer": {
+        "comma_tokenizer": {
+          "type": "pattern",
+          "pattern": ","
+        },
+        "keyword_tokenizer": {
+          "type": "keyword"
+        }
+      },
+      "filter": {
+        "lowercase_filter": {
+          "type": "lowercase"
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "keyword": {
+        "type": "text",
+        "analyzer": "keyword_analyzer"
+      },
+      "value": {
+        "type": "text",
+        "analyzer": "comma_analyzer",
+        "fields": {
+          "raw": {
+            "type": "text",
+            "analyzer": "keyword_analyzer"
+          }
+        }
+      },
+      "type": {
+        "type": "text",
+        "analyzer": "keyword_analyzer"
+      }
+    }
+  }
+}
+
+################################################################################
+# 기준상품용 맵핑
+PUT /product_vm
+{
+  "mappings": {
+    "properties": {
+      "BUNDLEKEY": {
+        "type": "keyword"
+      },
+      "PRODUCTCODE": {
+        "type": "keyword"
+      },
+      "SHOPCODE": {
+        "type": "keyword"
+      },
+      "SHOPPRODUCTCODE": {
+        "type": "keyword"
+      },
+      "PRODUCTNAME": {
+        "type": "text",
+        "copy_to": [
+          "TOTALINDEX",
+          "UIPRODUCTINDEX"
+        ],
+        "fields": {
+          "field": {
+            "type": "keyword",
+            "ignore_above": 50
+          },
+          "search": {
+            "type": "text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "PRODUCTMAKER": {
+        "type": "text",
+        "copy_to": [
+          "TOTALINDEX",
+          "UIPRODUCTINDEX"
+        ],
+        "fields": {
+          "field": {
+            "type": "keyword",
+            "ignore_above": 10
+          },
+          "search": {
+            "type": "text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "MAKERKEYWORD": {
+        "type": "text",
+        "copy_to": [
+          "TOTALINDEX",
+          "MAKER_BRANDKEYWORD"
+        ],
+        "fields": {
+          "field": {
+            "type": "keyword"
+          },
+          "search": {
+            "type": "text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "PRODUCTBRAND": {
+        "type": "text",
+        "copy_to": [
+          "TOTALINDEX",
+          "UIPRODUCTINDEX"
+        ],
+        "fields": {
+          "field": {
+            "type": "keyword",
+            "ignore_above": 10
+          },
+          "search": {
+            "type": "text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "BRANDKEYWORD": {
+        "type": "text",
+        "copy_to": [
+          "TOTALINDEX",
+          "MAKER_BRANDKEYWORD"
+        ],
+        "fields": {
+          "field": {
+            "type": "keyword"
+          },
+          "search": {
+            "type": "text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "PRODUCTMODEL": {
+        "type": "text",
+        "copy_to": "TOTALINDEX",
+        "fields": {
+          "search": {
+            "type": "text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "MODELWEIGHT": {
+        "type": "text",
+        "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      },
+      "PRODUCTIMAGEURL": {
+        "type": "keyword"
+      },
+      "LOWESTPRICE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "MOBILEPRICE": {
+        "type": "integer"
+      },
+      "PCPRICE": {
+        "type": "integer"
+      },
+      "AVERAGEPRICE": {
+        "type": "integer"
+      },
+      "TOTALPRICE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "SHOPCOUPON": {
+        "type": "keyword"
+      },
+      "SHOPGIFT": {
+        "type": "keyword"
+      },
+      "SHOPQUANTITY": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "DISCONTINUED": {
+        "type": "keyword"
+      },
+      "CATEGORYCODE1": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CATEGORYCODE2": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CATEGORYCODE3": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CATEGORYCODE4": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CATEGORYNAME": {
+        "type": "object",
+		"enabled": false
+      },
+      "CATEGORYKEYWORD": {
+        "type": "text",
+        "copy_to": "TOTALINDEX"
+      },
+      "CATEGORYWEIGHT": {
+        "type": "text",
+        "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      },
+      "REGISTERDATE": {
+        "type": "date",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "MANUFACTUREDATE": {
+        "type": "date",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "POPULARITYSCORE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "DELIVERYPRICE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "MANAGERKEYWORD": {
+        "type": "text",
+        "copy_to": "TOTALINDEX"
+      },
+      "PRODUCTCLASSIFICATION": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "BUNDLENAME": {
+        "type": "text",
+        "copy_to": [
+          "TOTALINDEX",
+          "UIPRODUCTINDEX"
+        ],
+        "fields": {
+          "field": {
+            "type": "keyword"
+          },
+          "search": {
+            "type": "text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "BUNDLEDISPLAYSEQUENCE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "PRICECOMPARESERVICEYN": {
+        "type": "keyword"
+      },
+      "DATASTAT": {
+        "type": "keyword"
+      },
+      "PRODTYPE": {
+        "type": "keyword"
+      },
+      "SIMPLEDESCRIPTION": {
+        "type": "text",
+        "copy_to": "TOTALINDEX"
+      },
+      "ADDDESCRIPTION": {
+        "type": "text",
+        "copy_to": "TOTALINDEX"
+      },
+      "CMDESCRIPTION": {
+        "type": "object",
+		"enabled": false
+      },
+      "MODIFYDATE": {
+        "type": "date"
+      },
+      "MAKERCODE": {
+        "type": "keyword",
+        "ignore_above": 10
+      },
+      "BRANDCODE": {
+        "type": "keyword",
+        "ignore_above": 10
+      },
+      "MOVIEYN": {
+        "type": "keyword"
+      },
+      "PRICELOCKYN": {
+        "type": "keyword",
+        "ignore_above": 2
+      },
+      "NATTRIBUTEVALUESEQ": {
+        "type": "keyword"
+      },
+      "SIMPLEDICTIONARYCODE": {
+        "type": "object",
+		"enabled": false
+      },
+      "OPTIONTYPE": {
+        "type": "object",
+		"enabled": false
+      },
+      "SAVEPLUSQ": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "TOTALCAPACITY": {
+        "type": "float"
+      },
+      "STANDARDCAPACITY": {
+        "type": "integer"
+      },
+      "UNIT": {
+        "type": "keyword"
+      },
+      "OPTIONNAME": {
+        "type": "text",
+        "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      },
+      "SELECTYN": {
+        "type": "keyword"
+      },
+      "BRPS": {
+        "type": "object",
+		"enabled": false
+      },
+      "PRICETYPE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "INITIALPRICE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "DISCOUNTRATE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "DISPYN": {
+        "type": "keyword"
+      },
+      "MOBILEDESCRIPTION": {
+        "type": "text",
+        "copy_to": "TOTALINDEX"
+      },
+      "WRITECNT": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "ACTIONTAG": {
+        "type": "object",
+		"enabled": false
+      },
+      "PRODUCTREGISTERTYPE": {
+        "type": "keyword"
+      },
+      "PRICECOMPARISONSTOPYN": {
+        "type": "keyword"
+      },
+      "CATEGORYDISPYN": {
+        "type": "keyword"
+      },
+      "BUNDLESELECTYN": {
+        "type": "keyword"
+      },
+      "RELATIONMODEL": {
+        "type": "text",
+        "copy_to": "TOTALINDEX"
+      },
+      "DESCRIPTIONLISTSEQ": {
+        "type": "object",
+		"enabled": false
+      },
+      "IMAGEVERSION": {
+        "type": "object",
+		"enabled": false
+      },
+      "CMPNYWRITESCORESUM": {
+        "type": "object",
+		"enabled": false
+      },
+      "CMPNYWRITECNT": {
+       "type": "object",
+		"enabled": false
+      },
+      "EXPOSUREYN": {
+        "type": "keyword"
+      },
+      "VIDEOID": {
+        "type": "object",
+		"enabled": false
+      },
+      "MAXPOPULARSCORE": {
+        "type": "integer"
+      },
+      "SHARECATE2": {
+        "type": "double",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "SHARECATE3": {
+        "type": "double",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "SHARECATE4": {
+        "type": "double",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "FIRSTMAKEDATE": {
+        "type": "date",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CALLTIME": {
+        "type": "object",
+		"enabled": false
+      },
+      "TOTALINDEX": {
+        "type": "text",
+		    "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      },
+      "UIPRODUCTINDEX": {
+        "type": "text",
+		    "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      },
+      "MAKER_BRANDKEYWORD": {
+        "type": "text",
+		    "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      }
+    }
+  },
+  "settings": {
+    "index": {
+      "number_of_shards": "1",
+      "number_of_replicas": "0"
+    },
+    "analysis": {
+      "tokenizer": { "product_name_custom": { "type": "product_name", "export_term": "false" } },
+      "filter": {
+        "product_name_index": { "type": "product_name", "use_for_query": "false" },
+        "product_name_search": { "type": "product_name", "use_for_query": "true" }
+      },
+      "analyzer": {
+        "product_name_index": {
+          "tokenizer": "product_name_custom",
+          "filter": [ "product_name_index" ]
+        },
+        "product_name_search": {
+          "tokenizer": "product_name_custom",
+          "filter": [ "product_name_search" ]
+        }
+      }
+    }
+  }
+}
+
+################################################################################
+# 검색상품용 맵핑
+PUT /product
+{
+  "mappings": {
+    "properties": {
+      "ID": {
+        "type": "keyword"
+      },
+      "BUNDLEKEY": {
+        "type": "keyword"
+      },
+      "PRODUCTCODE": {
+        "type": "keyword"
+      },
+      "SHOPCODE": {
+        "type": "keyword"
+      },
+      "SHOPPRODUCTCODE": {
+        "type": "keyword"
+      },
+      "PRODUCTNAME": {
+        "type": "text",
+        "copy_to": "TOTALINDEX",
+        "fields": {
+          "field": {
+            "type": "keyword",
+            "ignore_above": 50
+          },
+          "search":{
+            "type":"text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "PRODUCTMAKER": {
+        "type": "text",
+        "copy_to": "TOTALINDEX",
+        "fields": {
+          "field": {
+            "type": "keyword",
+            "ignore_above": 10
+          },
+          "search":{
+            "type":"text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "MAKERKEYWORD": {
+        "type": "text",
+        "copy_to": "MAKER_BRANDKEYWORD",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          },
+          "search":{
+            "type":"text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "PRODUCTBRAND": {
+        "type": "text",
+        "copy_to": "TOTALINDEX",
+        "fields": {
+          "field": {
+            "type": "keyword",
+            "ignore_above": 10
+          },
+          "search":{
+            "type":"text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "BRANDKEYWORD": {
+        "type": "text",
+        "copy_to": "MAKER_BRANDKEYWORD",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          },
+          "search":{
+            "type":"text",
+            "analyzer": "product_name_index",
+            "search_analyzer": "whitespace"
+          }
+        }
+      },
+      "PRODUCTMODEL": {
+        "type": "text",
+        "copy_to": "TOTALINDEX"
+      },
+      "MODELWEIGHT": {
+        "type": "text",
+        "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      },
+      "PRODUCTIMAGEURL": {
+        "type": "object",
+		"enabled": false
+      },
+      "LOWESTPRICE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "MOBILEPRICE": {
+        "type": "integer"
+      },
+      "PCPRICE": {
+        "type": "integer"
+      },
+      "TOTALPRICE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "SHOPCOUPON": {
+        "type": "object",
+		"enabled": false
+      },
+      "SHOPGIFT": {
+        "type": "object",
+		"enabled": false
+      },
+      "SHOPQUANTITY": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "DISCONTINUED": {
+        "type": "keyword"
+      },
+      "CATEGORYCODE1": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CATEGORYCODE2": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CATEGORYCODE3": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CATEGORYCODE4": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "CATEGORYKEYWORD": {
+        "type": "text",
+        "copy_to": "TOTALINDEX"
+      },
+      "CATEGORYWEIGHT": {
+        "type": "text",
+		"analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      },
+      "REGISTERDATE": {
+        "type": "date",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "MANUFACTUREDATE": {
+        "type": "date",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "POPULARITYSCORE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "DELIVERYPRICE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "PRODUCTCLASSIFICATION": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "BUNDLEDISPLAYSEQUENCE": {
+        "type": "keyword"
+      },
+      "DATASTAT": {
+        "type": "keyword"
+      },
+      "PRODTYPE": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "SIMPRODHASHCODE": {
+        "type": "keyword"
+      },
+      "EXPOSUREYN": {
+        "type": "keyword"
+      },
+      "DISPYN": {
+        "type": "keyword"
+      },
+      "WRITECNT": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "PRICECOMPARISONSTOPYN": {
+        "type": "keyword"
+      },
+      "CATEGORYDISPYN": {
+        "type": "keyword"
+      },
+      "SIMPRODMEMBERCNT": {
+        "type": "object",
+		"enabled": false
+      },
+      "GROUPSEQ": {
+        "type": "integer",
+        "fields": {
+          "field": {
+            "type": "keyword"
+          }
+        }
+      },
+      "ADDDESCRIPTION": {
+        "type": "object",
+		"enabled": false
+      },
+      "LINKURL": {
+		"type": "object",
+		"enabled": false
+      },
+      "COUPONDOWNLOADYN": {
+        "type": "object",
+		"enabled": false
+      },
+      "PROMOTIONPRICE": {
+        "type": "object",
+		"enabled": false
+      },
+      "SHOPNAME": {
+        "type": "object",
+		"enabled": false
+      },
+      "FEETYPE": {
+        "type": "keyword"
+      },
+      "MALLTYPE": {
+        "type": "object",
+		"enabled": false
+      },
+      "MINABYN": {
+        "type": "object",
+		"enabled": false
+      },
+      "PROMOTIONNAME": {
+        "type": "keyword"
+      },
+      "SIMPRODYN": {
+        "type": "object",
+		"enabled": false
+      },
+      "MAKERCODE": {
+        "type": "keyword"
+      },
+      "BRANDCODE": {
+        "type": "keyword"
+      },
+      "NATTRIBUTEVALUESEQ": {
+        "type": "keyword"
+      },
+      "TOTALINDEX": {
+        "type": "text",
+        "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      },
+      "MAKER_BRANDKEYWORD": {
+        "type": "text",
+        "analyzer": "product_name_index",
+        "search_analyzer": "whitespace"
+      }
+    }
+  },
+  "settings": {
+    "index": {
+      "number_of_shards": "1",
+      "number_of_replicas": "0"
+    },
+    "analysis": {
+      "tokenizer": { "product_name_custom": { "type": "product_name", "export_term": "false" } },
+      "filter": {
+        "product_name_index": { "type": "product_name", "use_for_query": "false" },
+        "product_name_search": { "type": "product_name", "use_for_query": "true" }
+      },
+      "analyzer": {
+        "product_name_index": {
+          "tokenizer": "product_name_custom",
+          "filter": [ "product_name_index" ]
+        },
+        "product_name_search": {
+          "tokenizer": "product_name_custom",
+          "filter": [ "product_name_search" ]
+        }
+      }
+    }
+  }
+}
+
+################################################################################
+# 상품명 사전 정보
+# index: 사전색인명
+POST /_product-name-analysis/info-dict
+{
+  "index": ".fastcatx_dict"
+}
+
+GET /_product-name-analysis/info-dict
+
+################################################################################
+# 상품명 사전 검색
+# index: 사전색인명
+# word: 검색단어
+POST /_product-name-analysis/find-dict
+{
+  "index": ".fastcatx_dict",
+  "word": "산디스크"
+}
+
+GET /_product-name-analysis/find-dict?index=.fastcatx_dict&word=산디스크
+
+################################################################################
+# 상품명 사전 재시작 (바이너리 사전 로딩 재시작)
+GET /_product-name-analysis/reload-dict
+
+################################################################################
+# 상품명 사전 컴파일
+# 사전색인을 사용하여 메모리사전으로 컴파일, 파일작성, 노드전파 기능
+# index: 사전색인명
+# exportFile: 사전색인 -> 파일로 변환 (false 시 메모리에만 올라감)
+# distribute: 각 노드에 신호 전파
+POST /_product-name-analysis/compile-dict
+{
+  "index": ".fastcatx_dict",
+  "exportFile": true,
+  "distribute": true
+}
+
+GET /_product-name-analysis/compile-dict?index=.fastcatx_dict&exportFile=true&distribute=true
+
+################################################################################
+# 상품명 사전 역컴파일
+# 사전파일 -> 사전색인으로 역변환 (사전색인 복원시 사용 / 동의어 등 일부 내용은 변질될수 있음)
+# index: 사전색인명
+POST /_product-name-analysis/restore-dict
+{
+  "index": ".fastcatx_dict"
+}
+
+GET /_product-name-analysis/restore-dict?index=.fastcatx_dict
+
+################################################################################
+# 상품명 사전
+# 다나와 관리도구 연계용 분석 API
+# index: 사전색인명
+# detail: 상세분석 여부 (true / false)
+# useForQuery: 질의 / 색인 여부 (true / false)
+# text: 분석용 텍스트
+POST /_product-name-analysis/analyze-text
+{
+  "index": ".fastcatx_dict",
+  "detail": true,
+  "useForQuery": true,
+  "text": "Sandisk Extream Z80 USB 16gb"
+}
+
+GET /_product-name-analysis/analyze-text?index=.fastcatx_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
+
+################################################################################
+# 상품명 상세분석
+# 다나와 관리도구 연계용 분석 API
+# index: 사전색인명
+# detail: 상세분석 여부 (true / false)
+# useForQuery: 질의 / 색인 여부 (true / false)
+# text: 분석용 텍스트
+POST /_product-name-analysis/analyze-text
+{
+  "index": ".fastcatx_dict",
+  "detail": true,
+  "useForQuery": true,
+  "text": "Sandisk Extream Z80 USB 16gb"
+}
+
+GET /_product-name-analysis/analyze-text?index=.fastcatx_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
+
+################################################################################
+# 상품검색
+# ES 에서는 상품명분석 검색을 해주지 않으므로 검색용 분석기를 whitespace 로 잡아주고 검색분석을 실시
+# index: 검색할 색인명들  (',' 로 구분)
+# fields: 상품명분석기가 적용된 필드명들 (',' 로 구분)
+# text: 검색어
+# from: 검색 시작위치
+# size: 검색갯수
+# total: 전체갯수 출력여부
+# analysis: 검색어 검색식 구조분석
+# scroll: 10000 건 넘을 경우 스크롤 여부 (사용시 느려질수 있음)
+# 
+POST /_product-name-analysis/search
+{
+  "index": "product1,product2",
+  "fields": "TOTALINDEX",
+  "text": "Sandisk Extream Z80 USB 16gb",
+  "from": 0,
+  "size": 20,
+  "total": true,
+  "analysis": false,
+  "scroll": true
+}
+
+GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&total=true&analysis=false&scroll=true&text=Sandisk Extream Z80 USB 16gb
