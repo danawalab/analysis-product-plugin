@@ -22,6 +22,7 @@ import java.util.TreeSet;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SourceDictionary;
+import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
 import com.danawa.search.analysis.dict.ProductNameDictionary.DictionaryRepository;
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
@@ -34,6 +35,7 @@ import com.danawa.util.ContextStore;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.synonym.SynonymMap;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
@@ -91,7 +93,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String TAG_STRONG = "<strong>${TEXT}</strong>";
 	private static final String REGEX_TAG_TEXT = "[$][{]TEXT[}]";
 	private static final String COMMA = ",";
-
 	private static final String TAB = "\t";
 
 	private static final String ANALYZE_SET_FULL_STRING = "00_FULL_STRING_SET";
@@ -255,15 +256,17 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useForQuery = request.paramAsBoolean("useForQuery", true);
 		boolean useSynonym = request.paramAsBoolean("useSynonym", true);
 		boolean useStopword = request.paramAsBoolean("useStopword", true);
+		boolean test = false;
 
+		JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 		if (text == null || text.length() == 0) {
-			JSONObject jobj = new JSONObject(new JSONTokener(request.content().utf8ToString()));
 			index = jobj.optString("index", "");
 			text = jobj.optString("text", "");
 			detail = jobj.optBoolean("detail", true);
 			useForQuery = jobj.optBoolean("useForQuery", true);
 			useSynonym = jobj.optBoolean("useSynonym", true);
 			useStopword = jobj.optBoolean("useStopword", true);
+			test = jobj.optBoolean("test", false);
 		}
 
 		TokenStream stream = null;
@@ -273,11 +276,18 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
 		}
+
+		if (test) {
+			distribute(request, client, ACTION_TEST, jobj, true);
+		}
 	}
 
 	public static boolean isOneWaySynonym(NodeClient client, String index, String word) {
 		boolean ret = false;
+		// 단방향 판단
+		// TODO:사전에서 직접 비교하는것과 색인을 이용하는것 중 어떤것이 좋을지 생각해 볼것
 		if (client != null && index != null && !"".equals(index)) {
+			// 색인을 사용하는 경우
 			BoolQueryBuilder query = QueryBuilders.boolQuery()
 				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, ProductNameTokenizer.DICT_SYNONYM.toUpperCase()))
 				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word)
@@ -288,6 +298,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				ret = true;
 			}
 			logger.trace("SYNONYM:{}-{} = {}", index, word, count);
+		} else {
+			// 메모리 사전을 이용하는 경우
+			ProductNameDictionary dictionary = getDictionary();
+			SynonymDictionary synonyms = dictionary.getDictionary(ProductNameTokenizer.DICT_SYNONYM, SynonymDictionary.class);
+			ret = ProductNameDictionary.isOneWaySynonym(CharVector.valueOf(word), synonyms.map());
 		}
 		return ret;
 	}
@@ -300,6 +315,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
 		Map<String, List<List<String>>> result = new HashMap<>();
 		Map<String, Boolean> synonymWayMap = new HashMap<>();
+		Map<String, List<String>> synonymMap = new HashMap<>();
 		List<List<String>> wordList = null;
 		List<String> words = null;
 		List<String> words2 = null;
@@ -364,6 +380,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						words2 = wordList.get(wordList.size() - 1);
 						oneWaySynonym = isOneWaySynonym(client, index, term);
 						synonymWayMap.put(term, oneWaySynonym);
+						synonymMap.put(term, words);
 						logger.trace("SYNONYM [{}] {} / {} / {}", setName, term, oneWaySynonym, synonyms);
 						for (CharSequence synonym : synonyms) {
 							String s = String.valueOf(synonym);
@@ -388,6 +405,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							if (synonyms != null && synonyms.size() > 0) {
 								oneWaySynonym = isOneWaySynonym(client, index, s);
 								synonymWayMap.put(s, oneWaySynonym);
+								synonymMap.put(term, words);
 								logger.trace("EXT-SYN [{}] {} / {} / {} / {} / {}", setName, term, s, oneWaySynonym, synonyms, wordList);
 								setAnalyzedResult(result, s, ANALYZE_SET_SYNONYM);
 								wordList = result.get(ANALYZE_SET_SYNONYM);
@@ -411,97 +429,118 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					String label = ANALYSIS_RESULT_LABELS.get(key);
 					wordList = result.get(key);
 					logger.trace("TYPE:{} / {}", label, wordList);
-					StringBuilder data = new StringBuilder();
+					StringBuilder analyzed = new StringBuilder();
 
 					if (ANALYZE_SET_FULL_STRING.equals(key)) {
 						if (wordList != null && wordList.size() > 0) {
 							words = wordList.get(0);
 							if (words != null && words.size() > 0) {
-								data.append(words.get(0));
+								analyzed.append(words.get(0));
 							}
 						}
 					} else if (ANALYZE_SET_RESTRICTED.equals(key)) {
 						for (List<String> item : wordList) {
-							if (data.length() > 0) { data.append(COMMA).append(" "); }
+							if (analyzed.length() > 0) { analyzed.append(COMMA).append(" "); }
 							if (item.size() > 0) {
-								data.append(item.get(0));
+								analyzed.append(item.get(0));
 							}
 						}
 					} else if (ANALYZE_SET_MODEL_NAME.equals(key)) {
 						for (List<String> item : wordList) {
-							if (data.length() > 0) { data.append(TAG_BR); }
+							if (analyzed.length() > 0) { analyzed.append(TAG_BR); }
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									data.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w))
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w))
 										.append(" ( ").append(w);
 								} else {
-									if (inx > 0) { data.append(", "); }
-									data.append(w);
+									if (inx > 0) { analyzed.append(", "); }
+									analyzed.append(w);
 								}
 							}
-							data.append(" ) ");
+							analyzed.append(" ) ");
 						}
 					} else if (ANALYZE_SET_UNIT.equals(key)) {
 						for (List<String> item : wordList) {
-							if (data.length() > 0) { data.append(TAG_BR); }
+							if (analyzed.length() > 0) { analyzed.append(TAG_BR); }
+							String word = null;
+							StringBuilder data = new StringBuilder();
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									data.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
+									word = w;
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
 								} else {
 									if (inx > 1) { data.append(", "); }
 									data.append(w);
 								}
 							}
-							if (ANALYZE_SET_MODEL_NAME.equals(key)) {
-								data.append(" ) ");
+							if (synonymWayMap.containsKey(word)) {
+								analyzed.append(data).append(TAG_BR).append("&gt;&gt;&gt; 동의어 : ");
+								data = new StringBuilder();
+								words = synonymMap.get(word);
+								for (int inx = 1; inx < words.size(); inx++) {
+									String w = words.get(inx);
+									if (inx > 1) { data.append(", "); }
+									data.append(w);
+								}
+								analyzed.append(data);
+							} else {
+								analyzed.append(data);
 							}
 						}
 					} else if (ANALYZE_SET_NORMAL.equals(key)) {
 						for (List<String> item : wordList) {
-							if (data.length() > 0) { data.append(COMMA).append(" "); }
+							if (analyzed.length() > 0) { analyzed.append(COMMA).append(" "); }
 							if (item.size() > 0) {
-								data.append(item.get(0));
+								analyzed.append(item.get(0));
 							}
 						}
 					} else if (ANALYZE_SET_SYNONYM.equals(key)) {
 						for (List<String> item : wordList) {
-							if (data.length() > 0) { data.append(TAG_BR); }
+							if (analyzed.length() > 0) { analyzed.append(TAG_BR); }
+							String word = null;
+							StringBuilder data = new StringBuilder();
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									data.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
+									word = w;
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
 								} else {
 									if (inx > 1) { data.append(", "); }
 									data.append(w);
 								}
 							}
+							if (synonymWayMap.containsKey(word) && synonymWayMap.get(word)) {
+								analyzed.append(data).append(TAG_BR).append("&gt;&gt;&gt; 단방향 : ").append(data);
+							} else {
+								analyzed.append(data);
+							}
 						}
 					} else if (ANALYZE_SET_COMPOUND.equals(key)) {
 						for (List<String> item : wordList) {
-							if (data.length() > 0) { data.append(TAG_BR); }
+							if (analyzed.length() > 0) { analyzed.append(TAG_BR); }
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									data.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
 								} else {
-									if (inx > 1) { data.append(", "); }
-									data.append(w);
+									if (inx > 1) { analyzed.append(", "); }
+									analyzed.append(w);
 								}
 							}
 						}
 					} else if (ANALYZE_SET_FINAL.equals(key)) {
 						for (List<String> item : wordList) {
-							if (data.length() > 0) { data.append(COMMA).append(" "); }
+							if (analyzed.length() > 0) { analyzed.append(COMMA).append(" "); }
 							if (item.size() > 0) {
-								data.append(item.get(0));
+								analyzed.append(item.get(0));
 							}
 						}
 					}
 					writer.object()
 						.key("key").value(label)
-						.key("value").value(data);
+						.key("value").value(analyzed);
 					writer.endObject();
 				}
 			} else {

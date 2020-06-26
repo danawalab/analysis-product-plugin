@@ -7,7 +7,9 @@ import java.io.StringReader;
 import java.io.StringWriter;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
+import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
+import com.danawa.util.ContextStore;
 import com.danawa.util.TestUtil;
 
 import org.apache.logging.log4j.Logger;
@@ -23,6 +25,7 @@ import org.junit.Test;
 public class ProductNameAnalysisActionTest {
 
 	private static Logger logger = Loggers.getLogger(ProductNameAnalysisActionTest.class, "");
+	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
 	@Before public void init() {
 		TestUtil.setLogLevel(System.getProperty("LOG_LEVEL"), 
@@ -55,10 +58,11 @@ public class ProductNameAnalysisActionTest {
 
 	@Test public void testAnalyzeDetail() {
 		if (TestUtil.launchForBuild()) { return; }
-		String index = ".fastcatx_dict";
+		String index = "";
 		ProductNameDictionary dictionary = null;
 		dictionary = TestUtil.loadDictionary();
 		// dictionary = TestUtil.loadTestDictionary();
+		contextStore.put(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, dictionary);
 		String str = "";
 		str = "Sandisk Extream Z80 USB 16gb 스위스알파인클럽";
 		// str = "nt-ok123";

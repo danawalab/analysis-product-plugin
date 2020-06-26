@@ -1,6 +1,7 @@
 package com.danawa.search.analysis.dict;
 
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
+import com.danawa.search.analysis.product.AnalysisProductNamePlugin;
 import com.danawa.util.ContextStore;
 import com.danawa.util.ResourceResolver;
 
@@ -59,7 +60,7 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 
 	public static final String TAB = "\t";
 
-	private static final ContextStore contextStore = ContextStore.getStore(ProductNameDictionary.class);
+	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
 	private static File baseFile;
 	private static File configFile;
@@ -573,6 +574,20 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 			map.remove(key);
 		}
 		logger.trace("MAP:{}", map);
+	}
+
+	public static boolean isOneWaySynonym(CharSequence word, Map<CharSequence, CharSequence[]> map) {
+		if (map.containsKey(word)) {
+			List<CharSequence> twoway = getTwowaySynonymWord(word, map);
+			logger.trace("TWO-WAY {} = {}", word, twoway);
+			for (CharSequence value : map.get(word)) {
+				if (twoway != null && twoway.contains(value)) { continue; }
+				// 단방향이 하나라도 있으면 단방향 동의어
+				logger.trace("ONE-WAY {} -> {}", word, value);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static void restoreDictionary(final DictionaryRepository repo, String index) {
