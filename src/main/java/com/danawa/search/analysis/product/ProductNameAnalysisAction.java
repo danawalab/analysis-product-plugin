@@ -68,10 +68,10 @@ import org.json.JSONWriter;
 public class ProductNameAnalysisAction extends BaseRestHandler {
 
 	private static Logger logger = Loggers.getLogger(ProductNameAnalysisAction.class, "");
+	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
 	private static final String CONTENT_TYPE_JSON = "application/json;charset=UTF-8";
 	private static final String BASE_URI = "/_product-name-analysis";
-	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 	private static final String ACTION_TEST = "test";
 	private static final String ACTION_INFO_DICT = "info-dict";
 	private static final String ACTION_FIND_DICT = "find-dict";
@@ -717,32 +717,29 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private int bulkIndex(final RestRequest request, final NodeClient client) {
-		SpecialPermission.check();
-		return AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
-			int ret = 0;
-			String path = null;
-			String enc = null;
-			String indexName = null;
-			int flush = 5000;
-			JSONObject jparam = parseRequestBody(request);
-			try {
-				path = jparam.optString("path", "");
-				enc = jparam.optString("enc", "euc-kr");
-				indexName = jparam.optString("index", "");
-				flush = jparam.optInt("flush", 50000);
-			} catch (Exception e) {
-				logger.error("", e);
+		int ret = 0;
+		JSONObject jparam = new JSONObject();
+		String index = request.param("index", "");
+		String path = request.param("path", "");
+		String enc = request.param("enc", "euc-kr");
+		int flush = request.paramAsInt("flush", 50000);
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			index = jparam.optString("index", "");
+			path = jparam.optString("path", "");
+			enc = jparam.optString("enc", "euc-kr");
+			flush = jparam.optInt("flush", 50000);
+		}
+
+		synchronized (this) {
+			if (indexingThread == null || !indexingThread.running()) {
+				indexingThread = new DanawaBulkTextIndexer(index, path, enc, flush, client);
+				indexingThread.start();
+			} else {
+				ret = indexingThread.count();
 			}
-			synchronized (this) {
-				if (indexingThread == null || !indexingThread.running()) {
-					indexingThread = new DanawaBulkTextIndexer(indexName, path, enc, flush, client);
-					indexingThread.start();
-				} else {
-					ret = indexingThread.count();
-				}
-			}
-			return ret;
-		});
+		}
+		return ret;
 	}
 
 	private void search(final RestRequest request, final NodeClient client, final JSONWriter builder) {

@@ -1053,3 +1053,20 @@ POST /_product-name-analysis/search
 }
 
 GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&total=true&analysis=false&scroll=true&text=Sandisk Extream Z80 USB 16gb
+
+################################################################################
+# 상품색인
+# index: 색인할 색인명
+# path: 색인할 파일, 혹은 색인할 파일이 위치한 경로 (',' 구분으로 여러개 파일 지정 가능)
+# enc: 파일 인코딩
+# flush: 색인 플러시 수량
+# 
+POST /_product-name-analysis/full-index
+{
+  "index": "product1",
+  "path": "/home/elastic/data/",
+  "enc": "euc-kr",
+  "flush": 50000
+}
+
+GET /_product-name-analysis/full-index?index=product1&path=/home/elastic/data/&enc=euc-kr&flush=50000
