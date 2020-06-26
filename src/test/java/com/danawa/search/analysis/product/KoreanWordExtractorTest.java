@@ -20,7 +20,6 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +51,6 @@ public class KoreanWordExtractorTest {
 		SetDictionary stopDict = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
 		SetDictionary unitDict = dictionary.getDictionary(DICT_UNIT, SetDictionary.class);
 		SynonymDictionary unitSynDict = dictionary.getDictionary(DICT_UNIT_SYNONYM, SynonymDictionary.class);
-
 
 		CharSequence word = null;
 		word = new CharVector("JY모터스");
@@ -96,43 +94,19 @@ public class KoreanWordExtractorTest {
 		CharSequence word = null;
 		word = new CharVector("sandisk");
 		word = new CharVector("z");
-		List<CharSequence> words = ProductNameTokenizerFactory.getTwowaySynonymWord(word, synonymDict.map());
+		List<CharSequence> words = ProductNameDictionary.getTwowaySynonymWord(word, synonymDict.map());
 		logger.debug("SYNONYMS:{}", words);
 	}
 
 	@Test public void testSynonymsAlign() {
 		if (TestUtil.launchForBuild()) { return; }
 
-		// 단방향
-		// SYN z : [지, 제트]
-		// SYN 지 : [Z]
-		// SYN 제트 : [ZETT, Z, JET]
-		// MAP:{지=[Z], 제트=[ZETT, Z, JET], z=[지, 제트]}
-
-		// 단방향
-		// SYN laurenolivia : [장혁준]
-		// MAP:{laurenolivia=[장혁준]}
-
-		// 양방향
-		// SYN sandisk : [샌디스크, 산디스크, 센디스크, 샌디스크코리아, 산디스크코리아]
-		// SYN 샌디스크 : [산디스크, SANDISK, 센디스크, 샌디스크코리아, 산디스크코리아]
-		// SYN 산디스크 : [샌디스크, SANDISK, 센디스크, 샌디스크코리아, 산디스크코리아]
-		// SYN 센디스크 : [샌디스크, 산디스크, SANDISK, 샌디스크코리아, 산디스크코리아]
-		// SYN 샌디스크코리아 : [샌디스크, 산디스크, SANDISK, 센디스크, 산디스크코리아]
-		// SYN 산디스크코리아 : [샌디스크, 산디스크, SANDISK, 센디스크, 샌디스크코리아]
-		// MAP:{샌디스크=[산디스크, SANDISK, 센디스크, 샌디스크코리아, 산디스크코리아],
-		//   sandisk=[샌디스크, 산디스크, 센디스크, 샌디스크코리아, 산디스크코리아],
-		//   센디스크=[샌디스크, 산디스크, SANDISK, 샌디스크코리아, 산디스크코리아],
-		//   산디스크코리아=[샌디스크, 산디스크, SANDISK, 센디스크, 샌디스크코리아],
-		//   산디스크=[샌디스크, SANDISK, 센디스크, 샌디스크코리아, 산디스크코리아],
-		//   샌디스크코리아=[샌디스크, 산디스크, SANDISK, 센디스크, 산디스크코리아]}
-
 		Map<CharSequence, List<CharSequence>> synonymMap = new HashMap<>();
 		makeSynonymMapData(synonymMap, "z", new String[] { "지", "제트" });
 		makeSynonymMapData(synonymMap, "지", new String[] { "z" });
 		makeSynonymMapData(synonymMap, "제트", new String[] { "zett", "z", "JET" });
 
-		ProductNameTokenizerFactory.normalizeSynonymMap(synonymMap);
+		ProductNameDictionary.normalizeSynonymMap(synonymMap);
 		List<CharSequence> list = new ArrayList<>();
 		logger.debug("ALLIGNED-MAP:{}", synonymMap);
 		if (synonymMap.size() > 1) {

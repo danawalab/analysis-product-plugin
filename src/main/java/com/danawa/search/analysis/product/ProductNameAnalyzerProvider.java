@@ -17,11 +17,11 @@ public class ProductNameAnalyzerProvider extends AbstractIndexAnalyzerProvider<A
 		super(indexSettings, name, settings);
 		logger.trace("ProductNameAnalyzerProvider::self {}", this);
 		ProductNameDictionary dictionary;
-		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
-			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+		if (contextStore.containsKey(ProductNameDictionary.PRODUCT_NAME_DICTIONARY)) {
+			dictionary = contextStore.getAs(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 		} else {
-			dictionary = ProductNameTokenizerFactory.loadDictionary(env);
-			contextStore.put(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, dictionary);
+			dictionary = ProductNameDictionary.loadDictionary(env);
+			contextStore.put(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, dictionary);
 		}
 		analyzer = new ProductNameAnalyzer(dictionary);
 	}

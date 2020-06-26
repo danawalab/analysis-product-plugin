@@ -32,8 +32,6 @@ public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin,
 
 	private static Logger logger = Loggers.getLogger(AnalysisProductNamePlugin.class, "");
 
-	public static final String PRODUCT_NAME_DICTIONARY = "PRODUCT_NAME_DICTIONARY";
-
 	public AnalysisProductNamePlugin() {
 		logger.trace("init");
 	}
@@ -47,10 +45,6 @@ public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin,
 
 	@Override
 	public Map<String, AnalysisProvider<TokenizerFactory>> getTokenizers() {
-		// Map<String, AnalysisProvider<TokenizerFactory>> ret = new HashMap<>();
-		// ret.put("product_name", ProductNameTokenizerFactory::new);
-		// ret.put("test", TestTokenizerFactory::new);
-		// return ret;
 		return singletonMap("product_name", ProductNameTokenizerFactory::new);
 	}
 

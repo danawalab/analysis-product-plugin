@@ -34,8 +34,8 @@ public class ProductNameAnalysisFilterFactory extends AbstractTokenFilterFactory
 	@Override
 	public TokenStream create(TokenStream tokenStream) {
 		logger.trace("ProductNameAnalysisFilter::create {}", this);
-		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
-			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+		if (contextStore.containsKey(ProductNameDictionary.PRODUCT_NAME_DICTIONARY)) {
+			dictionary = contextStore.getAs(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 		}
 		return new ProductNameAnalysisFilter(tokenStream, dictionary, option);
 	}

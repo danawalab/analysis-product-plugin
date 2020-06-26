@@ -16,7 +16,6 @@ import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
 import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
-import com.danawa.search.analysis.product.ProductNameTokenizerFactory;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -208,7 +207,7 @@ public final class TestUtil {
 		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
 		try {
 			JSONObject prop = TestUtil.readYmlConfig(propFile);
-			ret = ProductNameTokenizerFactory.loadDictionary(propFile.getParentFile(), prop);
+			ret = ProductNameDictionary.loadDictionary(propFile.getParentFile(), prop);
 		} catch (Exception e) {
 			logger.debug("ERROR LOADING DICTIONARY : {}", e.getMessage());
 		}

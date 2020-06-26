@@ -23,8 +23,8 @@ import java.util.TreeSet;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SourceDictionary;
 import com.danawa.search.analysis.dict.TagProbDictionary;
+import com.danawa.search.analysis.dict.ProductNameDictionary.DictionaryRepository;
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
-import com.danawa.search.analysis.product.ProductNameTokenizerFactory.DictionaryRepository;
 import com.danawa.search.index.DanawaBulkTextIndexer;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
 import com.danawa.search.util.SearchUtil;
@@ -89,6 +89,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 	private static final String TAG_BR = "<br/>";
 	private static final String TAG_STRONG = "<strong>${TEXT}</strong>";
+	private static final String REGEX_TAG_TEXT = "[$][{]TEXT[}]";
 	private static final String COMMA = ",";
 
 	private static final String TAB = "\t";
@@ -432,7 +433,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									data.append(TAG_STRONG.replaceAll("[$][{]TEXT[}]", w))
+									data.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w))
 										.append(" ( ").append(w);
 								} else {
 									if (inx > 0) { data.append(", "); }
@@ -447,7 +448,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									data.append(TAG_STRONG.replaceAll("[$][{]TEXT[}]", w)).append(" : ");
+									data.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
 								} else {
 									if (inx > 1) { data.append(", "); }
 									data.append(w);
@@ -470,7 +471,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									data.append(TAG_STRONG.replaceAll("[$][{]TEXT[}]", w)).append(" : ");
+									data.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
 								} else {
 									if (inx > 1) { data.append(", "); }
 									data.append(w);
@@ -483,7 +484,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									data.append(TAG_STRONG.replaceAll("[$][{]TEXT[}]", w)).append(" : ");
+									data.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
 								} else {
 									if (inx > 1) { data.append(", "); }
 									data.append(w);
@@ -532,8 +533,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private void reloadDictionary() {
-		if (contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
-			ProductNameTokenizerFactory.reloadDictionary();
+		if (contextStore.containsKey(ProductNameDictionary.PRODUCT_NAME_DICTIONARY)) {
+			ProductNameDictionary.reloadDictionary();
 		}
 	}
 
@@ -543,7 +544,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean distribute = jobj.optBoolean("distribute", true);
 		boolean exportFile = jobj.optBoolean("exportFile", true);
 		DictionarySource repo = new DictionarySource(client, index);
-		ProductNameTokenizerFactory.reloadDictionary(ProductNameTokenizerFactory.compileDictionary(repo, exportFile));
+		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionary(repo, exportFile));
 		if (distribute) {
 			jobj.put("distribute", false);
 			distribute(request, client, ACTION_COMPILE_DICT, jobj, false);
@@ -566,7 +567,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		for (String key : keySet) {
 			String type = key.toUpperCase();
 			SourceDictionary<?> sourceDictionary = dictionaryMap.get(key);
-			int[] info = ProductNameTokenizerFactory.getDictionaryInfo(sourceDictionary);
+			int[] info = ProductNameDictionary.getDictionaryInfo(sourceDictionary);
 			long indexCount = SearchUtil.count(client, index, QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type));
 			builder.object()
 				.key(ES_DICT_FIELD_TYPE).value(type)
@@ -638,7 +639,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String index = jobj.optString("index", ES_DICTIONARY_INDEX);
 		SearchUtil.deleteAllData(client, index);
 		DictionarySource repo = new DictionarySource(client, index);
-		ProductNameTokenizerFactory.restoreDictionary(repo, index);
+		ProductNameDictionary.restoreDictionary(repo, index);
 	}
 
 	private int bulkIndex(final RestRequest request, final NodeClient client) {
@@ -739,8 +740,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	private static ProductNameDictionary getDictionary() {
-		if (dictionary == null && contextStore.containsKey(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY)) {
-			dictionary = contextStore.getAs(AnalysisProductNamePlugin.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
+		if (dictionary == null && contextStore.containsKey(ProductNameDictionary.PRODUCT_NAME_DICTIONARY)) {
+			dictionary = contextStore.getAs(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 		}
 		return dictionary;
 	}
