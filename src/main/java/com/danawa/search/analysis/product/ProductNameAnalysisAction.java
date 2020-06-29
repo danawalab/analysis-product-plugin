@@ -794,7 +794,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 			builder.key("result").array();
 			Iterator<Map<String, Object>> iter = SearchUtil.search(client, index, query, from, size, doScroll);
-			while (iter.hasNext()) {
+			while (iter != null && iter.hasNext()) {
 				Map<String, Object> map = iter.next();
 				builder.object();
 				for (String key : map.keySet()) {

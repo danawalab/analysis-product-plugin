@@ -134,7 +134,7 @@ public class SearchUtil {
 				rowData = null;
 				return this;
 			} catch (Exception e) {
-				logger.error("", e);
+				logger.debug("SEARCH ERROR : {} ( It may be over 10,000 records ) ", e.getMessage());
 			}
 			return null;
 		}

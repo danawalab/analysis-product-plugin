@@ -7,7 +7,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
-import com.danawa.search.analysis.dict.SynonymDictionary;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
 import com.danawa.util.ContextStore;
 import com.danawa.util.TestUtil;
