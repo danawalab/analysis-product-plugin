@@ -136,7 +136,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					}
 					termList.remove(0);
 					if (tokenAttribute.isState(TokenInfoAttribute.STATE_TERM_STOP)) {
-						logger.debug("STOP WORD:{}", token);
+						logger.trace("STOP WORD:{}", token);
 						typeAttribute.setType(STOPWORD);
 						if (option.useStopword()) {
 							continue;
@@ -155,7 +155,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							entry.buf = null;
 						}
 						if (tokenAttribute.isState(TokenInfoAttribute.STATE_TERM_STOP)) {
-							logger.debug("STOP WORD:{}", token);
+							logger.trace("STOP WORD:{}", token);
 							typeAttribute.setType(STOPWORD);
 							if (option.useStopword()) {
 								continue;
@@ -168,7 +168,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						token = applyEntry(subEntry);
 						subEntryList.remove(0);
 						if (tokenAttribute.isState(TokenInfoAttribute.STATE_TERM_STOP)) {
-							logger.debug("STOP WORD:{}", token);
+							logger.trace("STOP WORD:{}", token);
 							typeAttribute.setType(STOPWORD);
 							if (option.useStopword()) {
 								continue;

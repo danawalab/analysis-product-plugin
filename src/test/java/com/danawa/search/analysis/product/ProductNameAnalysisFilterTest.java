@@ -129,7 +129,6 @@ public class ProductNameAnalysisFilterTest {
 		File textFile = TestUtil.getFileByProperty("SYSPROP_SAMPLE_TEXT_PATH");
 		if (!textFile.exists()) { return; }
 
-		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		BufferedReader reader = null;
 		Tokenizer tokenizer = null;
@@ -147,6 +146,9 @@ public class ProductNameAnalysisFilterTest {
 				tokenizer = new ProductNameTokenizer(dictionary, false);
 				tokenizer.setReader(new StringReader(rl));
 				option = new AnalyzerOption();
+				option.useForQuery(false);
+				option.useSynonym(true);
+				option.useStopword(true);
 				tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 				tstream.reset();
 				CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);

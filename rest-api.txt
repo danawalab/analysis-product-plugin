@@ -1,4 +1,4 @@
-################################################################################
+﻿################################################################################
 # 사전색인 생성용 맵핑
 PUT /.fastcatx_dict
 {
@@ -920,7 +920,8 @@ PUT /product
   "settings": {
     "index": {
       "number_of_shards": "1",
-      "number_of_replicas": "0"
+      "number_of_replicas": "0",
+      "max_result_window": "2147483647"
     },
     "analysis": {
       "tokenizer": { "product_name_custom": { "type": "product_name", "export_term": "false" } },
@@ -1045,6 +1046,7 @@ POST /_product-name-analysis/search
   "index": "product1,product2",
   "fields": "TOTALINDEX",
   "text": "Sandisk Extream Z80 USB 16gb",
+  "query": "PCPRICE:[0 TO 100000]",
   "from": 0,
   "size": 20,
   "total": true,
@@ -1052,7 +1054,7 @@ POST /_product-name-analysis/search
   "scroll": true
 }
 
-GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&total=true&analysis=false&scroll=true&text=Sandisk Extream Z80 USB 16gb
+GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&total=true&analysis=false&scroll=true&query=PCPRICE:[40000 TO 100000]&text=Sandisk Extream Z80 USB 16gb
 
 ################################################################################
 # 상품색인

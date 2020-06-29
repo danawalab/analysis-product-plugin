@@ -53,6 +53,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
@@ -750,6 +751,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String index = request.param("index", "");
 		String[] fields = request.param("fields", "").split("[,]");
 		String text = request.param("text", "");
+		String queryString = request.param("query", "");
 		int from = request.paramAsInt("from", 0);
 		int size = request.paramAsInt("size", 20);
 		boolean trackTotal = request.paramAsBoolean("total", false);
@@ -760,6 +762,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			index = jparam.optString("index", "");
 			fields = jparam.optString("fields", "").split("[,]");
 			text = jparam.optString("text", "");
+			queryString = jparam.optString("query", "");
 			from = jparam.optInt("from", 0);
 			size = jparam.optInt("size", 20);
 			trackTotal = jparam.optBoolean("total", false);
@@ -776,6 +779,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				analysis = new JSONObject();
 			}
 			QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, analysis);
+
+			if (queryString != null && !"".equals(queryString)) {
+				try {
+					QueryStringQueryBuilder query2 = QueryBuilders.queryStringQuery(queryString);
+					logger.debug("Q:{}", query2);
+					query = DanawaSearchQueryBuilder.andQuery(query, query2);
+				} catch (Exception ignore) { }
+			}
+
 			logger.trace("Q:{}", query.toString());
 			SearchSourceBuilder source = new SearchSourceBuilder();
 			source.query(query);
