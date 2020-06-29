@@ -43,6 +43,18 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 	}
 
 	public static final String PRODUCT_NAME_DICTIONARY = "PRODUCT_NAME_DICTIONARY";
+
+	public static final String DICT_UNIT_SYNONYM = "unit_synonym";
+	public static final String DICT_UNIT = "unit";
+	public static final String DICT_SPACE = "space";
+	public static final String DICT_SYNONYM = "synonym";
+	public static final String DICT_STOP = "stop";
+	public static final String DICT_USER = "user";
+	public static final String DICT_COMPOUND= "compound";
+	public static final String DICT_MAKER = "maker";
+	public static final String DICT_BRAND = "brand";
+	public static final String DICT_CATEGORY = "category";
+
 	private static final String dictionaryPath = "dict/";
 	private static final String dictionarySuffix = ".dict";
 

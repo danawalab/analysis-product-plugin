@@ -54,7 +54,7 @@ public class ProductNameAnalysisFilterTest {
 		TokenStream tstream = null;
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
-		SpaceDictionary spDict = dictionary.getDictionary(ProductNameTokenizer.DICT_SPACE, SpaceDictionary.class);
+		SpaceDictionary spDict = dictionary.getDictionary(ProductNameDictionary.DICT_SPACE, SpaceDictionary.class);
 		spDict.addEntry("", new CharVector[] { new CharVector("bacas tv") });
 		AnalyzerOption option = null;
 		String str = "";

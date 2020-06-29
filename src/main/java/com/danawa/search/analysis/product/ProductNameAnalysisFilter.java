@@ -58,9 +58,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		super(input);
 		if (dictionary != null) {
 			this.dictionary = dictionary;
-			this.synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
-			this.spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
-			this.stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+			this.synonymDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_SYNONYM, SynonymDictionary.class);
+			this.spaceDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_SPACE, SpaceDictionary.class);
+			this.stopDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_STOP, SetDictionary.class);
 		}
 		this.extractor = new KoreanWordExtractor(dictionary);
 		this.option = option;
@@ -135,28 +135,45 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						}
 					}
 					termList.remove(0);
+					if (tokenAttribute.isState(TokenInfoAttribute.STATE_TERM_STOP)) {
+						logger.debug("STOP WORD:{}", token);
+						typeAttribute.setType(STOPWORD);
+						if (option.useStopword()) {
+							continue;
+						}
+					}
 					ret = true;
 					break;
 				} else {
 					// 색인용
 					if (entry.buf != null) {
 						token = applyEntry(entry);
-						// applySynonym(token, entry);
 						if (subEntryList == null) {
 							termList.remove(0);
 						} else {
 							// 서브엔트리가 존재하는 경우 출력한 버퍼를 null 처리 하고 서브엔트리를 처리하도록 한다.
 							entry.buf = null;
 						}
+						if (tokenAttribute.isState(TokenInfoAttribute.STATE_TERM_STOP)) {
+							logger.debug("STOP WORD:{}", token);
+							typeAttribute.setType(STOPWORD);
+							if (option.useStopword()) {
+								continue;
+							}
+						}
 						ret = true;
 						break;
 					} else if (subEntryList.size() > 0) {
 						RuleEntry subEntry = subEntryList.get(0);
 						token = applyEntry(subEntry);
-						// if (subEntry.synonym != null && option.useSynonym()) {
-						// 	synonymAttribute.setSynonyms(Arrays.asList(subEntry.synonym));
-						// }
 						subEntryList.remove(0);
+						if (tokenAttribute.isState(TokenInfoAttribute.STATE_TERM_STOP)) {
+							logger.debug("STOP WORD:{}", token);
+							typeAttribute.setType(STOPWORD);
+							if (option.useStopword()) {
+								continue;
+							}
+						}
 						ret = true;
 						break;
 					} else if (subEntryList.size() == 0) {
@@ -206,12 +223,11 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 	private CharVector applyEntry(RuleEntry entry) {
 		CharVector ret;
-
 		termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
 		offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
 		typeAttribute.setType(entry.type);
 		token = entry.makeTerm(null);
-		if (option.useStopword() && stopDictionary != null && stopDictionary.set().contains(token)) {
+		if (stopDictionary != null && stopDictionary.set().contains(token)) {
 			tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
 		} else {
 			tokenAttribute.rmState(TokenInfoAttribute.STATE_TERM_STOP);
