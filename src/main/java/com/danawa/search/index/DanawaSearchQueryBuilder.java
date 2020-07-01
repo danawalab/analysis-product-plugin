@@ -178,4 +178,20 @@ public class DanawaSearchQueryBuilder {
 
 		return ret;
 	}
+
+	public static QueryBuilder andQuery(QueryBuilder... queries) {
+		BoolQueryBuilder ret = QueryBuilders.boolQuery();
+		for (QueryBuilder query : queries) {
+			ret.must(query);
+		}
+		return ret;
+	}
+
+	public static QueryBuilder orQuery(QueryBuilder... queries) {
+		BoolQueryBuilder ret = QueryBuilders.boolQuery();
+		for (QueryBuilder query : queries) {
+			ret.should(query);
+		}
+		return ret;
+	}
 }

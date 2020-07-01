@@ -57,19 +57,19 @@ public class ProductNameParsingRule {
 		this.extractor = extractor;
 		this.option = option;
 		if (dictionary != null) {
-			unitDictionary = dictionary.getDictionary(DICT_UNIT, SetDictionary.class);
-			synonymDictionary = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
-			unitSynonymDictionary = dictionary.getDictionary(DICT_UNIT_SYNONYM, SynonymDictionary.class);
-			spaceDictionary = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
-			userDictionary = dictionary.getDictionary(DICT_USER, SetDictionary.class);
-			compoundDictionary = dictionary.getDictionary(DICT_COMPOUND, CompoundDictionary.class);
-			stopDictionary = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
+			unitDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_UNIT, SetDictionary.class);
+			synonymDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_SYNONYM, SynonymDictionary.class);
+			unitSynonymDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_UNIT_SYNONYM, SynonymDictionary.class);
+			spaceDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_SPACE, SpaceDictionary.class);
+			userDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_USER, SetDictionary.class);
+			compoundDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_COMPOUND, CompoundDictionary.class);
+			stopDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_STOP, SetDictionary.class);
 			{
-				CustomDictionary dict = dictionary.getDictionary(DICT_BRAND, CustomDictionary.class);
+				CustomDictionary dict = dictionary.getDictionary(ProductNameDictionary.DICT_BRAND, CustomDictionary.class);
 				if (dict != null) { brandDictionary = dict.getWordSet(); }
 			}
 			{
-				CustomDictionary dict = dictionary.getDictionary(DICT_MAKER, CustomDictionary.class);
+				CustomDictionary dict = dictionary.getDictionary(ProductNameDictionary.DICT_MAKER, CustomDictionary.class);
 				if (dict != null) { makerDictionary = dict.getWordSet(); }
 			}
 		}
@@ -235,7 +235,7 @@ public class ProductNameParsingRule {
 						// 통합사전 체크는 상대적으로 느리기 때문에 개별사전부터 체크한 후 passFlag 로 나눈다.
 						if (spaceDictionary != null && spaceDictionary.containsKey(cvTmp)) {
 							passFlag = 1;
-						} else if ((stopDictionary != null && option.useStopword() && stopDictionary.contains(cvTmp))) {
+						} else if ((stopDictionary != null && stopDictionary.contains(cvTmp))) {
 							passFlag = 2;
 						} else if (containsDictionary(cvTmp)) {
 							passFlag = 3;

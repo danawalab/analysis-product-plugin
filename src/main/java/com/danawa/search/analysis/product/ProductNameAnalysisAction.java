@@ -53,6 +53,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
@@ -95,7 +96,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String TAB = "\t";
 
 	private static final String ANALYZE_SET_FULL_STRING = "00_FULL_STRING_SET";
-	private static final String ANALYZE_SET_RESTRICTED = "01_RESTRICTED_SET";
+	private static final String ANALYZE_SET_STOPWORD = "01_RESTRICTED_SET";
 	private static final String ANALYZE_SET_MODEL_NAME = "02_MODEL_NAME_SET";
 	private static final String ANALYZE_SET_UNIT = "03_UNIT_SET";
 	private static final String ANALYZE_SET_NORMAL = "04_NORMAL_SET";
@@ -107,7 +108,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	static {
 		Map<String, String> map = new HashMap<>();
 		map.put(ANALYZE_SET_FULL_STRING, "전체질의어");
-		map.put(ANALYZE_SET_RESTRICTED, "불용어");
+		map.put(ANALYZE_SET_STOPWORD, "불용어");
 		map.put(ANALYZE_SET_MODEL_NAME, "모델명 규칙");
 		map.put(ANALYZE_SET_UNIT, "단위명 규칙");
 		map.put(ANALYZE_SET_NORMAL, "형태소 분리 결과");
@@ -264,7 +265,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean detail = request.paramAsBoolean("detail", true);
 		boolean useForQuery = request.paramAsBoolean("useForQuery", true);
 		boolean useSynonym = request.paramAsBoolean("useSynonym", true);
-		boolean useStopword = request.paramAsBoolean("useStopword", true);
+		boolean useStopword = request.paramAsBoolean("useStopword", false);
 		boolean test = false;
 		if (!Method.GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
@@ -273,7 +274,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			detail = jparam.optBoolean("detail", true);
 			useForQuery = jparam.optBoolean("useForQuery", true);
 			useSynonym = jparam.optBoolean("useSynonym", true);
-			useStopword = jparam.optBoolean("useStopword", true);
+			useStopword = jparam.optBoolean("useStopword", false);
 			test = jparam.optBoolean("test", false);
 		}
 
@@ -297,7 +298,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		if (client != null && index != null && !"".equals(index)) {
 			// 색인을 사용하는 경우
 			BoolQueryBuilder query = QueryBuilders.boolQuery()
-				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, ProductNameTokenizer.DICT_SYNONYM.toUpperCase()))
+				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, ProductNameDictionary.DICT_SYNONYM.toUpperCase()))
 				.must(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word)
 				);
 			logger.trace("Q:{}", query);
@@ -309,7 +310,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		} else {
 			// 메모리 사전을 이용하는 경우
 			ProductNameDictionary dictionary = getDictionary();
-			SynonymDictionary synonyms = dictionary.getDictionary(ProductNameTokenizer.DICT_SYNONYM, SynonymDictionary.class);
+			SynonymDictionary synonyms = dictionary.getDictionary(ProductNameDictionary.DICT_SYNONYM, SynonymDictionary.class);
 			ret = ProductNameDictionary.isOneWaySynonym(CharVector.valueOf(word), synonyms.map());
 		}
 		return ret;
@@ -373,6 +374,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				} else if (ProductNameTokenizer.COMPOUND.equals(type)) {
 					setName = ANALYZE_SET_COMPOUND;
 					setAnalyzedResult(result, term, ANALYZE_SET_COMPOUND, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.STOPWORD.equals(type)) {
+					setName = ANALYZE_SET_STOPWORD;
+					setAnalyzedResult(result, term, ANALYZE_SET_STOPWORD);
 				} else {
 					// 일반단어
 					setName = ANALYZE_SET_NORMAL;
@@ -446,7 +450,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								analyzed.append(words.get(0));
 							}
 						}
-					} else if (ANALYZE_SET_RESTRICTED.equals(key)) {
+					} else if (ANALYZE_SET_STOPWORD.equals(key)) {
 						for (List<String> item : wordList) {
 							if (analyzed.length() > 0) { analyzed.append(COMMA).append(" "); }
 							if (item.size() > 0) {
@@ -747,6 +751,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String index = request.param("index", "");
 		String[] fields = request.param("fields", "").split("[,]");
 		String text = request.param("text", "");
+		String queryString = request.param("query", "");
 		int from = request.paramAsInt("from", 0);
 		int size = request.paramAsInt("size", 20);
 		boolean trackTotal = request.paramAsBoolean("total", false);
@@ -757,6 +762,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			index = jparam.optString("index", "");
 			fields = jparam.optString("fields", "").split("[,]");
 			text = jparam.optString("text", "");
+			queryString = jparam.optString("query", "");
 			from = jparam.optInt("from", 0);
 			size = jparam.optInt("size", 20);
 			trackTotal = jparam.optBoolean("total", false);
@@ -773,6 +779,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				analysis = new JSONObject();
 			}
 			QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, analysis);
+
+			if (queryString != null && !"".equals(queryString)) {
+				try {
+					QueryStringQueryBuilder query2 = QueryBuilders.queryStringQuery(queryString);
+					logger.debug("Q:{}", query2);
+					query = DanawaSearchQueryBuilder.andQuery(query, query2);
+				} catch (Exception ignore) { }
+			}
+
 			logger.trace("Q:{}", query.toString());
 			SearchSourceBuilder source = new SearchSourceBuilder();
 			source.query(query);

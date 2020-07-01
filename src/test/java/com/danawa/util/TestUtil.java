@@ -26,8 +26,6 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.elasticsearch.common.logging.Loggers;
 import org.json.JSONObject;
 
-import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
-
 public final class TestUtil {
 
 	private static Logger logger = Loggers.getLogger(TestUtil.class, "");
@@ -189,12 +187,12 @@ public final class TestUtil {
 			ret = new ProductNameDictionary(baseDict);
 			ret.appendAdditionalNounEntry(userDict.set(), HIGH);
 			ret.appendAdditionalNounEntry(synonymDict.getWordSet(), HIGH);
-			ret.addDictionary(DICT_USER, userDict);
-			ret.addDictionary(DICT_SYNONYM, synonymDict);
-			ret.addDictionary(DICT_SPACE, spaceDict);
-			ret.addDictionary(DICT_UNIT, unitDict);
-			ret.addDictionary(DICT_UNIT_SYNONYM, unitSynDict);
-			ret.addDictionary(DICT_COMPOUND, compDict);
+			ret.addDictionary(ProductNameDictionary.DICT_USER, userDict);
+			ret.addDictionary(ProductNameDictionary.DICT_SYNONYM, synonymDict);
+			ret.addDictionary(ProductNameDictionary.DICT_SPACE, spaceDict);
+			ret.addDictionary(ProductNameDictionary.DICT_UNIT, unitDict);
+			ret.addDictionary(ProductNameDictionary.DICT_UNIT_SYNONYM, unitSynDict);
+			ret.addDictionary(ProductNameDictionary.DICT_COMPOUND, compDict);
 
 		} catch (final Exception e) {
 			logger.debug("ERROR LOADING BASE DICTIONARY : {}", e.getMessage());

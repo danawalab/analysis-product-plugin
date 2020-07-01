@@ -46,18 +46,8 @@ public final class ProductNameTokenizer extends Tokenizer {
 	public static final String MAKER = "<MAKER>";
 	public static final String BRAND = "<BRAND>";
 	public static final String COMPOUND = "<COMPOUND>";
+	public static final String STOPWORD = "<STOPWORD>";
 	
-	public static final String DICT_UNIT_SYNONYM = "unit_synonym";
-	public static final String DICT_UNIT = "unit";
-	public static final String DICT_SPACE = "space";
-	public static final String DICT_SYNONYM = "synonym";
-	public static final String DICT_STOP = "stop";
-	public static final String DICT_USER = "user";
-	public static final String DICT_COMPOUND= "compound";
-	public static final String DICT_MAKER = "maker";
-	public static final String DICT_BRAND = "brand";
-	public static final String DICT_CATEGORY = "category";
-
 	public static final int MAX_UNIT_LENGTH = 5;
 
 	public static final char[] AVAIL_SYMBOLS = new char[] {

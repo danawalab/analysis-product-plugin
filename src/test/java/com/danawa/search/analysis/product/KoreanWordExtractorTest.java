@@ -25,8 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
-import static com.danawa.search.analysis.product.ProductNameTokenizer.*;
-
 public class KoreanWordExtractorTest {
 
 	private static Logger logger = Loggers.getLogger(KoreanWordExtractorTest.class, "");
@@ -41,16 +39,16 @@ public class KoreanWordExtractorTest {
 	@Test public void testUserDictionary() {
 		if (TestUtil.launchForBuild()) { return; }
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		SetDictionary userDict = dictionary.getDictionary(DICT_USER, SetDictionary.class);
-		CustomDictionary brandDict = dictionary.getDictionary(DICT_BRAND, CustomDictionary.class);
-		CustomDictionary makerDict= dictionary.getDictionary(DICT_MAKER, CustomDictionary.class);
-		CustomDictionary categoryDict= dictionary.getDictionary(DICT_CATEGORY, CustomDictionary.class);
-		SynonymDictionary synonymDict = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
-		CompoundDictionary compoundDict = dictionary.getDictionary(DICT_COMPOUND, CompoundDictionary.class);
-		SpaceDictionary spaceDict = dictionary.getDictionary(DICT_SPACE, SpaceDictionary.class);
-		SetDictionary stopDict = dictionary.getDictionary(DICT_STOP, SetDictionary.class);
-		SetDictionary unitDict = dictionary.getDictionary(DICT_UNIT, SetDictionary.class);
-		SynonymDictionary unitSynDict = dictionary.getDictionary(DICT_UNIT_SYNONYM, SynonymDictionary.class);
+		SetDictionary userDict = dictionary.getDictionary(ProductNameDictionary.DICT_USER, SetDictionary.class);
+		CustomDictionary brandDict = dictionary.getDictionary(ProductNameDictionary.DICT_BRAND, CustomDictionary.class);
+		CustomDictionary makerDict= dictionary.getDictionary(ProductNameDictionary.DICT_MAKER, CustomDictionary.class);
+		CustomDictionary categoryDict= dictionary.getDictionary(ProductNameDictionary.DICT_CATEGORY, CustomDictionary.class);
+		SynonymDictionary synonymDict = dictionary.getDictionary(ProductNameDictionary.DICT_SYNONYM, SynonymDictionary.class);
+		CompoundDictionary compoundDict = dictionary.getDictionary(ProductNameDictionary.DICT_COMPOUND, CompoundDictionary.class);
+		SpaceDictionary spaceDict = dictionary.getDictionary(ProductNameDictionary.DICT_SPACE, SpaceDictionary.class);
+		SetDictionary stopDict = dictionary.getDictionary(ProductNameDictionary.DICT_STOP, SetDictionary.class);
+		SetDictionary unitDict = dictionary.getDictionary(ProductNameDictionary.DICT_UNIT, SetDictionary.class);
+		SynonymDictionary unitSynDict = dictionary.getDictionary(ProductNameDictionary.DICT_UNIT_SYNONYM, SynonymDictionary.class);
 
 		CharSequence word = null;
 		word = new CharVector("JY모터스");
@@ -90,7 +88,7 @@ public class KoreanWordExtractorTest {
 		ProductNameDictionary dictionary = null;
 		dictionary = TestUtil.loadDictionary();
 		// dictionary = TestUtil.loadTestDictionary();
-		SynonymDictionary synonymDict = dictionary.getDictionary(DICT_SYNONYM, SynonymDictionary.class);
+		SynonymDictionary synonymDict = dictionary.getDictionary(ProductNameDictionary.DICT_SYNONYM, SynonymDictionary.class);
 		CharSequence word = null;
 		word = new CharVector("sandisk");
 		word = new CharVector("z");
