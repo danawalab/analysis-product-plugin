@@ -158,6 +158,11 @@ public class ProductNameAnalysisActionTest {
 			"} ";
 
 		JSONObject json = new JSONObject(source);
+
+		for (String key : json.keySet()) {
+			logger.debug("KEY:{} / {}", key, json.opt(key).getClass());
+		}
+
 		source = json.optString("query");
 
 		DeprecationHandler dpHandler = LoggingDeprecationHandler.INSTANCE;
@@ -194,7 +199,7 @@ public class ProductNameAnalysisActionTest {
 		long time = System.nanoTime();
 		QueryBuilder query = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
 		time = System.nanoTime() - time;
-		logger.debug("Q:{}", query);
+		logger.debug("Q:{}", "", query);
 		logger.debug("PARSING TAKES {} ms", ((int) Math.round(time * 100.0 / 1000000.0)) / 100.0);
 	}
 

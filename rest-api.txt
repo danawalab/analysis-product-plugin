@@ -1038,7 +1038,7 @@ GET /_product-name-analysis/analyze-text?index=.fastcatx_dict&detail=true&useFor
 # from: 검색 시작위치
 # size: 검색갯수
 # total: 전체갯수 출력여부
-# analysis: 검색어 검색식 구조분석
+# explain: 검색어 검색식 구조분석
 # scroll: 10000 건 넘을 경우 스크롤 여부 (사용시 느려질수 있음)
 # 
 POST /_product-name-analysis/search
@@ -1050,11 +1050,11 @@ POST /_product-name-analysis/search
   "from": 0,
   "size": 20,
   "total": true,
-  "analysis": false,
+  "explain": false,
   "scroll": true
 }
 
-GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&total=true&analysis=false&scroll=true&query=PCPRICE:[40000 TO 100000]&text=Sandisk Extream Z80 USB 16gb
+GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&total=true&explain=false&scroll=true&query=PCPRICE:[40000 TO 100000]&text=Sandisk Extream Z80 USB 16gb
 
 ################################################################################
 # 상품색인

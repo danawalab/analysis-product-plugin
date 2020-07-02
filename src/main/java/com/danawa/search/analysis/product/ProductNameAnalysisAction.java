@@ -755,7 +755,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		int from = request.paramAsInt("from", 0);
 		int size = request.paramAsInt("size", 20);
 		boolean trackTotal = request.paramAsBoolean("total", false);
-		boolean trackAnalysis = request.paramAsBoolean("analysis", false);
+		boolean doExplain = request.paramAsBoolean("explain", false);
 		boolean useScroll = request.paramAsBoolean("scroll", false);
 		if (!Method.GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
@@ -766,7 +766,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			from = jparam.optInt("from", 0);
 			size = jparam.optInt("size", 20);
 			trackTotal = jparam.optBoolean("total", false);
-			trackAnalysis = jparam.optBoolean("analysis", false);
+			doExplain = jparam.optBoolean("explain", false);
 			useScroll = jparam.optBoolean("scroll", false);
 		}
 
@@ -774,11 +774,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		try {
 			logger.trace("ANALYZE TEXT : {}", text);
 			stream = getAnalyzer(text, true, true, true);
-			JSONObject analysis = null;
-			if (trackAnalysis) {
-				analysis = new JSONObject();
+			JSONObject explain = null;
+			if (doExplain) {
+				explain = new JSONObject();
 			}
-			QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, analysis);
+			QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, explain);
 
 			if (queryString != null && !"".equals(queryString)) {
 				try {
@@ -801,8 +801,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 			boolean doScroll = !useScroll ? false : from + size > 10000;
 			builder.object();
-			if (trackAnalysis) {
-				builder.key("analysis").value(analysis);
+			if (doExplain) {
+				builder.key("explain").value(explain);
 			}
 			if (total != -1) {
 				builder.key("total").value(total);
