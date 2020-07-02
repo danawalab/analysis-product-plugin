@@ -107,7 +107,15 @@ public class SearchUtil {
 
 	static abstract class AbstractSearchResultIterator implements Iterator<Map<String, Object>> {
 		public static final String FIELD_ROWNUM = "_ROWNUM";
-		public abstract Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, int from, int size);
+		public static final String FIELD_SORT = "_SORT";
+		abstract Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, int from, int size);
+		static Map<String, Object> processHit(SearchHit hit, int rowNum) {
+			Map<String, Object> rowData;
+			rowData = hit.getSourceAsMap();
+			rowData.put(FIELD_ROWNUM, rowNum);
+			rowData.put(FIELD_SORT, hit.getSortValues());
+			return rowData;
+		}
 	}
 
 	static class SearchResultIterator extends AbstractSearchResultIterator {
@@ -152,9 +160,7 @@ public class SearchUtil {
 			try {
 				for (; hits != null && hits.length > 0;) {
 					for (; hitsInx < hits.length;) {
-						SearchHit hit = hits[hitsInx];
-						rowData = hit.getSourceAsMap();
-						rowData.put(FIELD_ROWNUM, rowNum);
+						rowData = processHit(hits[hitsInx], rowNum);
 						hitsInx++;
 						rowNum++;
 						break;
@@ -264,9 +270,7 @@ public class SearchUtil {
 			try {
 				for (; hits != null && hits.length > 0 && (size == -1 || size > 0);) {
 					for (; hitsInx < hits.length && (size == -1 || size > 0);) {
-						SearchHit hit = hits[hitsInx];
-						rowData = hit.getSourceAsMap();
-						rowData.put(FIELD_ROWNUM, rowNum);
+						rowData = processHit(hits[hitsInx], rowNum);
 						hitsInx++;
 						rowNum++;
 						if (size != -1) {
