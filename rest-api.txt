@@ -1037,28 +1037,72 @@ GET /_product-name-analysis/analyze-text?index=.fastcatx_dict&detail=true&useFor
 # 상품검색
 # ES 에서는 상품명분석 검색을 해주지 않으므로 검색용 분석기를 whitespace 로 잡아주고 검색분석을 실시
 # index: 검색할 색인명들  (',' 로 구분)
-# fields: 상품명분석기가 적용된 필드명들 (',' 로 구분)
+# fields: 상품명분석기가 적용된 필드명들 (',' 로 구분, '^' 로 부스팅점수구분)
 # text: 검색어
 # from: 검색 시작위치
 # size: 검색갯수
-# total: 전체갯수 출력여부
-# explain: 검색어 검색식 구조분석
-# scroll: 10000 건 넘을 경우 스크롤 여부 (사용시 느려질수 있음)
+# showTotal: 전체갯수 출력여부
+# showExplain: 검색어 검색식 구조분석
+# showDetail: 내부 검색질의문 출력
+# useScroll: 10000 건 넘을 경우 스크롤 여부 (사용시 느려질수 있음)
 # 
 POST /_product-name-analysis/search
 {
   "index": "product1,product2",
-  "fields": "TOTALINDEX",
-  "text": "Sandisk Extream Z80 USB 16gb",
-  "query": "PCPRICE:[0 TO 100000]",
+  "fields": "TOTALINDEX,MODELWEIGHT^300000,MAKERKEYWORD^200000,BRANDKEYWORD^200000,CATEGORYWEIGHT^100000",
+  "text": "랜드로바WAS1414KR17",
   "from": 0,
   "size": 20,
-  "total": true,
-  "explain": false,
-  "scroll": true
+  "showTotal": true,
+  "showExplain": true,
+  "showDetail": true,
+  "useScroll": true,  
+  "query": {
+    "function_score": {
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "query_string": { "query": "*" }
+            }
+          ],
+          "filter": [ ]
+        }
+      },
+      "functions": [
+        {
+          "filter": {
+            "match": {
+              "SHOPPRODUCTCODE": "6562693705"
+            }
+          },
+          "weight": 12
+        },
+        {
+          "filter": {
+            "match": {
+              "SHOPPRODUCTCODE": "P1207582350"
+            }
+          },
+          "weight": 40
+        }
+      ],
+      "boost_mode": "sum"
+    }
+  },
+  "sort": [
+    {
+      "_score": {
+        "order": "desc"
+      },
+      "REGISTERDATE": {
+        "order": "desc"
+      }
+    }
+  ]
 }
 
-GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&total=true&explain=false&scroll=true&query=PCPRICE:[40000 TO 100000]&text=Sandisk Extream Z80 USB 16gb
+GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&showTotal=true&showExplain=false&useScroll=true&query={}&text=Sandisk Extream Z80 USB 16gb
 
 ################################################################################
 # 상품색인

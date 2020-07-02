@@ -61,7 +61,6 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
@@ -817,15 +816,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 
 			logger.trace("Q:{}", query);
-			SearchSourceBuilder source = new SearchSourceBuilder();
-			source.query(query);
 			long total = -1;
 			if (showTotal) {
 				// NOTE: 부하가 얼마나 걸릴지 체크해 봐야 할듯.
-				long time = System.nanoTime();
 				total = SearchUtil.count(client, index, query);
-				time = System.nanoTime() - time;
-				// logger.debug("TOTAL:{} takes {} ns", total, ((int) Math.round(time * 100.0 / 1000000.0)) / 100.0);
 			}
 			boolean doScroll = !useScroll ? false : from + size > 10000;
 			builder.object();
