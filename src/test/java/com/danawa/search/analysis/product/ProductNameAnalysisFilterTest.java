@@ -221,7 +221,7 @@ public class ProductNameAnalysisFilterTest {
 				}
 				String[] testdata = rline.split("\t");
 				Reader input = new StringReader(testdata[0]);
-				AnalyzerOption option = new AnalyzerOption(isForQuery, true, true, true);
+				AnalyzerOption option = new AnalyzerOption(isForQuery, true, true, false);
 				analyzer = new ProductNameAnalyzer(dictionary, option);
 				TokenStream tokenStream = analyzer.tokenStream("", input);
 				TypeAttribute typeAttribute = tokenStream.addAttribute(TypeAttribute.class);

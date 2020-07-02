@@ -36,6 +36,7 @@ import org.elasticsearch.index.query.TermsSetQueryBuilder;
 import org.elasticsearch.index.query.WrapperQueryBuilder;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.plugins.SearchPlugin;
+import org.elasticsearch.search.sort.SortBuilder;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -43,20 +44,19 @@ public class DanawaSearchQueryBuilder {
 
 	private static Logger logger = Loggers.getLogger(DanawaSearchQueryBuilder.class, "");
 
-	private static final DanawaSearchQueryBuilder INSTANCE = new DanawaSearchQueryBuilder();
+	public static final DanawaSearchQueryBuilder INSTANCE = new DanawaSearchQueryBuilder();
 
 	public static final String AND = "AND";
 	public static final String OR = "OR";
 	public static final String WHITESPACE = "whitespace";
 
-	private final List<NamedWriteableRegistry.Entry> namedWriteables = new ArrayList<>();
-	private final List<NamedXContentRegistry.Entry> namedXContents = new ArrayList<>();
+	public NamedXContentRegistry SEARCH_CONTENT_REGISTRY;
 
 	public DanawaSearchQueryBuilder() {
 		init();
 	}
 
-	private void registerQueryBuilder(SearchPlugin.QuerySpec<?> spec) {
+	private void registerQueryBuilder(SearchPlugin.QuerySpec<?> spec, List<NamedWriteableRegistry.Entry> namedWriteables, List<NamedXContentRegistry.Entry> namedXContents) {
 		namedWriteables.add(new NamedWriteableRegistry
 			.Entry(QueryBuilder.class, spec.getName().getPreferredName(), spec.getReader()));
 		namedXContents.add(new NamedXContentRegistry
@@ -64,32 +64,38 @@ public class DanawaSearchQueryBuilder {
 	}
 
 	public void init() {
+		/**
+		 * 파싱 가능한 객체들을 나열한다.
+		 */
+		final List<NamedWriteableRegistry.Entry> writables = new ArrayList<>();
+		final List<NamedXContentRegistry.Entry> xcontents = new ArrayList<>();
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(MatchQueryBuilder.NAME, MatchQueryBuilder::new,
-			MatchQueryBuilder::fromXContent));
+			MatchQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(MultiMatchQueryBuilder.NAME, MultiMatchQueryBuilder::new,
-			MultiMatchQueryBuilder::fromXContent));
+			MultiMatchQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(MatchPhraseQueryBuilder.NAME, MatchPhraseQueryBuilder::new,
-			MatchPhraseQueryBuilder::fromXContent));
+			MatchPhraseQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(QueryStringQueryBuilder.NAME, QueryStringQueryBuilder::new,
-			QueryStringQueryBuilder::fromXContent));
+			QueryStringQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(BoostingQueryBuilder.NAME, BoostingQueryBuilder::new,
-			BoostingQueryBuilder::fromXContent));
+			BoostingQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(BoolQueryBuilder.NAME, BoolQueryBuilder::new,
-			BoolQueryBuilder::fromXContent));
+			BoolQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(RangeQueryBuilder.NAME, RangeQueryBuilder::new,
-			RangeQueryBuilder::fromXContent));
+			RangeQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(WrapperQueryBuilder.NAME, WrapperQueryBuilder::new,
-			WrapperQueryBuilder::fromXContent));
+			WrapperQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(FunctionScoreQueryBuilder.NAME, FunctionScoreQueryBuilder::new,
-			FunctionScoreQueryBuilder::fromXContent));
+			FunctionScoreQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(SimpleQueryStringBuilder.NAME, SimpleQueryStringBuilder::new,
-			SimpleQueryStringBuilder::fromXContent));
+			SimpleQueryStringBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(TermsSetQueryBuilder.NAME, TermsSetQueryBuilder::new,
-			TermsSetQueryBuilder::fromXContent));
+			TermsSetQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(TermQueryBuilder.NAME, TermQueryBuilder::new,
-			TermQueryBuilder::fromXContent));
+			TermQueryBuilder::fromXContent), writables, xcontents);
 		registerQueryBuilder(new SearchPlugin.QuerySpec<>(TermsQueryBuilder.NAME, TermsQueryBuilder::new,
-			TermsQueryBuilder::fromXContent));
+			TermsQueryBuilder::fromXContent), writables, xcontents);
+		SEARCH_CONTENT_REGISTRY = new NamedXContentRegistry(xcontents);
 	}
 
 	/**
@@ -100,10 +106,25 @@ public class DanawaSearchQueryBuilder {
 	public static QueryBuilder parseQuery(String source) {
 		QueryBuilder ret = null;
 		try {
-			NamedXContentRegistry registry = new NamedXContentRegistry(INSTANCE.namedXContents);
 			XContentParser parser = JsonXContent.jsonXContent
-				.createParser(registry, LoggingDeprecationHandler.INSTANCE, source);
+				.createParser(INSTANCE.SEARCH_CONTENT_REGISTRY, LoggingDeprecationHandler.INSTANCE, source);
 			ret = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+		return ret;
+	}
+
+	/**
+	 * 정렬문자열을 ES 정렬객체로 생성한다.
+	 */
+	public static List<SortBuilder<?>> parseSortSet(String source) {
+		List<SortBuilder<?>> ret = null;
+		try {
+			XContentParser parser = JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY,
+				LoggingDeprecationHandler.INSTANCE, source);
+			parser.nextToken();
+			ret = SortBuilder.fromXContent(parser);
 		} catch (Exception e) {
 			logger.error("", e);
 		}
@@ -193,13 +214,19 @@ public class DanawaSearchQueryBuilder {
 	 */
 	public final static QueryBuilder phraseQuery(String[] fields, Map<String, Float> boostMap, String phrase, int slop) {
 		BoolQueryBuilder ret = QueryBuilders.boolQuery();
-		for (String field : fields) {
-			Float boost = 1.0f;
-			if (boostMap.containsKey(field)) {
-				boost = boostMap.get(field);
-			}
-			ret.should().add(QueryBuilders.matchPhraseQuery(field, phrase).boost(boost).slop(slop).analyzer(WHITESPACE));
+		String[] split = phrase.split(" ");
+		for (String word : split) {
+			ret.must().add(QueryBuilders.multiMatchQuery(word, fields).fields(boostMap).analyzer(WHITESPACE));
 		}
+		////////////////////////////////////////////////////////////////////////////////
+		// 문장검색이 아닌 단어매칭을 수행할 경우
+		// for (String field : fields) {
+		// 	Float boost = 1.0f;
+		// 	if (boostMap.containsKey(field)) {
+		// 		boost = boostMap.get(field);
+		// 	}
+		// 	ret.should().add(QueryBuilders.matchPhraseQuery(field, phrase).boost(boost).slop(slop).analyzer(WHITESPACE));
+		// }
 		return ret;
 	}
 

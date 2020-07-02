@@ -59,6 +59,7 @@ import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.json.JSONObject;
@@ -685,7 +686,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					.should(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word))
 					.should(QueryBuilders.matchQuery(ES_DICT_FIELD_VALUE, word))
 				);
-			Iterator<Map<String, Object>> result = SearchUtil.search(client, index, query, 0, -1, true);
+			Iterator<Map<String, Object>> result = SearchUtil.search(client, index, query, null, 0, -1, true);
 			while (result.hasNext()) {
 				Map<String, Object> data = result.next();
 				CharVector keyword = CharVector.valueOf(data.get(ES_DICT_FIELD_KEYWORD));
@@ -760,6 +761,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean showExplain = request.paramAsBoolean("showExplain", false);
 		boolean showDetail = request.paramAsBoolean("showDetail", false);
 		boolean useScroll = request.paramAsBoolean("useScroll", false);
+		String sortStr = request.param("sort");
 		if (!Method.GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", "");
@@ -772,6 +774,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			showExplain = jparam.optBoolean("showExplain", false);
 			showDetail = jparam.optBoolean("showDetail", false);
 			useScroll = jparam.optBoolean("useScroll", false);
+			sortStr = jparam.optString("sort");
 		}
 
 		for (int inx = 0; inx < fields.length; inx++) {
@@ -805,8 +808,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						QueryBuilder innerQuery = ((FunctionScoreQueryBuilder) baseQuery).query();
 						if (innerQuery instanceof BoolQueryBuilder) {
 							BoolQueryBuilder boolQuery = (BoolQueryBuilder) innerQuery;
+							boolQuery.must().clear();
 							boolQuery.must(query);
-							logger.debug("Q:{}", boolQuery);
+							logger.trace("Q:{}", boolQuery);
 						}
 						query = baseQuery;
 					}
@@ -814,13 +818,17 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					logger.error("", e);
 				}
 			}
-
 			logger.trace("Q:{}", query);
 			long total = -1;
 			if (showTotal) {
-				// NOTE: 부하가 얼마나 걸릴지 체크해 봐야 할듯.
 				total = SearchUtil.count(client, index, query);
 			}
+			List<SortBuilder<?>> sortSet = null;
+			if (sortStr != null && !"".equals(sortStr)) {
+				logger.debug("SORT:{}", sortStr);
+				sortSet = DanawaSearchQueryBuilder.parseSortSet(sortStr);
+			}
+
 			boolean doScroll = !useScroll ? false : from + size > 10000;
 			builder.object();
 			if (showExplain) {
@@ -833,7 +841,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				builder.key("total").value(total);
 			}
 			builder.key("result").array();
-			Iterator<Map<String, Object>> iter = SearchUtil.search(client, index, query, from, size, doScroll);
+			Iterator<Map<String, Object>> iter = SearchUtil.search(client, index, query, sortSet, from, size, doScroll);
 			while (iter != null && iter.hasNext()) {
 				Map<String, Object> map = iter.next();
 				builder.object();
@@ -886,7 +894,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			try {
 				QueryBuilder query = QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type.toUpperCase());
 				logger.trace("QUERY:{}", query);
-				iterator = SearchUtil.search(client, index, query, 0, -1, true);
+				iterator = SearchUtil.search(client, index, query, null, 0, -1, true);
 			} catch (Exception e) {
 				logger.error("", e);
 			}

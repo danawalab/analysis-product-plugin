@@ -1,6 +1,7 @@
 package com.danawa.search.util;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -19,6 +20,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.SortBuilder;
 
 public class SearchUtil {
 
@@ -93,19 +95,19 @@ public class SearchUtil {
 		return ret;
 	}
 
-	public static Iterator<Map<String, Object>> search(NodeClient client, String index, QueryBuilder query, int from, int size, boolean doScroll) {
+	public static Iterator<Map<String, Object>> search(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, int from, int size, boolean doScroll) {
 		Iterator<Map<String, Object>> ret = null;
 		if (doScroll) {
-			ret = new ScrollSearchResultIterator().doSearch(client, index, query, from, size);
+			ret = new ScrollSearchResultIterator().doSearch(client, index, query, sortSet, from, size);
 		} else {
-			ret = new SearchResultIterator().doSearch(client, index, query, from, size);
+			ret = new SearchResultIterator().doSearch(client, index, query, sortSet, from, size);
 		}
 		return ret;
 	}
 
 	static abstract class AbstractSearchResultIterator implements Iterator<Map<String, Object>> {
 		public static final String FIELD_ROWNUM = "_ROWNUM";
-		public abstract Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, int from, int size);
+		public abstract Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, int from, int size);
 	}
 
 	static class SearchResultIterator extends AbstractSearchResultIterator {
@@ -116,12 +118,17 @@ public class SearchUtil {
 		private TimeValue timeOut;
 
 		@Override 
-		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, int from, int size) {
+		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, int from, int size) {
 			/**
 			 * 단순 검색. 빠르지만 1만건 이상 검색결과 검색 불가능
 			 **/
 			try {
 				SearchSourceBuilder source = new SearchSourceBuilder();
+				if (sortSet != null) {
+					for (SortBuilder<?> sort : sortSet) {
+						source.sort(sort);
+					}
+				}
 				source.query(query);
 				SearchRequest search = new SearchRequest(index.split("[,]"));
 				source.from(from);
@@ -202,13 +209,18 @@ public class SearchUtil {
 		}
 
 		@Override
-		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, int from, int size) {
+		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, int from, int size) {
 			/**
 			 * 스크롤 스트리밍 검색. 느리지만 1만건 이상 검색결과를 추출가능함.
 			 **/
 			try {
 				this.client = client;
 				SearchSourceBuilder source = new SearchSourceBuilder();
+				if (sortSet != null) {
+					for (SortBuilder<?> sort : sortSet) {
+						source.sort(sort);
+					}
+				}
 				source.query(query);
 				SearchRequest search = new SearchRequest(index.split("[,]"));
 				clearScroll = new ClearScrollRequest();

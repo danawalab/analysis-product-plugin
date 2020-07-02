@@ -5,7 +5,9 @@ import static org.junit.Assert.*;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
@@ -16,9 +18,15 @@ import com.danawa.util.TestUtil;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
+import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.elasticsearch.search.sort.SortBuilder;
 import org.json.JSONObject;
 import org.json.JSONWriter;
 import org.junit.Before;
@@ -80,6 +88,32 @@ public class ProductNameAnalysisActionTest {
 		time = System.nanoTime() - time;
 		logger.debug("Q:{}", q.query());
 		logger.debug("PARSING TAKES {} ms", ((int) Math.round(time * 100.0 / 1000000.0)) / 100.0);
+
+		XContentParser parser = JsonXContent.jsonXContent
+			.createParser(DanawaSearchQueryBuilder.INSTANCE.SEARCH_CONTENT_REGISTRY,
+			LoggingDeprecationHandler.INSTANCE, json.optString("query"));
+		XContentParser.Token token = parser.nextToken();
+		logger.debug("TOKEN:{}", token);
+
+	}
+
+	@Test public void sortFromStringTest() throws Exception {
+		String source = null;
+		source = "[{\"REGISTERDATE\":{\"order\":\"desc\"}}]";
+
+		logger.debug("SOURCE:{}", source);
+		List<NamedXContentRegistry.Entry> entries = new ArrayList<>();
+		NamedXContentRegistry.Entry entry = new NamedXContentRegistry.Entry(List.class, new ParseField("sort"),
+			(p) -> { return SortBuilder.fromXContent(p); });
+		entries.add(entry);
+		NamedXContentRegistry registry = new NamedXContentRegistry(entries);
+		XContentParser parser = JsonXContent.jsonXContent.createParser(registry, LoggingDeprecationHandler.INSTANCE, source);
+		XContentParser.Token token = parser.currentToken();
+		token = parser.nextToken();
+		token = parser.currentToken();
+		logger.debug("TOKEN:{}", token);
+		List<SortBuilder<?>> sort = SortBuilder.fromXContent(parser);
+		logger.debug("SORT:{}", sort);
 	}
 
 	@Test public void testAnalyzeDetail() {
