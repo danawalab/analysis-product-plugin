@@ -93,7 +93,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					PosTag posTag = tokenAttribute.posTag();
 
 					// 색인시에는 전체텀을 추출하지 않는다.
-					if (!option.useForQuery() && FULL_STRING.equals(type)) {
+					if (!(option.useForQuery() && option.useFullString()) && FULL_STRING.equals(type)) {
 						continue;
 					}
 					ProductNameParsingRule.addEntry(termList, ref, type, posTag, 

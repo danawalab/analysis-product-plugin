@@ -53,7 +53,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.QueryStringQueryBuilder;
+import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
@@ -266,6 +266,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useForQuery = request.paramAsBoolean("useForQuery", true);
 		boolean useSynonym = request.paramAsBoolean("useSynonym", true);
 		boolean useStopword = request.paramAsBoolean("useStopword", false);
+		boolean useFullString = request.paramAsBoolean("useFullString", true);
 		boolean test = false;
 		if (!Method.GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
@@ -275,12 +276,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			useForQuery = jparam.optBoolean("useForQuery", true);
 			useSynonym = jparam.optBoolean("useSynonym", true);
 			useStopword = jparam.optBoolean("useStopword", false);
+			useFullString = jparam.optBoolean("useFullString", true);
 			test = jparam.optBoolean("test", false);
 		}
 
 		TokenStream stream = null;
 		try {
-			stream = getAnalyzer(text, useForQuery, useSynonym, useStopword);
+			stream = getAnalyzer(text, useForQuery, useSynonym, useStopword, useFullString);
 			analyzeTextDetail(client, text, stream, detail, index, writer);
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
@@ -750,13 +752,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", "");
 		String[] fields = request.param("fields", "").split("[,]");
+		Map<String, Float> boostMap = new HashMap<>();
 		String text = request.param("text", "");
 		String queryString = request.param("query", "");
 		int from = request.paramAsInt("from", 0);
 		int size = request.paramAsInt("size", 20);
-		boolean trackTotal = request.paramAsBoolean("total", false);
-		boolean doExplain = request.paramAsBoolean("explain", false);
-		boolean useScroll = request.paramAsBoolean("scroll", false);
+		boolean showTotal = request.paramAsBoolean("showTotal", false);
+		boolean showExplain = request.paramAsBoolean("showExplain", false);
+		boolean showDetail = request.paramAsBoolean("showDetail", false);
+		boolean useScroll = request.paramAsBoolean("useScroll", false);
 		if (!Method.GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", "");
@@ -765,44 +769,71 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			queryString = jparam.optString("query", "");
 			from = jparam.optInt("from", 0);
 			size = jparam.optInt("size", 20);
-			trackTotal = jparam.optBoolean("total", false);
-			doExplain = jparam.optBoolean("explain", false);
-			useScroll = jparam.optBoolean("scroll", false);
+			showTotal = jparam.optBoolean("showTotal", false);
+			showExplain = jparam.optBoolean("showExplain", false);
+			showDetail = jparam.optBoolean("showDetail", false);
+			useScroll = jparam.optBoolean("useScroll", false);
+		}
+
+		for (int inx = 0; inx < fields.length; inx++) {
+			String[] item = fields[inx].split("[\\^]");
+			String field = item[0].trim();
+			if (item.length > 1) {
+				float boost = 1.0f;
+				try {
+					boost = Float.parseFloat(item[1].trim());
+				} catch (Exception ignore) { }
+				boostMap.put(field, boost);
+			}
+			fields[inx] = field;
 		}
 
 		TokenStream stream = null;
 		try {
 			logger.trace("ANALYZE TEXT : {}", text);
-			stream = getAnalyzer(text, true, true, true);
+			stream = getAnalyzer(text, true, true, true, true);
 			JSONObject explain = null;
-			if (doExplain) {
+			if (showExplain) {
 				explain = new JSONObject();
 			}
-			QueryBuilder query = DanawaSearchQueryBuilder.buildQuery(stream, fields, explain);
 
+			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, explain);
 			if (queryString != null && !"".equals(queryString)) {
 				try {
-					QueryStringQueryBuilder query2 = QueryBuilders.queryStringQuery(queryString);
-					logger.debug("Q:{}", query2);
-					query = DanawaSearchQueryBuilder.andQuery(query, query2);
-				} catch (Exception ignore) { }
+					QueryBuilder baseQuery = DanawaSearchQueryBuilder.parseQuery(queryString);
+					logger.trace("Q:{}", baseQuery);
+					if (baseQuery instanceof FunctionScoreQueryBuilder) {
+						QueryBuilder innerQuery = ((FunctionScoreQueryBuilder) baseQuery).query();
+						if (innerQuery instanceof BoolQueryBuilder) {
+							BoolQueryBuilder boolQuery = (BoolQueryBuilder) innerQuery;
+							boolQuery.must(query);
+							logger.debug("Q:{}", boolQuery);
+						}
+						query = baseQuery;
+					}
+				} catch (Exception e) { 
+					logger.error("", e);
+				}
 			}
 
-			logger.trace("Q:{}", query.toString());
+			logger.trace("Q:{}", query);
 			SearchSourceBuilder source = new SearchSourceBuilder();
 			source.query(query);
 			long total = -1;
-			if (trackTotal) {
+			if (showTotal) {
 				// NOTE: 부하가 얼마나 걸릴지 체크해 봐야 할듯.
 				long time = System.nanoTime();
 				total = SearchUtil.count(client, index, query);
 				time = System.nanoTime() - time;
-				logger.debug("TOTAL:{} takes {} ns", total, ((int) Math.round(time * 100.0 / 1000000.0)) / 100.0);
+				// logger.debug("TOTAL:{} takes {} ns", total, ((int) Math.round(time * 100.0 / 1000000.0)) / 100.0);
 			}
 			boolean doScroll = !useScroll ? false : from + size > 10000;
 			builder.object();
-			if (doExplain) {
+			if (showExplain) {
 				builder.key("explain").value(explain);
+			}
+			if (showDetail) {
+				builder.key("detail").value(new JSONObject(String.valueOf(query)));
 			}
 			if (total != -1) {
 				builder.key("total").value(total);
@@ -833,17 +864,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return dictionary;
 	}
 
-	private static TokenStream getAnalyzer(String str, boolean useForQuery, boolean useSynonym, boolean useStopword) {
-		// TODO: 토크나이저/분석기를 동적으로 가져올수 없으므로 자체 캐시를 사용하도록 한다.
+	private static TokenStream getAnalyzer(String str, boolean useForQuery, boolean useSynonym, boolean useStopword, boolean useFullString) {
 		TokenStream tstream = null;
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		ProductNameDictionary dictionary = getDictionary();
 		AnalyzerOption option = null;
-		option = new AnalyzerOption();
-		option.useForQuery(useForQuery);
-		option.useSynonym(useSynonym);
-		option.useStopword(useStopword);
+		option = new AnalyzerOption(useForQuery, useSynonym, useStopword, useFullString);
 		reader = new StringReader(str);
 		tokenizer = new ProductNameTokenizer(dictionary, false);
 		tokenizer.setReader(reader);

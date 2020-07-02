@@ -3,8 +3,11 @@
 PUT /.fastcatx_dict
 {
   "settings": {
-    "number_of_shards": 1,
-    "number_of_replicas": 1,
+    "index": {
+      "number_of_shards": "1",
+      "number_of_replicas": "1",
+      "max_result_window": "2147483647"
+    },
     "analysis": {
       "analyzer": {
         "comma_analyzer": {
@@ -89,7 +92,7 @@ PUT /product_vm
           "search": {
             "type": "text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -107,7 +110,7 @@ PUT /product_vm
           "search": {
             "type": "text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -124,7 +127,7 @@ PUT /product_vm
           "search": {
             "type": "text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -142,7 +145,7 @@ PUT /product_vm
           "search": {
             "type": "text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -159,7 +162,7 @@ PUT /product_vm
           "search": {
             "type": "text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -170,14 +173,14 @@ PUT /product_vm
           "search": {
             "type": "text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
       "MODELWEIGHT": {
         "type": "text",
         "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       },
       "PRODUCTIMAGEURL": {
         "type": "keyword"
@@ -267,7 +270,7 @@ PUT /product_vm
       "CATEGORYWEIGHT": {
         "type": "text",
         "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       },
       "REGISTERDATE": {
         "type": "date",
@@ -326,7 +329,7 @@ PUT /product_vm
           "search": {
             "type": "text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -408,7 +411,7 @@ PUT /product_vm
       "OPTIONNAME": {
         "type": "text",
         "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       },
       "SELECTYN": {
         "type": "keyword"
@@ -541,24 +544,25 @@ PUT /product_vm
       "TOTALINDEX": {
         "type": "text",
 		    "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       },
       "UIPRODUCTINDEX": {
         "type": "text",
 		    "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       },
       "MAKER_BRANDKEYWORD": {
         "type": "text",
 		    "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       }
     }
   },
   "settings": {
     "index": {
       "number_of_shards": "1",
-      "number_of_replicas": "0"
+      "number_of_replicas": "0",
+      "max_result_window": "2147483647"
     },
     "analysis": {
       "tokenizer": { "product_name_custom": { "type": "product_name", "export_term": "false" } },
@@ -612,7 +616,7 @@ PUT /product
           "search":{
             "type":"text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -627,7 +631,7 @@ PUT /product
           "search":{
             "type":"text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -641,7 +645,7 @@ PUT /product
           "search":{
             "type":"text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -656,7 +660,7 @@ PUT /product
           "search":{
             "type":"text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -670,7 +674,7 @@ PUT /product
           "search":{
             "type":"text",
             "analyzer": "product_name_index",
-            "search_analyzer": "whitespace"
+            "search_analyzer": "product_name_search"
           }
         }
       },
@@ -681,7 +685,7 @@ PUT /product
       "MODELWEIGHT": {
         "type": "text",
         "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       },
       "PRODUCTIMAGEURL": {
         "type": "object",
@@ -766,8 +770,8 @@ PUT /product
       },
       "CATEGORYWEIGHT": {
         "type": "text",
-		"analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "analyzer": "product_name_index",
+        "search_analyzer": "product_name_search"
       },
       "REGISTERDATE": {
         "type": "date",
@@ -908,12 +912,12 @@ PUT /product
       "TOTALINDEX": {
         "type": "text",
         "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       },
       "MAKER_BRANDKEYWORD": {
         "type": "text",
         "analyzer": "product_name_index",
-        "search_analyzer": "whitespace"
+        "search_analyzer": "product_name_search"
       }
     }
   },

@@ -13,8 +13,6 @@ public class ProductNameAnalyzer extends Analyzer {
 	public ProductNameAnalyzer(ProductNameDictionary commonDictionary) {
 		this(commonDictionary, null);
 		option = new AnalyzerOption();
-		option.useStopword(true);
-		option.useSynonym(true);
 	}
 
 	public ProductNameAnalyzer(ProductNameDictionary commonDictionary, AnalyzerOption option) {

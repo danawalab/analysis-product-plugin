@@ -74,11 +74,9 @@ public class ProductNameAnalysisFilterTest {
 		str = "[당일발송]몰래키메라 탐지기 RD-10 /// 대만 Lawmate 몰래카메라탐지기 12345 12345";
 		// str = "Sandisk Extream Z80 USB 16gb bacastv";
 		try {
-			option = new AnalyzerOption();
-			// option.useForQuery(true);
-			option.useForQuery(false);
-			option.useSynonym(true);
-			option.useStopword(true);
+			// boolean useForQuery = false;
+			boolean useForQuery = true;
+			option = new AnalyzerOption(useForQuery, true, true, true);
 			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary, true);
 			tokenizer.setReader(reader);
@@ -145,10 +143,7 @@ public class ProductNameAnalysisFilterTest {
 				logger.trace("TEST:{}", rl);
 				tokenizer = new ProductNameTokenizer(dictionary, false);
 				tokenizer.setReader(new StringReader(rl));
-				option = new AnalyzerOption();
-				option.useForQuery(false);
-				option.useSynonym(true);
-				option.useStopword(true);
+				option = new AnalyzerOption(false, true, true, true);
 				tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 				tstream.reset();
 				CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
@@ -226,10 +221,7 @@ public class ProductNameAnalysisFilterTest {
 				}
 				String[] testdata = rline.split("\t");
 				Reader input = new StringReader(testdata[0]);
-				AnalyzerOption option = new AnalyzerOption();
-				option.useForQuery(isForQuery);
-				option.useStopword(true);
-				option.useSynonym(true);
+				AnalyzerOption option = new AnalyzerOption(isForQuery, true, true, true);
 				analyzer = new ProductNameAnalyzer(dictionary, option);
 				TokenStream tokenStream = analyzer.tokenStream("", input);
 				TypeAttribute typeAttribute = tokenStream.addAttribute(TypeAttribute.class);

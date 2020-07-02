@@ -22,13 +22,11 @@ public class ProductNameAnalysisFilterFactory extends AbstractTokenFilterFactory
 
 	public ProductNameAnalysisFilterFactory(IndexSettings indexSettings, Environment env, String name, Settings settings) {
 		super(indexSettings, name, settings);
+		boolean useForQuery = settings.getAsBoolean("use_for_query", true);
 		boolean useSynonym = settings.getAsBoolean("use_synonym", true);
 		boolean useStopword = settings.getAsBoolean("use_stopword", true);
-		boolean useForQuery = settings.getAsBoolean("use_for_query", true);
-		option = new AnalyzerOption();
-		option.useSynonym(useSynonym);
-		option.useStopword(useStopword);
-		option.useForQuery(useForQuery);
+		boolean useFullString = settings.getAsBoolean("use_full_string", false);
+		option = new AnalyzerOption(useForQuery, useSynonym, useStopword, useFullString);
 	}
 
 	@Override

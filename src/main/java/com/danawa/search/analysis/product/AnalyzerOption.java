@@ -1,16 +1,28 @@
 package com.danawa.search.analysis.product;
 
 public class AnalyzerOption {
-	private boolean useStopword;
+	private boolean useForQuery;
 	private boolean useSynonym;
-	private boolean forQuery;
+	private boolean useStopword;
+	private boolean useFullString;
 
-	public boolean useStopword() {
-		return useStopword;
+	public AnalyzerOption() {
+		this(false, true, true, false);
 	}
 
-	public void useStopword(boolean useStopword) {
+	public AnalyzerOption(boolean useForQuery, boolean useSynonym, boolean useStopword, boolean useFullString) {
+		this.useForQuery = useForQuery;
+		this.useSynonym = useSynonym;
 		this.useStopword = useStopword;
+		this.useFullString = useFullString;
+	}
+
+	public void useForQuery(boolean  forQuery) {
+		this.useForQuery = forQuery;
+	}
+
+	public boolean useForQuery() {
+		return this.useForQuery;
 	}
 
 	public boolean useSynonym() {
@@ -21,15 +33,23 @@ public class AnalyzerOption {
 		this.useSynonym = useSynonym;
 	}
 
-	public void useForQuery(boolean  forQuery) {
-		this.forQuery = forQuery;
+	public boolean useStopword() {
+		return useStopword;
 	}
 
-	public boolean useForQuery() {
-		return this.forQuery;
+	public void useStopword(boolean useStopword) {
+		this.useStopword = useStopword;
+	}
+
+	public boolean useFullString() {
+		return useFullString;
+	}
+
+	public void useFullString(boolean useFullString) {
+		this.useFullString = useFullString;
 	}
 
 	@Override public String toString() {
-		return "[" + forQuery + "," + useSynonym + "," + useStopword + "]";
+		return "[" + useForQuery + "," + useSynonym + "," + useStopword + "," + useFullString + "]";
 	}
 }
