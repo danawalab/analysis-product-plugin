@@ -5,8 +5,7 @@ import static org.junit.Assert.*;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Set;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
@@ -16,29 +15,14 @@ import com.danawa.util.TestUtil;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
-import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import org.apache.lucene.queryparser.xml.builders.BooleanQueryBuilder;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.xcontent.DeprecationHandler;
-import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.BoostingQueryBuilder;
-import org.elasticsearch.index.query.MatchPhraseQueryBuilder;
-import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
+import org.elasticsearch.index.query.Operator;
 import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryStringQueryBuilder;
-import org.elasticsearch.index.query.RangeQueryBuilder;
-import org.elasticsearch.index.query.SimpleQueryStringBuilder;
-import org.elasticsearch.index.query.TermQueryBuilder;
-import org.elasticsearch.index.query.TermsQueryBuilder;
-import org.elasticsearch.index.query.TermsSetQueryBuilder;
-import org.elasticsearch.index.query.WrapperQueryBuilder;
-import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
-import org.elasticsearch.plugins.SearchPlugin;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONWriter;
 import org.junit.Before;
@@ -158,56 +142,111 @@ public class ProductNameAnalysisActionTest {
 			"} ";
 
 		JSONObject json = new JSONObject(source);
-
 		for (String key : json.keySet()) {
 			logger.debug("KEY:{} / {}", key, json.opt(key).getClass());
 		}
-
 		source = json.optString("query");
 
-		DeprecationHandler dpHandler = LoggingDeprecationHandler.INSTANCE;
-
-		registerQuery(new SearchPlugin.QuerySpec<>(MatchQueryBuilder.NAME, MatchQueryBuilder::new,
-				MatchQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(MultiMatchQueryBuilder.NAME, MultiMatchQueryBuilder::new,
-				MultiMatchQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(MatchPhraseQueryBuilder.NAME, MatchPhraseQueryBuilder::new,
-				MatchPhraseQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(QueryStringQueryBuilder.NAME, QueryStringQueryBuilder::new,
-				QueryStringQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(BoostingQueryBuilder.NAME, BoostingQueryBuilder::new,
-				BoostingQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(BoolQueryBuilder.NAME, BoolQueryBuilder::new,
-				BoolQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(RangeQueryBuilder.NAME, RangeQueryBuilder::new,
-				RangeQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(WrapperQueryBuilder.NAME, WrapperQueryBuilder::new,
-				WrapperQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(FunctionScoreQueryBuilder.NAME, FunctionScoreQueryBuilder::new,
-				FunctionScoreQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(SimpleQueryStringBuilder.NAME, SimpleQueryStringBuilder::new,
-				SimpleQueryStringBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(TermsSetQueryBuilder.NAME, TermsSetQueryBuilder::new,
-				TermsSetQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(TermQueryBuilder.NAME, TermQueryBuilder::new,
-				TermQueryBuilder::fromXContent));
-		registerQuery(new SearchPlugin.QuerySpec<>(TermsQueryBuilder.NAME, TermsQueryBuilder::new,
-				TermsQueryBuilder::fromXContent));
-
-		NamedXContentRegistry registry = new NamedXContentRegistry(namedXContents);
-		XContentParser parser = JsonXContent.jsonXContent.createParser(registry, dpHandler, source);
 		long time = System.nanoTime();
-		QueryBuilder query = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+		// QueryBuilder query = DanawaSearchQueryBuilder.parseQuery(source);
+		QueryBuilder query = parseQueryByJson(json);
 		time = System.nanoTime() - time;
-		logger.debug("Q:{}", "", query);
+		logger.trace("Q:{}", query);
 		logger.debug("PARSING TAKES {} ms", ((int) Math.round(time * 100.0 / 1000000.0)) / 100.0);
 	}
 
-	private final List<NamedWriteableRegistry.Entry> namedWriteables = new ArrayList<>();
-	private final List<NamedXContentRegistry.Entry> namedXContents = new ArrayList<>();
-	private void registerQuery(SearchPlugin.QuerySpec<?> spec) {
-		namedWriteables.add(new NamedWriteableRegistry.Entry(QueryBuilder.class, spec.getName().getPreferredName(), spec.getReader()));
-		namedXContents.add(new NamedXContentRegistry.Entry(QueryBuilder.class, spec.getName(), (p, c) -> spec.getParser().fromXContent(p)));
+	public static QueryBuilder parseQueryByJson(JSONObject source) {
+		QueryBuilder ret = null;
+		try {
+			Set<String> keys = source.keySet();
+			for (String key : keys) {
+				Object value = source.get(key);
+				logger.debug("KEY:{} / {}", key, value.getClass());
+				if ("bool".equals(key)) {
+					// BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+					// ret = boolQuery;
+					// JSONObject queryValue = (JSONObject) value;
+					// JSONArray queryItems = null;
+					// QueryBuilder subQuery = null;
+					// if ((queryItems = queryValue.optJSONArray("must")) != null) {
+					// 	for (int inx = 0; inx < queryItems.length(); inx++) {
+					// 		subQuery = parseQueryByJson(queryItems.getJSONObject(inx));
+					// 		if (subQuery != null) { boolQuery.must(subQuery); }
+					// 	}
+					// }
+					// if ((queryItems = queryValue.optJSONArray("should")) != null) {
+					// 	for (int inx = 0; inx < queryItems.length(); inx++) {
+					// 		subQuery = parseQueryByJson(queryItems.getJSONObject(inx));
+					// 		if (subQuery != null) { boolQuery.should(subQuery); }
+					// 	}
+					// }
+					BoolQueryBuilder boolQuery = (BoolQueryBuilder) DanawaSearchQueryBuilder
+						.parseQuery("{\"" + key + "\":" + value + "}");
+					ret = boolQuery;
+					QueryBuilder testQuery = QueryBuilders.queryStringQuery("ABC:TEST");
+					boolQuery.must(testQuery);
+					logger.debug("Q:{}", boolQuery);
+				} else if ("multi_match".equals(key)) {
+					ret = DanawaSearchQueryBuilder.parseQuery("{\"" + key + "\":" + value + "}");
+				} else if (value instanceof JSONObject) {
+					parseQueryByJson((JSONObject) value);
+				} else if (value instanceof JSONArray) {
+					parseQueryByJson((JSONArray) value);
+				}
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+		return ret;
+	}
+
+	public static QueryBuilder parseQueryByJson(JSONArray source) {
+		QueryBuilder ret = null;
+		try {
+			for (int inx = 0; inx < source.length(); inx++) {
+				Object value = source.get(inx);
+				logger.debug("INDEX:{} / {}", inx, value.getClass());
+				if (value instanceof JSONObject) {
+					parseQueryByJson((JSONObject) value);
+				} else if (value instanceof JSONArray) {
+					parseQueryByJson((JSONArray) value);
+				}
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+		return ret;
+	}
+
+	public static QueryBuilder parseMultiMatchQueryByJson(JSONObject source) {
+		MultiMatchQueryBuilder ret = null;
+		try {
+			JSONArray fieldItems = source.optJSONArray("fields");
+			String text = source.optString("query");
+			String operator = source.optString("operator");
+			String[] fields = new String[fieldItems.length()];
+			float[] boosts = new float[fieldItems.length()];
+			for (int inx = 0; inx < fields.length; inx++) {
+				String[] item = fieldItems.getString(inx).split("\\^");
+				if (item.length > 1) {
+					fields[inx] = item[0];
+					boosts[inx] = Float.parseFloat(item[1]);
+				} else {
+					fields[inx] = item[0];
+					boosts[inx] = 1;
+				}
+			}
+			ret = QueryBuilders.multiMatchQuery(text, fields);
+			for (int inx = 0; inx < fields.length; inx++) {
+				ret.fields().put(fields[inx], boosts[inx]);
+			}
+			if (!"".equals(operator)) {
+				ret.operator(Operator.fromString(operator));
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+		return ret;
 	}
 
 	@Test public void testAnalyzeDetail() {
