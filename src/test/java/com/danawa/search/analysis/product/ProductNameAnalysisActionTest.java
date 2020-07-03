@@ -26,6 +26,8 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.json.JSONObject;
 import org.json.JSONWriter;
@@ -65,7 +67,7 @@ public class ProductNameAnalysisActionTest {
 		boostMap.put("BRANDKEYWORD", 100000.0f);
 
 		stream = getAnalyzer(dictionary, text, true, true, true, true);
-		QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, analysis);
+		QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, null, analysis);
 		logger.debug("Q:{}", query.toString());
 		logger.debug("ANALYSIS:{}", analysis);
 		assertTrue(true);
@@ -98,6 +100,7 @@ public class ProductNameAnalysisActionTest {
 	}
 
 	@Test public void sortFromStringTest() throws Exception {
+		if (TestUtil.launchForBuild()) { return; }
 		String source = null;
 		source = "[{\"REGISTERDATE\":{\"order\":\"desc\"}}]";
 
@@ -114,6 +117,35 @@ public class ProductNameAnalysisActionTest {
 		logger.debug("TOKEN:{}", token);
 		List<SortBuilder<?>> sort = SortBuilder.fromXContent(parser);
 		logger.debug("SORT:{}", sort);
+	}
+
+	@Test public void highlightStringTest() throws Exception {
+		if (TestUtil.launchForBuild()) { return; }
+		String source = null;
+		source = "" + 
+		"  { " +
+		"    \"number_of_fragments\" : 3, " +
+		"    \"fragment_size\" : 150, " +
+		"    \"pre_tags\" : [\"<tag1>\"], " +
+		"    \"post_tags\" : [\"</tag1>\"], " +
+		"    \"fields\" : { " +
+		"      \"_all\" : { " +
+		"        \"fragment_size\" : 15, " +
+		"        \"number_of_fragments\" : 3, " +
+		"        \"fragmenter\": \"simple\" " +
+		"      }, " +
+		"      \"PRODUCTNAME\" : { " +
+		"      } " +
+		"    } " +
+		"  } ";
+		XContentParser parser = JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY,
+			LoggingDeprecationHandler.INSTANCE, source);
+		parser.nextToken();
+		HighlightBuilder highlight = HighlightBuilder.fromXContent(parser);
+		for (Field field : highlight.fields()) {
+			logger.debug("FIELD:{}", field.name());
+		}
+		logger.debug("HIGHLIGHT:{}", highlight);
 	}
 
 	@Test public void testAnalyzeDetail() {

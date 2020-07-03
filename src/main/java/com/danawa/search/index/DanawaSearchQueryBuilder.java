@@ -36,6 +36,7 @@ import org.elasticsearch.index.query.TermsSetQueryBuilder;
 import org.elasticsearch.index.query.WrapperQueryBuilder;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.plugins.SearchPlugin;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -132,14 +133,31 @@ public class DanawaSearchQueryBuilder {
 	}
 
 	/**
+	 * 하이라이터문자열을 ES 정렬객체로 생성한다.
+	 */
+	public static HighlightBuilder parseHighlight(String source) {
+		HighlightBuilder ret = null;
+		try {
+			XContentParser parser = JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY,
+				LoggingDeprecationHandler.INSTANCE, source);
+			parser.nextToken();
+			ret = HighlightBuilder.fromXContent(parser);
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+		return ret;
+	}
+
+	/**
 	 * 상품검색용 분석질의 객체 생성기, 분석기 속성 (동의어, 확장어 등) 을 고려한 질의객체를 생성한다.
 	 */
-	public static QueryBuilder buildAnalyzedQuery(TokenStream stream, String[] fields, Map<String, Float> boostMap, JSONObject explain) {
+	public static QueryBuilder buildAnalyzedQuery(TokenStream stream, String[] fields, Map<String, Float> boostMap, String[] views, JSONObject explain) {
 		QueryBuilder ret = null;
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
 		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
 		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
+		StringBuilder highlightTerms = new StringBuilder();
 		try {
 			stream.reset();
 			BoolQueryBuilder mainQuery = QueryBuilders.boolQuery();
@@ -154,6 +172,7 @@ public class DanawaSearchQueryBuilder {
 				String term = String.valueOf(termAttr);
 				String type = typeAttr.type();
 				logger.trace("TOKEN:{} / {}", term, type);
+				highlightTerms.append(" ").append(term);
 
 				JSONArray termExplain = null;
 				if (explain != null) {
@@ -165,11 +184,11 @@ public class DanawaSearchQueryBuilder {
 
 				if (synAttr != null && (synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
 					logger.trace("SYNONYM [{}] = {}", term, synonyms);
-					termQuery = synonymQuery(termQuery, synonyms, fields, boostMap, termAttr, typeAttr, synAttr, extAttr, termExplain);
+					termQuery = synonymQuery(termQuery, synonyms, fields, boostMap, termAttr, typeAttr, synAttr, extAttr, highlightTerms, termExplain);
 				}
 				if (extAttr != null && extAttr.size() > 0) {
 					logger.trace("EXTRA [{}] = {}", term, extAttr);
-					termQuery = extraQuery(termQuery, fields, boostMap, termAttr, typeAttr, synAttr, extAttr, termExplain);
+					termQuery = extraQuery(termQuery, fields, boostMap, termAttr, typeAttr, synAttr, extAttr, highlightTerms, termExplain);
 				}
 
 				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
@@ -200,6 +219,14 @@ public class DanawaSearchQueryBuilder {
 						}
 					}
 				}
+			}
+			if (views != null && views.length > 0) {
+				BoolQueryBuilder highlightQuery = QueryBuilders.boolQuery();
+				String[] terms = String.valueOf(highlightTerms).trim().split(" ");
+				for (String term : terms) {
+					highlightQuery.should(QueryBuilders.multiMatchQuery(term, views));
+				}
+				ret = andQuery(ret, highlightQuery);
 			}
 		} catch (Exception e) {
 			logger.error("", e);
@@ -235,7 +262,7 @@ public class DanawaSearchQueryBuilder {
 	 */
 	public final static QueryBuilder synonymQuery(QueryBuilder query, List<CharSequence> synonyms, String[] fields, Map<String, Float> boostMap, 
 		CharTermAttribute termAttr, TypeAttribute typeAttr, SynonymAttribute synAttr, 
-		ExtraTermAttribute extAttr, JSONArray explain) {
+		ExtraTermAttribute extAttr, StringBuilder highlightTerms, JSONArray explain) {
 		QueryBuilder ret = query;
 		BoolQueryBuilder subQuery = QueryBuilders.boolQuery();
 		subQuery.should().add(query);
@@ -262,7 +289,7 @@ public class DanawaSearchQueryBuilder {
 	 */
 	public final static QueryBuilder extraQuery(QueryBuilder query, String[] fields, Map<String, Float> boostMap, 
 		CharTermAttribute termAttr, TypeAttribute typeAttr, SynonymAttribute synAttr, 
-		ExtraTermAttribute extAttr, JSONArray explain) {
+		ExtraTermAttribute extAttr, StringBuilder highlightTerms, JSONArray explain) {
 		List<CharSequence> synonyms = null;
 		QueryBuilder ret = query;
 		if (extAttr != null && extAttr.size() > 0) {
@@ -276,6 +303,7 @@ public class DanawaSearchQueryBuilder {
 			for (; termIter.hasNext();) {
 				String term = termIter.next();
 				String type = typeAttr.type();
+				highlightTerms.append(" ").append(term);
 				synonyms = synAttr.getSynonyms();
 				if (synonyms == null || synonyms.size() == 0) {
 					subQuery.must().add(QueryBuilders.multiMatchQuery(term, fields).fields(boostMap).analyzer(WHITESPACE));
@@ -289,7 +317,7 @@ public class DanawaSearchQueryBuilder {
 					JSONArray subExplain = new JSONArray();
 					subExplain.put(term);
 					termExplain.put(new JSONObject().put(OR, subExplain));
-					subQuery.must().add(synonymQuery(query, synonyms, fields, boostMap, termAttr, typeAttr, synAttr, extAttr, subExplain));
+					subQuery.must().add(synonymQuery(query, synonyms, fields, boostMap, termAttr, typeAttr, synAttr, extAttr, highlightTerms, subExplain));
 				}
 				logger.trace("a-term:{} / type:{} / synonoym:{}", term, type, synonyms);
 			}
