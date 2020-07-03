@@ -950,28 +950,28 @@ PUT /product
 ################################################################################
 # 상품명 사전 정보
 # index: 사전색인명
-POST /_product-name-analysis/info-dict
+POST /_analysis-product-name/info-dict
 {
   "index": ".fastcatx_dict"
 }
 
-GET /_product-name-analysis/info-dict
+GET /_analysis-product-name/info-dict
 
 ################################################################################
 # 상품명 사전 검색
 # index: 사전색인명
 # word: 검색단어
-POST /_product-name-analysis/find-dict
+POST /_analysis-product-name/find-dict
 {
   "index": ".fastcatx_dict",
   "word": "산디스크"
 }
 
-GET /_product-name-analysis/find-dict?index=.fastcatx_dict&word=산디스크
+GET /_analysis-product-name/find-dict?index=.fastcatx_dict&word=산디스크
 
 ################################################################################
 # 상품명 사전 재시작 (바이너리 사전 로딩 재시작)
-GET /_product-name-analysis/reload-dict
+GET /_analysis-product-name/reload-dict
 
 ################################################################################
 # 상품명 사전 컴파일
@@ -979,25 +979,25 @@ GET /_product-name-analysis/reload-dict
 # index: 사전색인명
 # exportFile: 사전색인 -> 파일로 변환 (false 시 메모리에만 올라감)
 # distribute: 각 노드에 신호 전파
-POST /_product-name-analysis/compile-dict
+POST /_analysis-product-name/compile-dict
 {
   "index": ".fastcatx_dict",
   "exportFile": true,
   "distribute": true
 }
 
-GET /_product-name-analysis/compile-dict?index=.fastcatx_dict&exportFile=true&distribute=true
+GET /_analysis-product-name/compile-dict?index=.fastcatx_dict&exportFile=true&distribute=true
 
 ################################################################################
 # 상품명 사전 역컴파일
 # 사전파일 -> 사전색인으로 역변환 (사전색인 복원시 사용 / 동의어 등 일부 내용은 변질될수 있음)
 # index: 사전색인명
-POST /_product-name-analysis/restore-dict
+POST /_analysis-product-name/restore-dict
 {
   "index": ".fastcatx_dict"
 }
 
-GET /_product-name-analysis/restore-dict?index=.fastcatx_dict
+GET /_analysis-product-name/restore-dict?index=.fastcatx_dict
 
 ################################################################################
 # 상품명 사전
@@ -1006,7 +1006,7 @@ GET /_product-name-analysis/restore-dict?index=.fastcatx_dict
 # detail: 상세분석 여부 (true / false)
 # useForQuery: 질의 / 색인 여부 (true / false)
 # text: 분석용 텍스트
-POST /_product-name-analysis/analyze-text
+POST /_analysis-product-name/analyze
 {
   "index": ".fastcatx_dict",
   "detail": true,
@@ -1014,7 +1014,7 @@ POST /_product-name-analysis/analyze-text
   "text": "Sandisk Extream Z80 USB 16gb"
 }
 
-GET /_product-name-analysis/analyze-text?index=.fastcatx_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
+GET /_analysis-product-name/analyze?index=.fastcatx_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
 
 ################################################################################
 # 상품명 상세분석
@@ -1023,7 +1023,7 @@ GET /_product-name-analysis/analyze-text?index=.fastcatx_dict&detail=true&useFor
 # detail: 상세분석 여부 (true / false)
 # useForQuery: 질의 / 색인 여부 (true / false)
 # text: 분석용 텍스트
-POST /_product-name-analysis/analyze-text
+POST /_analysis-product-name/analyze-text
 {
   "index": ".fastcatx_dict",
   "detail": true,
@@ -1031,7 +1031,16 @@ POST /_product-name-analysis/analyze-text
   "text": "Sandisk Extream Z80 USB 16gb"
 }
 
-GET /_product-name-analysis/analyze-text?index=.fastcatx_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
+GET /_analysis-product-name/analyze-text?index=.fastcatx_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
+
+# ES 기본 제공 형태소 분석은 다음과 같음
+
+POST /_analyze
+{
+  "tokenizer": { "type": "product_name" },
+  "filter": [ { "type": "product_name", "use_for_query": true } ],
+  "text": "Sandisk Extream Z80 USB 16gb bacastv"
+}
 
 ################################################################################
 # 상품검색
@@ -1046,7 +1055,7 @@ GET /_product-name-analysis/analyze-text?index=.fastcatx_dict&detail=true&useFor
 # showDetail: 내부 검색질의문 출력
 # useScroll: 10000 건 넘을 경우 스크롤 여부 (사용시 느려질수 있음)
 # 
-POST /_product-name-analysis/search
+POST /_analysis-product-name/search
 {
   "index": "product1,product2",
   "fields": "TOTALINDEX,MODELWEIGHT^300000,MAKERKEYWORD^200000,BRANDKEYWORD^200000,CATEGORYWEIGHT^100000",
@@ -1090,6 +1099,15 @@ POST /_product-name-analysis/search
       "boost_mode": "sum"
     }
   },
+  "highlight" : {
+    "number_of_fragments" : 3,
+    "fragment_size" : 150,
+    "pre_tags" : ["<b>"],
+    "post_tags" : ["</b>"],
+    "fields" : {
+      "PRODUCTNAME" : { }
+    }
+  },
   "sort": [
     {
       "_score": {
@@ -1102,7 +1120,7 @@ POST /_product-name-analysis/search
   ]
 }
 
-GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&showTotal=true&showExplain=false&useScroll=true&query={}&text=Sandisk Extream Z80 USB 16gb
+GET /_analysis-product-name/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&showTotal=true&showExplain=false&useScroll=true&query={}&text=Sandisk Extream Z80 USB 16gb
 
 ################################################################################
 # 상품색인
@@ -1111,7 +1129,7 @@ GET /_product-name-analysis/search?index=product1,product2&fields=TOTALINDEX&fro
 # enc: 파일 인코딩
 # flush: 색인 플러시 수량
 # 
-POST /_product-name-analysis/full-index
+POST /_analysis-product-name/full-index
 {
   "index": "product1",
   "path": "/home/elastic/data/",
@@ -1119,4 +1137,4 @@ POST /_product-name-analysis/full-index
   "flush": 50000
 }
 
-GET /_product-name-analysis/full-index?index=product1&path=/home/elastic/data/&enc=euc-kr&flush=50000
+GET /_analysis-product-name/full-index?index=product1&path=/home/elastic/data/&enc=euc-kr&flush=50000

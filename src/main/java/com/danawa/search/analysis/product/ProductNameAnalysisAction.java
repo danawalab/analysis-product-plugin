@@ -74,7 +74,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
 	private static final String CONTENT_TYPE_JSON = "application/json;charset=UTF-8";
-	private static final String BASE_URI = "/_product-name-analysis";
+	private static final String BASE_URI = "/_analysis-product-name";
 	private static final String ACTION_TEST = "test";
 	private static final String ACTION_INFO_DICT = "info-dict";
 	private static final String ACTION_FIND_DICT = "find-dict";
@@ -82,7 +82,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_RESTORE_DICT = "restore-dict";
 	private static final String ACTION_COMPILE_DICT = "compile-dict";
 	private static final String ACTION_FULL_INDEX = "full-index";
-	private static final String ACTION_ANALYZE_TEXT = "analyze-text";
+	private static final String ACTION_ANALYZE_TEXT = "analyze";
 	private static final String ACTION_SEARCH = "search";
 
 	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
