@@ -221,12 +221,8 @@ public class DanawaSearchQueryBuilder {
 				}
 			}
 			if (views != null && views.length > 0) {
-				BoolQueryBuilder highlightQuery = QueryBuilders.boolQuery();
-				String[] terms = String.valueOf(highlightTerms).trim().split(" ");
-				for (String term : terms) {
-					highlightQuery.should(QueryBuilders.multiMatchQuery(term, views));
-				}
-				ret = andQuery(ret, highlightQuery);
+				ret = andQuery(ret, QueryBuilders.boolQuery()
+					.should(QueryBuilders.multiMatchQuery(String.valueOf(highlightTerms).trim(), views)));
 			}
 		} catch (Exception e) {
 			logger.error("", e);

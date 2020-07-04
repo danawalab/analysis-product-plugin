@@ -4,8 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.Reader;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -34,7 +32,6 @@ import com.danawa.util.ContextStore;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
@@ -284,7 +281,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		TokenStream stream = null;
 		try {
-			stream = getAnalyzer(text, useForQuery, useSynonym, useStopword, useFullString);
+			stream = ProductNameAnalyzer.getAnalyzer(text, useForQuery, useSynonym, useStopword, useFullString, false);
 			analyzeTextDetail(client, text, stream, detail, index, writer);
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
@@ -797,7 +794,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		TokenStream stream = null;
 		try {
 			logger.trace("ANALYZE TEXT : {}", text);
-			stream = getAnalyzer(text, true, true, true, true);
+			stream = ProductNameAnalyzer.getAnalyzer(text, true, true, true, true, false);
 			JSONObject explain = null;
 			if (showExplain) {
 				explain = new JSONObject();
@@ -886,20 +883,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			dictionary = contextStore.getAs(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 		}
 		return dictionary;
-	}
-
-	private static TokenStream getAnalyzer(String str, boolean useForQuery, boolean useSynonym, boolean useStopword, boolean useFullString) {
-		TokenStream tstream = null;
-		Reader reader = null;
-		Tokenizer tokenizer = null;
-		ProductNameDictionary dictionary = getDictionary();
-		AnalyzerOption option = null;
-		option = new AnalyzerOption(useForQuery, useSynonym, useStopword, useFullString);
-		reader = new StringReader(str);
-		tokenizer = new ProductNameTokenizer(dictionary, false);
-		tokenizer.setReader(reader);
-		tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
-		return tstream;
 	}
 
 	public static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {

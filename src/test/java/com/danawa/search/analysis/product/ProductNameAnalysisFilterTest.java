@@ -10,12 +10,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
+import com.danawa.search.analysis.highlight.TermHighlightingQuery;
 import com.danawa.search.analysis.korean.KoreanWordExtractor;
 import com.danawa.util.CharVector;
 import com.danawa.util.TestUtil;
@@ -28,6 +30,15 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.search.highlight.Encoder;
+import org.apache.lucene.search.highlight.Formatter;
+import org.apache.lucene.search.highlight.Highlighter;
+import org.apache.lucene.search.highlight.QueryScorer;
+import org.apache.lucene.search.highlight.Scorer;
+import org.apache.lucene.search.highlight.SimpleHTMLEncoder;
+import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
+import org.apache.lucene.search.highlight.TextFragment;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.logging.Loggers;
 import org.json.JSONObject;
 import org.junit.Before;
@@ -76,7 +87,7 @@ public class ProductNameAnalysisFilterTest {
 		try {
 			// boolean useForQuery = false;
 			boolean useForQuery = true;
-			option = new AnalyzerOption(useForQuery, true, true, true);
+			option = new AnalyzerOption(useForQuery, true, true, true, false);
 			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary, true);
 			tokenizer.setReader(reader);
@@ -143,7 +154,7 @@ public class ProductNameAnalysisFilterTest {
 				logger.trace("TEST:{}", rl);
 				tokenizer = new ProductNameTokenizer(dictionary, false);
 				tokenizer.setReader(new StringReader(rl));
-				option = new AnalyzerOption(false, true, true, true);
+				option = new AnalyzerOption(false, true, true, true, false);
 				tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 				tstream.reset();
 				CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
@@ -221,7 +232,7 @@ public class ProductNameAnalysisFilterTest {
 				}
 				String[] testdata = rline.split("\t");
 				Reader input = new StringReader(testdata[0]);
-				AnalyzerOption option = new AnalyzerOption(isForQuery, true, true, false);
+				AnalyzerOption option = new AnalyzerOption(isForQuery, true, true, false, false);
 				analyzer = new ProductNameAnalyzer(dictionary, option);
 				TokenStream tokenStream = analyzer.tokenStream("", input);
 				TypeAttribute typeAttribute = tokenStream.addAttribute(TypeAttribute.class);
@@ -295,6 +306,41 @@ public class ProductNameAnalysisFilterTest {
 			if (reader != null) try { reader.close(); } catch (Exception ignore) { }
 			if (stream != null) try { stream.close(); } catch (Exception ignore) { }
 			if (analyzer != null) try { analyzer.close(); } catch (Exception ignore) { }
+		}
+	}
+
+	@Test public void testHighlight() {
+		if (TestUtil.launchForBuild()) { return; }
+		Reader reader = null;
+		Tokenizer tokenizer = null;
+		TokenStream tstream = null;
+		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		AnalyzerOption option = null;
+		String str = "Sandisk Extream Z80 USB 16gb bacastv";;
+		try {
+			boolean useForQuery = false;
+			option = new AnalyzerOption(useForQuery, true, true, true, true);
+			reader = new StringReader(str);
+			tokenizer = new ProductNameTokenizer(dictionary, true);
+			tokenizer.setReader(reader);
+			tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
+
+			List<BytesRef> terms = new ArrayList<>();
+			terms.add(new BytesRef("SANDISK"));
+			terms.add(new BytesRef("16GB"));
+			terms.add(new BytesRef("80"));
+			terms.add(new BytesRef("BACASTV"));
+
+			TermHighlightingQuery query = new TermHighlightingQuery("", terms);
+			Formatter formatter = new SimpleHTMLFormatter();
+			Encoder encoder = new SimpleHTMLEncoder();
+			Scorer scorer = new QueryScorer(query);
+			Highlighter highlighter = new Highlighter(formatter, encoder, scorer);
+			TextFragment[] fragments = highlighter.getBestTextFragments(tstream, str, true, 3);
+			logger.debug("HIGHLIGHTED:{}{}", "", fragments);
+
+		} catch (Exception e) {
+			logger.error("", e);
 		}
 	}
 

@@ -226,6 +226,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		termAttribute.copyBuffer(entry.buf, entry.start, entry.length);
 		offsetAttribute.setOffset(entry.startOffset, entry.endOffset);
 		typeAttribute.setType(entry.type);
+		if (option.toUppercase()) {
+			toUppercase(termAttribute.buffer());
+		}
 		token = entry.makeTerm(null);
 		if (stopDictionary != null && stopDictionary.set().contains(token)) {
 			tokenAttribute.addState(TokenInfoAttribute.STATE_TERM_STOP);
@@ -243,5 +246,11 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		token = null;
 		termList = new ArrayList<>();
 		this.clearAttributes();
+	}
+
+	public void toUppercase(char[] buffer) {
+		for (int inx = 0; inx < buffer.length; inx++) {
+			buffer[inx] = Character.toUpperCase(buffer[inx]);
+		}
 	}
 }

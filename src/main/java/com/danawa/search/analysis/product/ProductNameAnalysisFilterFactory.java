@@ -26,7 +26,7 @@ public class ProductNameAnalysisFilterFactory extends AbstractTokenFilterFactory
 		boolean useSynonym = settings.getAsBoolean("use_synonym", true);
 		boolean useStopword = settings.getAsBoolean("use_stopword", true);
 		boolean useFullString = settings.getAsBoolean("use_full_string", false);
-		option = new AnalyzerOption(useForQuery, useSynonym, useStopword, useFullString);
+		option = new AnalyzerOption(useForQuery, useSynonym, useStopword, useFullString, false);
 	}
 
 	@Override
