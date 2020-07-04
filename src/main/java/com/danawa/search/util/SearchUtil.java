@@ -120,6 +120,7 @@ public class SearchUtil {
 	}
 
 	public static String highlightString(String str, List<String> wordSet, List<String> tags) {
+		String ret = null;
 		TokenStream tstream = ProductNameAnalyzerProvider.getAnalyzer(str, false, false, true, false, true);
 		List<BytesRef> terms = new ArrayList<>();
 		for (String word : wordSet) {
@@ -143,12 +144,15 @@ public class SearchUtil {
 			Scorer scorer = new QueryScorer(query);
 			Highlighter highlighter = new Highlighter(formatter, encoder, scorer);
 			try {
-				str = highlighter.getBestFragment(tstream, str);
+				ret = highlighter.getBestFragment(tstream, str);
 			} catch (Exception e) {
 				logger.error("", e);
 			}
+			if (ret == null) {
+				ret = str;
+			}
 		}
-		return str;
+		return ret;
 	}
 
 	public static abstract class DataModifier {
