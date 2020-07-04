@@ -1,12 +1,24 @@
 package com.danawa.search.util;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.danawa.search.analysis.highlight.TermHighlightingQuery;
+import com.danawa.search.analysis.product.ProductNameAnalyzerProvider;
+
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.search.highlight.Encoder;
+import org.apache.lucene.search.highlight.Formatter;
+import org.apache.lucene.search.highlight.Highlighter;
+import org.apache.lucene.search.highlight.QueryScorer;
+import org.apache.lucene.search.highlight.Scorer;
+import org.apache.lucene.search.highlight.SimpleHTMLEncoder;
+import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.search.ClearScrollRequest;
@@ -15,7 +27,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -23,7 +34,6 @@ import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
-import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortBuilder;
 
 public class SearchUtil {
@@ -99,39 +109,79 @@ public class SearchUtil {
 		return ret;
 	}
 
-	public static Iterator<Map<String, Object>> search(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, int from, int size, boolean doScroll) {
+	public static Iterator<Map<String, Object>> search(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, int from, int size, boolean doScroll, DataModifier dataModifier) {
 		Iterator<Map<String, Object>> ret = null;
 		if (doScroll) {
-			ret = new ScrollSearchResultIterator().doSearch(client, index, query, sortSet, highlight, from, size);
+			ret = new ScrollSearchResultIterator().doSearch(client, index, query, sortSet, highlight, dataModifier, from, size);
 		} else {
-			ret = new SearchResultIterator().doSearch(client, index, query, sortSet, highlight, from, size);
+			ret = new SearchResultIterator().doSearch(client, index, query, sortSet, highlight, dataModifier, from, size);
 		}
 		return ret;
+	}
+
+	public static String highlightString(String str, List<String> wordSet, List<String> tags) {
+		TokenStream tstream = ProductNameAnalyzerProvider.getAnalyzer(str, false, false, true, false, true);
+		List<BytesRef> terms = new ArrayList<>();
+		for (String word : wordSet) {
+			terms.add(new BytesRef(word.toUpperCase()));
+		}
+		String preTag = null;
+		String postTag = null;
+		if (tags.size() > 1) {
+			preTag = tags.get(0);
+			postTag = tags.get(1);
+		}
+		if (preTag != null && postTag != null) {
+			TermHighlightingQuery query = new TermHighlightingQuery("", terms);
+			Formatter formatter = null;
+			if (preTag != null && !"".equals(preTag) && postTag != null && !"".equals(postTag)) {
+				formatter = new SimpleHTMLFormatter(preTag, postTag);
+			} else {
+				formatter = new SimpleHTMLFormatter();
+			}
+			Encoder encoder = new SimpleHTMLEncoder();
+			Scorer scorer = new QueryScorer(query);
+			Highlighter highlighter = new Highlighter(formatter, encoder, scorer);
+			try {
+				str = highlighter.getBestFragment(tstream, str);
+			} catch (Exception e) {
+				logger.error("", e);
+			}
+		}
+		return str;
+	}
+
+	public static abstract class DataModifier {
+		public abstract void modify(Map<String, Object> map);
 	}
 
 	static abstract class AbstractSearchResultIterator implements Iterator<Map<String, Object>> {
 		public static final String FIELD_ROWNUM = "_ROWNUM";
 		public static final String FIELD_SORT = "_SORT";
 		public static final String FIELD_HIGHLIGHT = "_HIGHLIGHT";
-		abstract Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, int from, int size);
-		static Map<String, Object> processHit(SearchHit hit, int rowNum) {
+		abstract Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size);
+		static Map<String, Object> processHit(SearchHit hit, int rowNum, DataModifier dataModifier) {
 			Map<String, Object> rowData;
 			rowData = hit.getSourceAsMap();
 			rowData.put(FIELD_ROWNUM, rowNum);
 			rowData.put(FIELD_SORT, hit.getSortValues());
-			Map<String, String> highlight = new HashMap<>();
-			if (hit.getHighlightFields() != null) {
-				for (HighlightField field : hit.getHighlightFields().values()) {
-					StringBuilder value = new StringBuilder();
-					for (Text text : field.fragments()) {
-						if (text.hasString()) {
-							value.append(" ").append(text.string());
-						}
-					}
-					highlight.put(field.name(), String.valueOf(value).trim());
-				}
+			if (dataModifier != null) {
+				dataModifier.modify(rowData);
 			}
-			rowData.put(FIELD_HIGHLIGHT, highlight);
+			// NOTE: ES 하이라이터가 부실하여 커스텀 하이라이터를 사용
+			// Map<String, String> highlight = new HashMap<>();
+			// if (hit.getHighlightFields() != null) {
+			// 	for (HighlightField field : hit.getHighlightFields().values()) {
+			// 		StringBuilder value = new StringBuilder();
+			// 		for (Text text : field.fragments()) {
+			// 			if (text.hasString()) {
+			// 				value.append(" ").append(text.string());
+			// 			}
+			// 		}
+			// 		highlight.put(field.name(), String.valueOf(value).trim());
+			// 	}
+			// }
+			// rowData.put(FIELD_HIGHLIGHT, highlight);
 			return rowData;
 		}
 	}
@@ -142,9 +192,10 @@ public class SearchUtil {
 		private int hitsInx;
 		private Map<String, Object> rowData;
 		private TimeValue timeOut;
+		private DataModifier dataModifier;
 
 		@Override 
-		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, int from, int size) {
+		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size) {
 			/**
 			 * 단순 검색. 빠르지만 1만건 이상 검색결과 검색 불가능
 			 **/
@@ -155,9 +206,10 @@ public class SearchUtil {
 						source.sort(sort);
 					}
 				}
-				if (highlight != null) {
-					source.highlighter(highlight);
-				}
+				// if (highlight != null) {
+				// 	source.highlighter(highlight);
+				// }
+				this.dataModifier = dataModifier;
 				source.query(query);
 				SearchRequest search = new SearchRequest(index.split("[,]"));
 				source.from(from);
@@ -181,7 +233,7 @@ public class SearchUtil {
 			try {
 				for (; hits != null && hits.length > 0;) {
 					for (; hitsInx < hits.length;) {
-						rowData = processHit(hits[hitsInx], rowNum);
+						rowData = processHit(hits[hitsInx], rowNum, dataModifier);
 						hitsInx++;
 						rowNum++;
 						break;
@@ -222,6 +274,7 @@ public class SearchUtil {
 		private Map<String, Object> rowData;
 		private TimeValue scrollKeepAlive;
 		private TimeValue timeOut;
+		private DataModifier dataModifier;
 		private int scrollSize;
 		private int size;
 
@@ -236,7 +289,7 @@ public class SearchUtil {
 		}
 
 		@Override
-		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, int from, int size) {
+		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size) {
 			/**
 			 * 스크롤 스트리밍 검색. 느리지만 1만건 이상 검색결과를 추출가능함.
 			 **/
@@ -248,9 +301,10 @@ public class SearchUtil {
 						source.sort(sort);
 					}
 				}
-				if (highlight != null) {
-					source.highlighter(highlight);
-				}
+				// if (highlight != null) {
+				// 	source.highlighter(highlight);
+				// }
+				this.dataModifier = dataModifier;
 				source.query(query);
 				SearchRequest search = new SearchRequest(index.split("[,]"));
 				clearScroll = new ClearScrollRequest();
@@ -294,7 +348,7 @@ public class SearchUtil {
 			try {
 				for (; hits != null && hits.length > 0 && (size == -1 || size > 0);) {
 					for (; hitsInx < hits.length && (size == -1 || size > 0);) {
-						rowData = processHit(hits[hitsInx], rowNum);
+						rowData = processHit(hits[hitsInx], rowNum, dataModifier);
 						hitsInx++;
 						rowNum++;
 						if (size != -1) {

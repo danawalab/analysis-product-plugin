@@ -67,7 +67,7 @@ public class ProductNameAnalysisActionTest {
 		boostMap.put("BRANDKEYWORD", 100000.0f);
 
 		stream = getAnalyzer(dictionary, text, true, true, true, true);
-		QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, null, analysis);
+		QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, null, null, analysis);
 		logger.debug("Q:{}", query.toString());
 		logger.debug("ANALYSIS:{}", analysis);
 		assertTrue(true);

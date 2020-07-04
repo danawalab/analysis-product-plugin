@@ -27,6 +27,7 @@ import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
 import com.danawa.search.index.DanawaBulkTextIndexer;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
 import com.danawa.search.util.SearchUtil;
+import com.danawa.search.util.SearchUtil.DataModifier;
 import com.danawa.util.CharVector;
 import com.danawa.util.ContextStore;
 
@@ -281,7 +282,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		TokenStream stream = null;
 		try {
-			stream = ProductNameAnalyzer.getAnalyzer(text, useForQuery, useSynonym, useStopword, useFullString, false);
+			stream = ProductNameAnalyzerProvider.getAnalyzer(text, useForQuery, useSynonym, useStopword, useFullString, false);
 			analyzeTextDetail(client, text, stream, detail, index, writer);
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
@@ -685,7 +686,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					.should(QueryBuilders.matchQuery(ES_DICT_FIELD_KEYWORD, word))
 					.should(QueryBuilders.matchQuery(ES_DICT_FIELD_VALUE, word))
 				);
-			Iterator<Map<String, Object>> result = SearchUtil.search(client, index, query, null, null, 0, -1, true);
+			Iterator<Map<String, Object>> result = SearchUtil.search(client, index, query, null, null, 0, -1, true, null);
 			while (result.hasNext()) {
 				Map<String, Object> data = result.next();
 				CharVector keyword = CharVector.valueOf(data.get(ES_DICT_FIELD_KEYWORD));
@@ -794,7 +795,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		TokenStream stream = null;
 		try {
 			logger.trace("ANALYZE TEXT : {}", text);
-			stream = ProductNameAnalyzer.getAnalyzer(text, true, true, true, true, false);
+			stream = ProductNameAnalyzerProvider.getAnalyzer(text, true, true, true, true, false);
 			JSONObject explain = null;
 			if (showExplain) {
 				explain = new JSONObject();
@@ -807,23 +808,31 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 
 			HighlightBuilder highlight = null;
-			String[] views = null;
+			final List<String> views = new ArrayList<>();
+			final List<String> highlightTags = new ArrayList<>();
 			if (highlightStr != null && !"".equals(highlightStr)) {
 				logger.trace("HIGHLIGHT:{}", highlightStr);
 				highlight = DanawaSearchQueryBuilder.parseHighlight(highlightStr);
-				List<String> list = new ArrayList<>();
+				String[] preTags = highlight.preTags();
+				String[] postTags = highlight.postTags();
+				if (preTags.length > 0 && postTags.length > 0) {
+					highlightTags.add(preTags[0]);
+					highlightTags.add(postTags[0]);
+				}
+				// List<String> list = new ArrayList<>();
 				for (Field field : highlight.fields()) {
 					String name = field.name();
 					logger.trace("FIELD:{}", name);
 					if (!"_all".equals(name)) {
-						list.add(name);
+						views.add(name);
 					}
 				}
-				views = new String[list.size()];
-				views = list.toArray(views);
+				// views = new String[list.size()];
+				// views = list.toArray(views);
 			}
 
-			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, views, explain);
+			final List<String> highlightTerms = new ArrayList<>();
+			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, views, highlightTerms, explain);
 			if (queryString != null && !"".equals(queryString)) {
 				try {
 					QueryBuilder baseQuery = DanawaSearchQueryBuilder.parseQuery(queryString);
@@ -860,7 +869,20 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				builder.key("total").value(total);
 			}
 			builder.key("result").array();
-			Iterator<Map<String, Object>> iter = SearchUtil.search(client, index, query, sortSet, highlight, from, size, doScroll);
+
+			DataModifier dataModifier = new DataModifier() {
+				@Override public void modify(Map<String, Object> map) {
+					for (String field : views) {
+						if (map.containsKey(field)) {
+							Object obj = map.get(field);
+							if (obj instanceof String) {
+								map.put(field, SearchUtil.highlightString(String.valueOf(obj), highlightTerms, highlightTags));
+							}
+						}
+					}
+				}
+			};
+			Iterator<Map<String, Object>> iter = SearchUtil.search(client, index, query, sortSet, highlight, from, size, doScroll, dataModifier);
 			while (iter != null && iter.hasNext()) {
 				Map<String, Object> map = iter.next();
 				builder.object();
@@ -899,7 +921,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			try {
 				QueryBuilder query = QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type.toUpperCase());
 				logger.trace("QUERY:{}", query);
-				iterator = SearchUtil.search(client, index, query, null, null, 0, -1, true);
+				iterator = SearchUtil.search(client, index, query, null, null, 0, -1, true, null);
 			} catch (Exception e) {
 				logger.error("", e);
 			}

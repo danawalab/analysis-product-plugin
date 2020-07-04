@@ -37,7 +37,6 @@ import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.Scorer;
 import org.apache.lucene.search.highlight.SimpleHTMLEncoder;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
-import org.apache.lucene.search.highlight.TextFragment;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.logging.Loggers;
 import org.json.JSONObject;
@@ -336,8 +335,10 @@ public class ProductNameAnalysisFilterTest {
 			Encoder encoder = new SimpleHTMLEncoder();
 			Scorer scorer = new QueryScorer(query);
 			Highlighter highlighter = new Highlighter(formatter, encoder, scorer);
-			TextFragment[] fragments = highlighter.getBestTextFragments(tstream, str, true, 3);
-			logger.debug("HIGHLIGHTED:{}{}", "", fragments);
+			// TextFragment[] fragments = highlighter.getBestTextFragments(tstream, str, true, 3);
+			// logger.debug("HIGHLIGHTED:{}{}", "", fragments);
+			str = highlighter.getBestFragment(tstream, str);
+			logger.debug("HIGHLIGHTED:{}", str);
 
 		} catch (Exception e) {
 			logger.error("", e);
