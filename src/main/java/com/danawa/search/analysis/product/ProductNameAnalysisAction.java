@@ -69,6 +69,8 @@ import org.json.JSONWriter;
 public class ProductNameAnalysisAction extends BaseRestHandler {
 
 	private static Logger logger = Loggers.getLogger(ProductNameAnalysisAction.class, "");
+
+	// 플러그인 내 전역저장소 설정
 	private static final ContextStore contextStore = ContextStore.getStore(AnalysisProductNamePlugin.class);
 
 	private static final String CONTENT_TYPE_JSON = "application/json;charset=UTF-8";
@@ -104,6 +106,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ANALYZE_SET_COMPOUND = "06_COMPOUND_SET";
 	private static final String ANALYZE_SET_FINAL = "07_FINAL_SET";
 
+	/**
+	 * 텍스트 상세 분석 결과 분류
+	 */
 	private static final Map<String, String> ANALYSIS_RESULT_LABELS;
 	static {
 		Map<String, String> map = new HashMap<>();
@@ -117,12 +122,21 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		map.put(ANALYZE_SET_FINAL, "최종 결과");
 		ANALYSIS_RESULT_LABELS = Collections.unmodifiableMap(map);
 	}
+
+	/**
+	 * 상품명사전
+	 */
 	private static ProductNameDictionary dictionary;
 
+	/**
+	 * 전체색인 스레드
+	 */
 	private DanawaBulkTextIndexer indexingThread;
 
-	@Inject
-	ProductNameAnalysisAction(Settings settings, RestController controller) {
+	/**
+	 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
+	 */
+	@Inject ProductNameAnalysisAction(Settings settings, RestController controller) {
 		controller.registerHandler(Method.GET, BASE_URI + "/{action}", this);
 		controller.registerHandler(Method.POST, BASE_URI + "/{action}", this);
 		controller.registerHandler(Method.GET, BASE_URI, this);
@@ -134,8 +148,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return "rest_handler_product_name_analysis";
 	}
 
-	@Override
-	protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+	/**
+	 * 액션 핸들링 처리
+	 */
+	@Override protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 		final String action = request.param("action");
 		final StringWriter buffer = new StringWriter();
 		JSONWriter builder = new JSONWriter(buffer);
@@ -179,6 +195,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		};
 	}
 
+	/**
+	 * REST 파라메터를 JSONObject 로 파싱한다.
+	 */
 	private JSONObject parseRequestBody(RestRequest request) {
 		JSONObject ret = new JSONObject();
 		try {
@@ -187,10 +206,16 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return ret;
 	}
 
+	/**
+	 * 테스트용 액션
+	 */
 	public void testAction(RestRequest request, NodeClient client, JSONWriter writer) {
 		logger.debug("TEST-ACTION");
 	}
 
+	/**
+	 * 각 노드에 신호 전파
+	 */
 	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body, boolean selfDist) {
 		String localNodeId = client.getLocalNodeId();
 		NodesInfoRequest infoRequest = new NodesInfoRequest();
@@ -222,6 +247,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
+	/**
+	 * 특정 노드에 REST 신호를 보낸다
+	 */
 	private String doRestRequest(final String address, final int port, final String action, final JSONObject body) {
 		SpecialPermission.check();
 		return AccessController.doPrivileged((PrivilegedAction<String>) () -> {
@@ -258,6 +286,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		});
 	}
 
+	/**
+	 * 텍스트 상품명 상세분석
+	 */
 	private void analyzeTextAction(RestRequest request, NodeClient client, JSONWriter writer) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
@@ -293,6 +324,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
+	/**
+	 * 단방향 동의어 인지 확인
+	 */
 	public static boolean isOneWaySynonym(NodeClient client, String index, String word) {
 		boolean ret = false;
 		// 단방향 판단
@@ -318,6 +352,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return ret;
 	}
 
+	/**
+	 * 상품명 상세분석.
+	 * analyzer 를 통해 텍스트를 분석해 출력한다.
+	 * 다나와 관리모듈에 맞는 형식으로 제작
+	 */
 	public static void analyzeTextDetail(NodeClient client, String text, TokenStream stream, boolean detail, String index, JSONWriter writer) {
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
@@ -575,6 +614,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
+	/**
+	 * 상세분석시 각 분류별 결과를 분류 맵핑에 입력해 준다.
+	 */
 	private static void setAnalyzedResult(Map<String, List<List<String>>> result, String term, String... types) {
 		List<List<String>> wordList = null;
 		List<String> words = null;
@@ -585,12 +627,18 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
+	/**
+	 * 상품명사전을 메모리에 재적제 시킨다
+	 */
 	private void reloadDictionary() {
 		if (contextStore.containsKey(ProductNameDictionary.PRODUCT_NAME_DICTIONARY)) {
 			ProductNameDictionary.reloadDictionary();
 		}
 	}
 
+	/**
+	 * 상품명사전을 컴파일 한다. (ES 색인 사용)
+	 */
 	private void compileDictionary(RestRequest request, NodeClient client) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
@@ -615,6 +663,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
+	/**
+	 * 사전정보 추출
+	 */
 	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
@@ -651,6 +702,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		builder.endArray();
 	}
 
+	/**
+	 * 사전내 단어 검색
+	 */
 	private void findDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
@@ -709,6 +763,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		builder.endArray();
 	}
 
+	/**
+	 * 컴파일된 바이너리사전 -> ES 색인으로 데이터 복원
+	 */
 	private void restoreDictionary(RestRequest request, NodeClient client) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
@@ -722,6 +779,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		ProductNameDictionary.restoreDictionary(repo, index);
 	}
 
+	/**
+	 * 다나와 상품 텍스트데이터 -> ES색인 수행
+	 */
 	private int bulkIndex(final RestRequest request, final NodeClient client) {
 		int ret = 0;
 		JSONObject jparam = new JSONObject();
@@ -748,6 +808,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return ret;
 	}
 
+	/**
+	 * 상품명 분석기를 사용하여 검색 수행
+	 */
 	private void search(final RestRequest request, final NodeClient client, final JSONWriter builder) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", "");
@@ -900,6 +963,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 	}
 
+	/**
+	 * 상품명사전
+	 */
 	private static ProductNameDictionary getDictionary() {
 		if (dictionary == null && contextStore.containsKey(ProductNameDictionary.PRODUCT_NAME_DICTIONARY)) {
 			dictionary = contextStore.getAs(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
@@ -907,6 +973,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		return dictionary;
 	}
 
+	/**
+	 * ES 사전 색인 조회용 클래스
+	 * 사전 컴파일 등에 사용한다.
+	 */
 	public static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
 		private NodeClient client;
 		private String index;

@@ -36,25 +36,37 @@ public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin,
 		logger.trace("init");
 	}
 
-	@Override
-	public Map<String, AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
+	/**
+	 * 필터 등록. 
+	 * ES 에서 product_name 이름으로 상품명 필터를 생성하여 사용할수 있도록 등록.
+	 */
+	@Override public Map<String, AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
 		Map<String, AnalysisProvider<TokenFilterFactory>> extra = new HashMap<>();
 		extra.put("product_name", ProductNameAnalysisFilterFactory::new);
 		return extra;
 	}
 
-	@Override
-	public Map<String, AnalysisProvider<TokenizerFactory>> getTokenizers() {
+	/**
+	 * 토크나이저 등록.
+	 * ES 에서 product_name 이름으로 토크나이저를 생성하여 사용할수 있도록 토크나이저 등록.
+	 */
+	@Override public Map<String, AnalysisProvider<TokenizerFactory>> getTokenizers() {
 		return singletonMap("product_name", ProductNameTokenizerFactory::new);
 	}
 
-	@Override
-	public Map<String, AnalysisProvider<AnalyzerProvider<? extends Analyzer>>> getAnalyzers() {
+	/**
+	 * 분석기 등록. 
+	 * ES 에서 product_name 이름으로 상품명분석기를 생성하여 사용할수 있도록 분석기를 등록>
+	 */
+	@Override public Map<String, AnalysisProvider<AnalyzerProvider<? extends Analyzer>>> getAnalyzers() {
 		return singletonMap("product_name", ProductNameAnalyzerProvider::new);
 	}
 
-	@Override
-	public List<RestHandler> getRestHandlers(Settings settings, RestController controller,
+	/**
+	 * 액션 핸들러 등록
+	 * ES 에 상호작용이 가능한 REST 액션 핸들러를 등로한다.
+	 */
+	@Override public List<RestHandler> getRestHandlers(Settings settings, RestController controller,
 		ClusterSettings clusterSettings, IndexScopedSettings indexScopedSettings, SettingsFilter filter,
 		IndexNameExpressionResolver resolver, Supplier<DiscoveryNodes> nodes) {
 		return singletonList(new ProductNameAnalysisAction(settings, controller));

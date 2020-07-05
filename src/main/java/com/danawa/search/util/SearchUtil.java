@@ -121,35 +121,38 @@ public class SearchUtil {
 
 	public static String highlightString(String str, List<String> wordSet, List<String> tags) {
 		String ret = null;
-		TokenStream tstream = ProductNameAnalyzerProvider.getAnalyzer(str, false, false, true, false, true);
-		List<BytesRef> terms = new ArrayList<>();
-		for (String word : wordSet) {
-			terms.add(new BytesRef(word.toUpperCase()));
-		}
-		String preTag = null;
-		String postTag = null;
-		if (tags.size() > 1) {
-			preTag = tags.get(0);
-			postTag = tags.get(1);
-		}
-		if (preTag != null && postTag != null) {
-			TermHighlightingQuery query = new TermHighlightingQuery("", terms);
-			Formatter formatter = null;
-			if (preTag != null && !"".equals(preTag) && postTag != null && !"".equals(postTag)) {
-				formatter = new SimpleHTMLFormatter(preTag, postTag);
-			} else {
-				formatter = new SimpleHTMLFormatter();
+		if (str != null && (str = str.trim()).length() > 0) {
+			TokenStream tstream = ProductNameAnalyzerProvider.getAnalyzer(str, false, false, true, false, true);
+			List<BytesRef> terms = new ArrayList<>();
+			for (String word : wordSet) {
+				terms.add(new BytesRef(word.toUpperCase()));
 			}
-			Encoder encoder = new SimpleHTMLEncoder();
-			Scorer scorer = new QueryScorer(query);
-			Highlighter highlighter = new Highlighter(formatter, encoder, scorer);
-			try {
-				ret = highlighter.getBestFragment(tstream, str);
-			} catch (Exception e) {
-				logger.error("", e);
+			String preTag = null;
+			String postTag = null;
+			if (tags.size() > 1) {
+				preTag = tags.get(0);
+				postTag = tags.get(1);
 			}
-			if (ret == null) {
-				ret = str;
+			if (preTag != null && postTag != null) {
+				TermHighlightingQuery query = new TermHighlightingQuery("", terms);
+				Formatter formatter = null;
+				if (preTag != null && !"".equals(preTag) && postTag != null && !"".equals(postTag)) {
+					formatter = new SimpleHTMLFormatter(preTag, postTag);
+				} else {
+					formatter = new SimpleHTMLFormatter();
+				}
+				Encoder encoder = new SimpleHTMLEncoder();
+				Scorer scorer = new QueryScorer(query);
+				Highlighter highlighter = new Highlighter(formatter, encoder, scorer);
+				try {
+					ret = highlighter.getBestFragment(tstream, str);
+				} catch (Exception e) {
+					logger.debug("highlight error {} / {} / {}", str, wordSet, e.getMessage());
+					logger.error("", e);
+				}
+				if (ret == null) {
+					ret = str;
+				}
 			}
 		}
 		return ret;
