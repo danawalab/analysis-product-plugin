@@ -9,14 +9,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SourceDictionary;
@@ -49,6 +42,7 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
@@ -62,6 +56,7 @@ import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
@@ -637,26 +632,61 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	/**
-	 * 상품명사전을 컴파일 한다. (ES 색인 사용)
+	 * 상품명사전을 컴파일 한다. (ES 색인 사용) - 원본
+	 */
+//	private void compileDictionary(RestRequest request, NodeClient client) {
+//		JSONObject jparam = new JSONObject();
+//		String index = request.param("index", ES_DICTIONARY_INDEX);
+//		boolean exportFile = request.paramAsBoolean("exportFile", false);
+//		boolean distribute = request.paramAsBoolean("distribute", false);
+//		if (!Method.GET.equals(request.method())) {
+//			jparam = parseRequestBody(request);
+//			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+//			exportFile = jparam.optBoolean("exportFile", false);
+//			distribute = jparam.optBoolean("distribute", false);
+//		} else {
+//			jparam.put("index", index);
+//			jparam.put("exportFile", exportFile);
+//			jparam.put("distribute", distribute);
+//		}
+//
+//		DictionarySource repo = new DictionarySource(client, index);
+//		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionary(repo, exportFile));
+//		if (distribute) {
+//			jparam.put("distribute", false);
+//			distribute(request, client, ACTION_COMPILE_DICT, jparam, false);
+//		}
+//	}
+
+	/**
+	 * 상품명사전을 컴파일 한다. (ES 색인 사용) - 변경된 부분
 	 */
 	private void compileDictionary(RestRequest request, NodeClient client) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
+		String type = request.param("type", null);
 		boolean exportFile = request.paramAsBoolean("exportFile", false);
 		boolean distribute = request.paramAsBoolean("distribute", false);
+
 		if (!Method.GET.equals(request.method())) {
+			/* POST */
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+			type = jparam.optString("type", null);
 			exportFile = jparam.optBoolean("exportFile", false);
 			distribute = jparam.optBoolean("distribute", false);
 		} else {
+			/* GET */
 			jparam.put("index", index);
+			jparam.put("type", type);
 			jparam.put("exportFile", exportFile);
 			jparam.put("distribute", distribute);
 		}
 
+		/* 실제적으로 여기서 함 */
 		DictionarySource repo = new DictionarySource(client, index);
-		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionary(repo, exportFile));
+		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionaryOne(repo, exportFile, getDictionary(), type));
+
 		if (distribute) {
 			jparam.put("distribute", false);
 			distribute(request, client, ACTION_COMPILE_DICT, jparam, false);
@@ -989,7 +1019,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		@Override public Iterator<CharSequence[]> getSource(String type) {
 			try {
-				QueryBuilder query = QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type.toUpperCase());
+				QueryBuilder query = null;
+
+				query = QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type.toUpperCase());
+
+
 				logger.trace("QUERY:{}", query);
 				iterator = SearchUtil.search(client, index, query, null, null, 0, -1, true, null);
 			} catch (Exception e) {

@@ -279,6 +279,7 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 		ProductNameDictionary newCommonDictionary = loadDictionary(baseFile, ResourceResolver.readYmlConfig(configFile));
 		reloadDictionary(newCommonDictionary);
 	}
+
 	public static void reloadDictionary(ProductNameDictionary newCommonDictionary) {
 		if (baseFile == null || configFile == null) {
 			logger.error("DICTIONARY NOT LOADED!");
@@ -289,6 +290,7 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 		commonDictionary.reset(newCommonDictionary);
 		// 2. dictionaryMap 에 셋팅.
 		Map<String, SourceDictionary<?>> dictionaryMap = commonDictionary.getDictionaryMap();
+
 		for (Entry<String, SourceDictionary<?>> entry : dictionaryMap.entrySet()) {
 			String dictionaryId = entry.getKey();
 			SourceDictionary<?> dictionary = entry.getValue();
@@ -323,7 +325,6 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 				compoundDictionary.setMap(newDictionary.map());
 			}
 			logger.info("Dictionary {} is updated!", dictionaryId);
-
 		}
 		newCommonDictionary = null;
 	}
@@ -363,8 +364,158 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 				boolean ignoreCase = row.optBoolean(ATTR_DICTIONARY_IGNORECASE, true);
 
 				File dictFile = getDictionaryFile(baseFile, row, basePath);
-				
 				Iterator<CharSequence[]> source = repo.getSource(dictionaryId);
+
+				SourceDictionary<?> sourceDictionary = null;
+				if (type == Type.SET) {
+					sourceDictionary = new SetDictionary(ignoreCase);
+				} else if (type == Type.MAP) {
+					sourceDictionary = new MapDictionary(ignoreCase);
+				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+					sourceDictionary = new SynonymDictionary(ignoreCase);
+				} else if (type == Type.SPACE) {
+					sourceDictionary = new SpaceDictionary(ignoreCase);
+				} else if (type == Type.CUSTOM) {
+					sourceDictionary = new CustomDictionary(ignoreCase);
+				} else if (type == Type.INVERT_MAP) {
+					sourceDictionary = new InvertMapDictionary(ignoreCase);
+				} else if (type == Type.COMPOUND) {
+					sourceDictionary = new CompoundDictionary(ignoreCase);
+				}
+				if (sourceDictionary != null) {
+					int cnt = 0;
+					for (; source.hasNext(); cnt++) {
+						CharSequence[] data = source.next();
+						String id = "";
+						String keyword = "";
+						String value = "";
+						String line = "";
+						if (data[0] != null) {
+							id = String.valueOf(data[0]).trim();
+						}
+						if (data[1] != null) {
+							keyword = String.valueOf(data[1]).trim();
+						}
+						if (data[2] != null) {
+							value = String.valueOf(data[2]).trim();
+						}
+						if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+							if (keyword.length() > 0) {
+								line = keyword + "\t" + value;
+							} else {
+								line = value;
+							}
+						} else if (type == Type.CUSTOM) {
+							if (id.length() > 0) {
+								line = keyword + "\t" + id;
+							} else {
+								line = keyword;
+							}
+						} else {
+							if (value.length() > 0) {
+								line = keyword + "\t" + value;
+							} else {
+								line = keyword;
+							}
+						}
+						sourceDictionary.addSourceLineEntry(line);
+					}
+					commonDictionary.addDictionary(dictionaryId, sourceDictionary);
+					logger.debug("LOAD DICTIONARY [{}] / {} / {} / {} / {}", cnt, dictionaryId, type, tokenType, dictFile.getAbsolutePath());
+					if (exportFile) {
+						OutputStream ostream = null;
+						try {
+							ostream = new FileOutputStream(dictFile);
+							sourceDictionary.writeTo(ostream);
+						} catch (Exception ignore) {
+						} finally {
+							try { ostream.close(); } catch (Exception ignore) { }
+						}
+					}
+				}
+
+				if (type == Type.SET) {
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(((SetDictionary) sourceDictionary).set(), tokenType);
+					}
+				} else if (type == Type.MAP) {
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(((MapDictionary) sourceDictionary).map().keySet(), tokenType);
+					}
+				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(((SynonymDictionary) sourceDictionary).getWordSet(), tokenType);
+					}
+				} else if (type == Type.SPACE) {
+					if (tokenType != null) {
+						SpaceDictionary spaceDictionary = ((SpaceDictionary) sourceDictionary);
+						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
+						Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
+						for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
+							PreResult<CharSequence> preResult = new PreResult<>();
+							preResult.setResult(e.getValue());
+							map.put(e.getKey(), preResult);
+						}
+						// commonDictionary.setPreDictionary(map);
+					}
+				} else if (type == Type.CUSTOM) {
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(((CustomDictionary) sourceDictionary).getWordSet(), tokenType);
+					}
+				} else if (type == Type.INVERT_MAP) {
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(((InvertMapDictionary) sourceDictionary).map().keySet(), tokenType);
+					}
+				} else if (type == Type.COMPOUND) {
+					if (tokenType != null) {
+						commonDictionary.appendAdditionalNounEntry(((CompoundDictionary) sourceDictionary).map().keySet(), tokenType);
+					}
+				}
+			}
+			logger.debug("DICTIONARY LOAD COMPLETE!");
+			return commonDictionary;
+		});
+	}
+
+	public static ProductNameDictionary compileDictionaryOne(final DictionaryRepository repo, final boolean exportFile, ProductNameDictionary currentDictionary, String inputTypes) {
+		if (baseFile == null || configFile == null) {
+			logger.error("DICTIONARY NOT LOADED!");
+			return null;
+		}
+
+		Set<String> types = new HashSet<>();
+		if(inputTypes != null){
+			String[] split = inputTypes.trim().split(",");
+			for(String item : split){
+				System.out.println("types:" + item.toLowerCase());
+				types.add(item.toLowerCase());
+			}
+		}
+
+		SpecialPermission.check();
+		return AccessController.doPrivileged((PrivilegedAction<ProductNameDictionary>) () -> {
+			Dictionary<TagProb, PreResult<CharSequence>> dictionary = null;
+			ProductNameDictionary commonDictionary = currentDictionary;
+			JSONObject dictProp = ResourceResolver.readYmlConfig(configFile);
+			JSONArray dictList = dictProp.optJSONArray(ATTR_DICTIONARY_LIST);
+			String basePath = dictProp.optString(ATTR_DICTIONARY_BASE_PATH);
+
+			/* compile Dict */
+			for (int inx = 0; inx < dictList.length(); inx++) {
+				JSONObject row = dictList.optJSONObject(inx);
+				String dictionaryId = row.optString(ATTR_DICTIONARY_NAME);
+				if(inputTypes != null && !types.contains(dictionaryId)){
+					continue;
+				}
+				System.out.println("dictionaryId:" + dictionaryId);
+
+				Type type = getType(row);
+				String tokenType = getTokenType(row);
+				boolean ignoreCase = row.optBoolean(ATTR_DICTIONARY_IGNORECASE, true);
+
+				File dictFile = getDictionaryFile(baseFile, row, basePath);
+				Iterator<CharSequence[]> source = repo.getSource(dictionaryId);
+
 				SourceDictionary<?> sourceDictionary = null;
 				if (type == Type.SET) {
 					sourceDictionary = new SetDictionary(ignoreCase);

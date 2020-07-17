@@ -64,7 +64,7 @@ public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin,
 
 	/**
 	 * 액션 핸들러 등록
-	 * ES 에 상호작용이 가능한 REST 액션 핸들러를 등로한다.
+	 * ES 에 상호작용이 가능한 REST 액션 핸들러를 등록한다.
 	 */
 	@Override public List<RestHandler> getRestHandlers(Settings settings, RestController controller,
 		ClusterSettings clusterSettings, IndexScopedSettings indexScopedSettings, SettingsFilter filter,
