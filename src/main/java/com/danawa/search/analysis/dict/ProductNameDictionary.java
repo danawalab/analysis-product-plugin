@@ -494,7 +494,6 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 
 		SpecialPermission.check();
 		return AccessController.doPrivileged((PrivilegedAction<ProductNameDictionary>) () -> {
-			Dictionary<TagProb, PreResult<CharSequence>> dictionary = null;
 			ProductNameDictionary commonDictionary = currentDictionary;
 			JSONObject dictProp = ResourceResolver.readYmlConfig(configFile);
 			JSONArray dictList = dictProp.optJSONArray(ATTR_DICTIONARY_LIST);

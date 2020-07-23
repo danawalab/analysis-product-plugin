@@ -75,6 +75,36 @@ public class ProductNameAnalysisActionTest {
 		assertTrue(true);
 	}
 
+	@Test
+	public void queryJSONBuildTest() {
+		if (TestUtil.launchForBuild()) {
+			return;
+		}
+		String text = "";
+		text = "테스트상품 ab12cd-12345";
+		text = "집업WAS1836ER27";
+		text = "10.5cm";
+		text = "LGNOTEBOOK 판매";
+		text = "RF85R901301 판매";
+
+		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		// ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		TokenStream stream = null;
+
+		String[] fields = "MODELWEIGHT^10000,MAKERKEYWORD^20000,BRANDKEYWORD^300000,CATEGORYWEIGHT^100".split("[,]");
+		String totalIndex = "TOTALINDEX";
+		Map<String, Float> boostMap = new HashMap<>();
+		boostMap.put("MODELWEIGHT", 1.0f);
+		boostMap.put("MAKERKEYWORD", 100000.0f);
+		boostMap.put("BRANDKEYWORD", 100000.0f);
+		boostMap.put("CATEGORYWEIGHT", 100000.0f);
+
+		stream = getAnalyzer(dictionary, text, true, true, true, true);
+		JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex);
+		logger.debug("Q:{}", query.toString(2));
+		assertTrue(true);
+	}
+
 	@Test public void queryFromStringTest() throws Exception {
 		if (TestUtil.launchForBuild()) { return; }
 		logger.debug("PARSING..");

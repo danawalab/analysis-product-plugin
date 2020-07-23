@@ -77,6 +77,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_FULL_INDEX = "full-index";
 	private static final String ACTION_ANALYZE_TEXT = "analyze";
 	private static final String ACTION_SEARCH = "search";
+	private static final String ACTION_BUILD_QUERY = "build-query";
 
 	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
 	private static final String ES_DICT_FIELD_ID = "id";
@@ -183,6 +184,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			analyzeTextAction(request, client, builder);
 		} else if (ACTION_SEARCH.equals(action)) {
 			search(request, client, builder);
+		} else if (ACTION_BUILD_QUERY.equals(action)) {
+			buildQuery(request, client, builder);
 		}
 		return channel -> {
 			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, buffer.toString()));
@@ -987,6 +990,35 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 			builder.endArray();
 			builder.endObject();
+		} catch (Exception e) {
+			logger.error("", e);
+		} finally {
+			try { stream.close(); } catch (Exception ignore) { }
+		}
+	}
+
+	/**
+	 * 상품명 분석기를 사용하여 검색 질의어 생성
+	 */
+	private void buildQuery(final RestRequest request, final NodeClient client, final JSONWriter builder) {
+		JSONObject jparam = new JSONObject();
+		String[] fields = request.param("fields", "").split("[,]");
+		String totalIndex = request.param("totalIndex", ES_INDEX_TOTALINDEX);
+		String text = request.param("text", "");
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			fields = jparam.optString("fields", "").split("[,]");
+			totalIndex = jparam.optString("totalIndex", ES_INDEX_TOTALINDEX);
+			text = jparam.optString("text", "");
+		}
+		TokenStream stream = null;
+		try {
+			logger.trace("ANALYZE TEXT : {}", text);
+			stream = ProductNameAnalyzerProvider.getAnalyzer(text, true, true, true, true, false);
+			JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex);
+			builder.object()
+				.key("query").value(query)
+			.endObject();
 		} catch (Exception e) {
 			logger.error("", e);
 		} finally {
