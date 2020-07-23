@@ -42,7 +42,6 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
@@ -56,7 +55,6 @@ import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
-import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
@@ -85,6 +83,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ES_DICT_FIELD_TYPE = "type";
 	private static final String ES_DICT_FIELD_KEYWORD = "keyword";
 	private static final String ES_DICT_FIELD_VALUE = "value";
+	private static final String ES_INDEX_TOTALINDEX = "TOTALINDEX";
 
 	private static final String TAG_BR = "<br/>";
 	private static final String TAG_STRONG = "<strong>${TEXT}</strong>";
@@ -848,6 +847,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		Map<String, Float> boostMap = new HashMap<>();
 		String text = request.param("text", "");
 		String queryString = request.param("query", "");
+		String totalIndex = request.param("totalIndex", ES_INDEX_TOTALINDEX);
 		int from = request.paramAsInt("from", 0);
 		int size = request.paramAsInt("size", 20);
 		boolean showTotal = request.paramAsBoolean("showTotal", false);
@@ -862,6 +862,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			fields = jparam.optString("fields", "").split("[,]");
 			text = jparam.optString("text", "");
 			queryString = jparam.optString("query", "");
+			totalIndex = jparam.optString("totalIndex", ES_INDEX_TOTALINDEX);
 			from = jparam.optInt("from", 0);
 			size = jparam.optInt("size", 20);
 			showTotal = jparam.optBoolean("showTotal", false);
@@ -925,7 +926,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 
 			final List<String> highlightTerms = new ArrayList<>();
-			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, views, highlightTerms, explain);
+			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, views, highlightTerms, explain);
 			if (queryString != null && !"".equals(queryString)) {
 				try {
 					QueryBuilder baseQuery = DanawaSearchQueryBuilder.parseQuery(queryString);

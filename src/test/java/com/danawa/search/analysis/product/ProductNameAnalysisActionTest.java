@@ -55,7 +55,7 @@ public class ProductNameAnalysisActionTest {
 		text = "집업WAS1836ER27";
 		text = "10.5cm";
 		text = "LGNOTEBOOK 판매";
-		text = "RF85R901301";
+		text = "RF85R901301 판매";
 
 		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
@@ -63,12 +63,13 @@ public class ProductNameAnalysisActionTest {
 		JSONObject analysis = new JSONObject();
 
 		String[] fields = new String[] { "TOTALINDEX", "BRANDKEYWORD" };
+		String totalIndex = "TOTALINDEX";
 		Map<String, Float> boostMap = new HashMap<>();
 		boostMap.put("TOTALINDEX", 1.0f);
 		boostMap.put("BRANDKEYWORD", 100000.0f);
 
 		stream = getAnalyzer(dictionary, text, true, true, true, true);
-		QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, null, null, analysis);
+		QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, null, null, analysis);
 		logger.debug("Q:{}", query.toString());
 		logger.debug("ANALYSIS:{}", analysis);
 		assertTrue(true);

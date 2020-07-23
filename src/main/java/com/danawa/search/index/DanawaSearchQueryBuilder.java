@@ -151,7 +151,7 @@ public class DanawaSearchQueryBuilder {
 	/**
 	 * 상품검색용 분석질의 객체 생성기, 분석기 속성 (동의어, 확장어 등) 을 고려한 질의객체를 생성한다.
 	 */
-	public static QueryBuilder buildAnalyzedQuery(TokenStream stream, String[] fields, Map<String, Float> boostMap, List<String> views, List<String> highlightTerms, JSONObject explain) {
+	public static QueryBuilder buildAnalyzedQuery(TokenStream stream, String[] fields, String totalIndex, Map<String, Float> boostMap, List<String> views, List<String> highlightTerms, JSONObject explain) {
 		QueryBuilder ret = null;
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
@@ -196,7 +196,7 @@ public class DanawaSearchQueryBuilder {
 					/**
 					 * 전체질의어는 문장검색으로 질의
 					 */
-					termQuery = phraseQuery(fields, boostMap, term, 10);
+					termQuery = fullTermQuery(totalIndex, boostMap, term, 10);
 					BoolQueryBuilder query = QueryBuilders.boolQuery();
 					query.should(termQuery);
 					query.should(mainQuery);
@@ -231,6 +231,15 @@ public class DanawaSearchQueryBuilder {
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
 		}
+		return ret;
+	}
+
+	/**
+	 * 전체 문장검색 질의객체 생성
+	 */
+	public final static QueryBuilder fullTermQuery(String totalIndex, Map<String, Float> boostMap, String phrase, int slop) {
+		BoolQueryBuilder ret = QueryBuilders.boolQuery();
+		ret.should().add(QueryBuilders.matchPhraseQuery(totalIndex, phrase).boost(0).slop(slop).analyzer(WHITESPACE));
 		return ret;
 	}
 
