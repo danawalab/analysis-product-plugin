@@ -317,7 +317,8 @@ public class DanawaSearchQueryBuilder {
 					JSONArray subExplain = new JSONArray();
 					subExplain.put(term);
 					termExplain.put(new JSONObject().put(OR, subExplain));
-					subQuery.must().add(synonymQuery(query, synonyms, fields, boostMap, termAttr, typeAttr, synAttr, extAttr, highlightTerms, subExplain));
+					MultiMatchQueryBuilder termQuery = QueryBuilders.multiMatchQuery(term, fields);
+					subQuery.must().add(synonymQuery(termQuery, synonyms, fields, boostMap, termAttr, typeAttr, synAttr, extAttr, highlightTerms, subExplain));
 				}
 				logger.trace("a-term:{} / type:{} / synonoym:{}", term, type, synonyms);
 			}

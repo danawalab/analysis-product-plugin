@@ -55,9 +55,10 @@ public class ProductNameAnalysisActionTest {
 		text = "집업WAS1836ER27";
 		text = "10.5cm";
 		text = "LGNOTEBOOK 판매";
+		text = "RF85R901301";
 
-		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
-		// ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		TokenStream stream = null;
 		JSONObject analysis = new JSONObject();
 
