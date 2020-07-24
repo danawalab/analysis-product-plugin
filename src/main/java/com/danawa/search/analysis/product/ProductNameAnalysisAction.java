@@ -859,6 +859,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useScroll = request.paramAsBoolean("useScroll", false);
 		String sortStr = request.param("sort");
 		String highlightStr = request.param("highlight");
+		String analyzer = request.param("analyzer", "whitespace");
 		if (!Method.GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", "");
@@ -874,6 +875,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			useScroll = jparam.optBoolean("useScroll", false);
 			sortStr = jparam.optString("sort");
 			highlightStr = jparam.optString("highlight");
+			analyzer = jparam.optString("analyzer","whitespace");
 		}
 
 		for (int inx = 0; inx < fields.length; inx++) {
@@ -929,7 +931,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 
 			final List<String> highlightTerms = new ArrayList<>();
-			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, views, highlightTerms, explain);
+			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, views, highlightTerms, explain, analyzer);
 			if (queryString != null && !"".equals(queryString)) {
 				try {
 					QueryBuilder baseQuery = DanawaSearchQueryBuilder.parseQuery(queryString);
@@ -1005,17 +1007,19 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String[] fields = request.param("fields", "").split("[,]");
 		String totalIndex = request.param("totalIndex", ES_INDEX_TOTALINDEX);
 		String text = request.param("text", "");
+		String analyzer = request.param("analyzer", "whitespace");
 		if (!Method.GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			fields = jparam.optString("fields", "").split("[,]");
 			totalIndex = jparam.optString("totalIndex", ES_INDEX_TOTALINDEX);
 			text = jparam.optString("text", "");
+			analyzer = jparam.optString("analyzer", "whitespace");
 		}
 		TokenStream stream = null;
 		try {
 			logger.trace("ANALYZE TEXT : {}", text);
 			stream = ProductNameAnalyzerProvider.getAnalyzer(text, true, true, true, true, false);
-			JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex);
+			JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex, analyzer);
 			builder.object()
 				.key("query").value(query)
 			.endObject();
