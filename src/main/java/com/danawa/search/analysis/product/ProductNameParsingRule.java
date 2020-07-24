@@ -1620,11 +1620,11 @@ public class ProductNameParsingRule {
 						cv = cv.trim();
 						if (cv.length() > 0) {
 							// NOTE! 동의어를 모델명분석을 하는편과 하지 않는 편 어느쪽이 더 분석결과가 나은지 비교할 것.
-							addEntry(entryList, cv, entry.type, cvEntry.posTag(), 
+							addEntry(entryList, cv, getTermType(cv), cvEntry.posTag(), 
 								entry.startOffset, entry.endOffset, spaceDictionary);
 						}
 					} else {
-						addEntry(entryList, synonymCV, entry.type, cvEntry.posTag(), 
+						addEntry(entryList, synonymCV, getTermType(synonymCV), cvEntry.posTag(), 
 							entry.startOffset, entry.endOffset, spaceDictionary);
 						break;
 					}

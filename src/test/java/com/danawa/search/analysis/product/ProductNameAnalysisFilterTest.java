@@ -82,6 +82,8 @@ public class ProductNameAnalysisFilterTest {
 		str = "플렉스플레이코리아 다이어트 식단 10개 가공,식품,식용 다이어트도시락|조리방법$가열 타입|보관방법$냉동보관 4종 건강도시락 4993974 구성: 탄두리닭가슴살현미밥 2개+별미7곡현미우엉밥 3개+세가지나물영양밥 3개+브로콜리야채현미밥 2개 에브리밀 4993974 식품>가공식품>즉석밥/덮밥/국";
 		str = "심플 해바라기 유화액자 1394A 해바라기그림 유화액자 유화작품액자 액자 벽액자 벽걸이액자 장식액자 인테리어액자 장식벽액자";
 		str = "[당일발송]몰래키메라 탐지기 RD-10 /// 대만 Lawmate 몰래카메라탐지기 12345 12345";
+		str = "bb탄총";
+		str = "nationalgeographic";
 		// str = "Sandisk Extream Z80 USB 16gb bacastv";
 		try {
 			// boolean useForQuery = false;
