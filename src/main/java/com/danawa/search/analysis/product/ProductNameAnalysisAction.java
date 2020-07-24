@@ -9,14 +9,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SourceDictionary;
@@ -84,12 +77,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_FULL_INDEX = "full-index";
 	private static final String ACTION_ANALYZE_TEXT = "analyze";
 	private static final String ACTION_SEARCH = "search";
+	private static final String ACTION_BUILD_QUERY = "build-query";
 
 	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
 	private static final String ES_DICT_FIELD_ID = "id";
 	private static final String ES_DICT_FIELD_TYPE = "type";
 	private static final String ES_DICT_FIELD_KEYWORD = "keyword";
 	private static final String ES_DICT_FIELD_VALUE = "value";
+	private static final String ES_INDEX_TOTALINDEX = "TOTALINDEX";
 
 	private static final String TAG_BR = "<br/>";
 	private static final String TAG_STRONG = "<strong>${TEXT}</strong>";
@@ -189,6 +184,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			analyzeTextAction(request, client, builder);
 		} else if (ACTION_SEARCH.equals(action)) {
 			search(request, client, builder);
+		} else if (ACTION_BUILD_QUERY.equals(action)) {
+			buildQuery(request, client, builder);
 		}
 		return channel -> {
 			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, buffer.toString()));
@@ -637,26 +634,61 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	/**
-	 * 상품명사전을 컴파일 한다. (ES 색인 사용)
+	 * 상품명사전을 컴파일 한다. (ES 색인 사용) - 원본
+	 */
+//	private void compileDictionary(RestRequest request, NodeClient client) {
+//		JSONObject jparam = new JSONObject();
+//		String index = request.param("index", ES_DICTIONARY_INDEX);
+//		boolean exportFile = request.paramAsBoolean("exportFile", false);
+//		boolean distribute = request.paramAsBoolean("distribute", false);
+//		if (!Method.GET.equals(request.method())) {
+//			jparam = parseRequestBody(request);
+//			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+//			exportFile = jparam.optBoolean("exportFile", false);
+//			distribute = jparam.optBoolean("distribute", false);
+//		} else {
+//			jparam.put("index", index);
+//			jparam.put("exportFile", exportFile);
+//			jparam.put("distribute", distribute);
+//		}
+//
+//		DictionarySource repo = new DictionarySource(client, index);
+//		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionary(repo, exportFile));
+//		if (distribute) {
+//			jparam.put("distribute", false);
+//			distribute(request, client, ACTION_COMPILE_DICT, jparam, false);
+//		}
+//	}
+
+	/**
+	 * 상품명사전을 컴파일 한다. (ES 색인 사용) - 변경된 부분
 	 */
 	private void compileDictionary(RestRequest request, NodeClient client) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
+		String type = request.param("type", null);
 		boolean exportFile = request.paramAsBoolean("exportFile", false);
 		boolean distribute = request.paramAsBoolean("distribute", false);
+
 		if (!Method.GET.equals(request.method())) {
+			/* POST */
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+			type = jparam.optString("type", null);
 			exportFile = jparam.optBoolean("exportFile", false);
 			distribute = jparam.optBoolean("distribute", false);
 		} else {
+			/* GET */
 			jparam.put("index", index);
+			jparam.put("type", type);
 			jparam.put("exportFile", exportFile);
 			jparam.put("distribute", distribute);
 		}
 
+		/* 실제적으로 여기서 함 */
 		DictionarySource repo = new DictionarySource(client, index);
-		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionary(repo, exportFile));
+		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionaryOne(repo, exportFile, getDictionary(), type));
+
 		if (distribute) {
 			jparam.put("distribute", false);
 			distribute(request, client, ACTION_COMPILE_DICT, jparam, false);
@@ -818,6 +850,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		Map<String, Float> boostMap = new HashMap<>();
 		String text = request.param("text", "");
 		String queryString = request.param("query", "");
+		String totalIndex = request.param("totalIndex", ES_INDEX_TOTALINDEX);
 		int from = request.paramAsInt("from", 0);
 		int size = request.paramAsInt("size", 20);
 		boolean showTotal = request.paramAsBoolean("showTotal", false);
@@ -832,6 +865,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			fields = jparam.optString("fields", "").split("[,]");
 			text = jparam.optString("text", "");
 			queryString = jparam.optString("query", "");
+			totalIndex = jparam.optString("totalIndex", ES_INDEX_TOTALINDEX);
 			from = jparam.optInt("from", 0);
 			size = jparam.optInt("size", 20);
 			showTotal = jparam.optBoolean("showTotal", false);
@@ -895,7 +929,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 
 			final List<String> highlightTerms = new ArrayList<>();
-			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, boostMap, views, highlightTerms, explain);
+			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, views, highlightTerms, explain);
 			if (queryString != null && !"".equals(queryString)) {
 				try {
 					QueryBuilder baseQuery = DanawaSearchQueryBuilder.parseQuery(queryString);
@@ -964,6 +998,35 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	/**
+	 * 상품명 분석기를 사용하여 검색 질의어 생성
+	 */
+	private void buildQuery(final RestRequest request, final NodeClient client, final JSONWriter builder) {
+		JSONObject jparam = new JSONObject();
+		String[] fields = request.param("fields", "").split("[,]");
+		String totalIndex = request.param("totalIndex", ES_INDEX_TOTALINDEX);
+		String text = request.param("text", "");
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			fields = jparam.optString("fields", "").split("[,]");
+			totalIndex = jparam.optString("totalIndex", ES_INDEX_TOTALINDEX);
+			text = jparam.optString("text", "");
+		}
+		TokenStream stream = null;
+		try {
+			logger.trace("ANALYZE TEXT : {}", text);
+			stream = ProductNameAnalyzerProvider.getAnalyzer(text, true, true, true, true, false);
+			JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex);
+			builder.object()
+				.key("query").value(query)
+			.endObject();
+		} catch (Exception e) {
+			logger.error("", e);
+		} finally {
+			try { stream.close(); } catch (Exception ignore) { }
+		}
+	}
+
+	/**
 	 * 상품명사전
 	 */
 	private static ProductNameDictionary getDictionary() {
@@ -989,7 +1052,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		@Override public Iterator<CharSequence[]> getSource(String type) {
 			try {
-				QueryBuilder query = QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type.toUpperCase());
+				QueryBuilder query = null;
+
+				query = QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type.toUpperCase());
+
+
 				logger.trace("QUERY:{}", query);
 				iterator = SearchUtil.search(client, index, query, null, null, 0, -1, true, null);
 			} catch (Exception e) {

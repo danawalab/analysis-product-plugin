@@ -1047,6 +1047,7 @@ POST /_analyze
 # ES 에서는 상품명분석 검색을 해주지 않으므로 검색용 분석기를 whitespace 로 잡아주고 검색분석을 실시
 # index: 검색할 색인명들  (',' 로 구분)
 # fields: 상품명분석기가 적용된 필드명들 (',' 로 구분, '^' 로 부스팅점수구분)
+# totalIndex: 전체문장 질의식에 사용될 필드명
 # text: 검색어
 # from: 검색 시작위치
 # size: 검색갯수
@@ -1059,6 +1060,7 @@ POST /_analysis-product-name/search
 {
   "index": "product1,product2",
   "fields": "TOTALINDEX,MODELWEIGHT^300000,MAKERKEYWORD^200000,BRANDKEYWORD^200000,CATEGORYWEIGHT^100000",
+  "totalIndex": "TOTALINDEX",
   "text": "랜드로바WAS1414KR17",
   "from": 0,
   "size": 20,
@@ -1121,6 +1123,21 @@ POST /_analysis-product-name/search
 }
 
 GET /_analysis-product-name/search?index=product1,product2&fields=TOTALINDEX&from=0&size=20&showTotal=true&showExplain=false&useScroll=true&query={}&text=Sandisk Extream Z80 USB 16gb
+
+################################################################################
+# 상품검색질의 생성
+# fields: 상품명분석기가 적용된 필드명들 (',' 로 구분, '^' 로 부스팅점수구분)
+# totalIndex: 전체문장 질의식에 사용될 필드명
+# text: 검색어
+# 
+POST /_analysis-product-name/build-query
+{
+  "fields": "TOTALINDEX,MODELWEIGHT^300000,MAKERKEYWORD^200000,BRANDKEYWORD^200000,CATEGORYWEIGHT^100000",
+  "totalIndex": "TOTALINDEX",
+  "text": "랜드로바WAS1414KR17"
+}
+
+GET /_analysis-product-name/search?fields=TOTALINDEX&totalIndex=TOTALINDEX&text=Sandisk Extream Z80 USB 16gb
 
 ################################################################################
 # 상품색인
