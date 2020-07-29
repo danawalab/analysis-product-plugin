@@ -193,6 +193,8 @@ public class ProductNameParsingRule {
 					e0.type = HANGUL;
 				}
 			}
+			cvTmp.init(e0.buf, e0.start, e0.length);
+			type = getTermType(cvTmp);
 			
 			if (fullExtract) {
 				// extractor 는 타입이 다른 엔트리 에 대해서 체크하지 못하므로
@@ -200,19 +202,21 @@ public class ProductNameParsingRule {
 				// 최대 4개 엔트리까지 체크
 				for (int linx = 4; linx >= 1; linx--) {
 					int passFlag = 0;
-					char[] tmpbuf = e0.buf;
-					int tmpst = e0.start;
-					int tmped = 0;
+					char[] tmpBuf = e0.buf;
+					int tmpSt = e0.start;
+					int tmpEd = 0;
 					
 					// 합쳐질 단어들은 사이에 공백이 없고 묶은뒤 앞뒤로
 					// 공백이 있는경우에만 합치도록 한다.
 					// 로직의 유연화를 위해 루프기반 로직으로 변경 (2020.1.23)
 					if (queue.size() > qinx + linx) {
 						e1 = queue.get(qinx + linx);
-						if (e1.buf == tmpbuf && e1.length > 0 && e1.type != FULL_STRING) {
-							tmped = e1.start + e1.length;
-							if ((tmpst == 0 || (tmpst > 0 && tmpbuf[tmpst - 1] == ' ')) &&
-								(tmped == lastPosition || (tmped < lastPosition && tmpbuf[tmped] == ' '))) {
+						if (e1.buf == tmpBuf && e1.length > 0 && e1.type != FULL_STRING) {
+							tmpEd = e1.start + e1.length;
+							char tmpStCh = (tmpSt > 0) ? tmpBuf[tmpSt - 1] : 0;
+							char tmpEdCh = (tmpEd < lastPosition) ? tmpBuf[tmpEd] : 0;
+							if ((tmpSt == 0 || (tmpStCh != 0 && (tmpStCh == ' ' || getType(tmpStCh) != type))) &&
+								(tmpEd == lastPosition || (tmpEdCh != 0 && (tmpEdCh == ' ' || getType(tmpEdCh) != type)))) {
 								passFlag = 1;
 								e1 = e0;
 								for (int tinx = 0; tinx < linx; tinx++) {
