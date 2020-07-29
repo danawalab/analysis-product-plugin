@@ -54,7 +54,7 @@ public class KoreanWordExtractor {
 	protected int length;
 
 	public KoreanWordExtractor(ProductNameDictionary koreanDict) {
-		this(koreanDict, 12);
+		this(koreanDict, 20);
 	}
 
 	public KoreanWordExtractor(ProductNameDictionary koreanDict, int tabularSize) {

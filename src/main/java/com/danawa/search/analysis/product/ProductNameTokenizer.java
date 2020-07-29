@@ -48,7 +48,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 	public static final String COMPOUND = "<COMPOUND>";
 	public static final String STOPWORD = "<STOPWORD>";
 	
-	public static final int MAX_UNIT_LENGTH = 5;
+	public static final int MAX_UNIT_LENGTH = 10;
 
 	public static final char[] AVAIL_SYMBOLS = new char[] {
 		// 일반적으로 포함할 수 있는 모든 특수기호들
@@ -288,7 +288,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 					tokenAtt.ref(buffer, entry.offset(), entry.column());
 					tokenAtt.posTag(entry.posTag());
 					offsetAtt.setOffset(startOffset, endOffset);
-					logger.trace("TERM:{} / {}~{} / {}", tokenAtt.ref(), startOffset, endOffset, baseOffset);
+					logger.trace("TERM:{} / {}~{} / {} / {}", tokenAtt.ref(), startOffset, endOffset, baseOffset, tokenAtt.posTag());
 					if (exportTerm) {
 						termAtt.copyBuffer(buffer, entry.offset(), entry.column());
 					}
