@@ -48,7 +48,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 	public static final String COMPOUND = "<COMPOUND>";
 	public static final String STOPWORD = "<STOPWORD>";
 	
-	public static final int MAX_UNIT_LENGTH = 5;
+	public static final int MAX_UNIT_LENGTH = 10;
 
 	public static final char[] AVAIL_SYMBOLS = new char[] {
 		// 일반적으로 포함할 수 있는 모든 특수기호들
@@ -116,6 +116,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 	private char chrCurrent;
 	private String typeCurrent;
 	private boolean exportTerm;
+	private boolean tabularFull;
 
 	public ProductNameTokenizer(ProductNameDictionary dictionary, boolean exportTerm) {
 		if (dictionary != null) {
@@ -141,6 +142,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 		int start = -1;
 		int end = -1;
 		int bufferStart = position;
+		boolean continueTerm = false;
 		while (!tokenAtt.isState(TokenInfoAttribute.STATE_INPUT_FINISHED)) {
 			if (entry == null) {
 				while (true) {
@@ -262,6 +264,9 @@ public final class ProductNameTokenizer extends Tokenizer {
 					extLength = length;
 					if (extLength > extractor.getTabularSize()) {
 						extLength = extractor.getTabularSize();
+						tabularFull = true;
+					} else {
+						tabularFull = false;
 					}
 					logger.trace("EXTRACT:{} / {}~{} / {}", new CharVector(buffer, bufferStart, extLength), bufferStart, extLength, baseOffset);
 					extractor.setInput(buffer, bufferStart, extLength);
@@ -288,10 +293,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 					tokenAtt.ref(buffer, entry.offset(), entry.column());
 					tokenAtt.posTag(entry.posTag());
 					offsetAtt.setOffset(startOffset, endOffset);
-					logger.trace("TERM:{} / {}~{} / {}", tokenAtt.ref(), startOffset, endOffset, baseOffset);
-					if (exportTerm) {
-						termAtt.copyBuffer(buffer, entry.offset(), entry.column());
-					}
+					logger.trace("TERM:{} / {}~{} / {} / {}", tokenAtt.ref(), startOffset, endOffset, baseOffset, tokenAtt.posTag());
 
 					int extPosition = entry.offset() + entry.column();
 					int prevOffset = entry.offset();
@@ -308,13 +310,29 @@ public final class ProductNameTokenizer extends Tokenizer {
 					if (entry == null) {
 						// 분해된 한글이 없다면 다음구간 한글분해 시도
 						if (extPosition < position) {
+							if (tabularFull) {
+								// TabularSize 를 넘어서 분석한 후 경우의 수
+								// 1. 일반적으로 최종 단어와 이후 단어를 이어서 다시한번 단어분석 시도
+								// 2. 분석된 단어길이가 tabularsize 와 같은경우 -> 그대로 출력 (Rule 에서 결합시도)
+								logger.trace("CONTINUE-TERM:{}", tokenAtt.ref());
+								if (tokenAtt.ref().length() != extractor.getTabularSize()) {
+									extPosition -= tokenAtt.ref().length();
+									continueTerm = true;
+								}
+							}
 							extLength = position - extPosition;
 							if (extLength > extractor.getTabularSize()) {
 								extLength = extractor.getTabularSize();
+								tabularFull = true;
+							} else {
+								tabularFull = false;
 							}
 							logger.trace("EXTRACT:{} / {}~{} / {}", new CharVector(buffer, extPosition, extLength), extPosition, extLength, baseOffset);
 							extractor.setInput(buffer, extPosition, extLength);
 							entry = extractor.extract();
+							if (continueTerm) {
+								continue;
+							}
 						}
 					}
 					// 마지막 공백이 있는경우 건너뜀
@@ -325,6 +343,9 @@ public final class ProductNameTokenizer extends Tokenizer {
 						logger.trace("TOKENIZER BUFFER EXHAUSTED!");
 						tokenAtt.addState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED);
 						continue;
+					}
+					if (exportTerm) {
+						termAtt.copyBuffer(buffer, entry.offset(), entry.column());
 					}
 					break;
 				}
@@ -353,6 +374,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 		tokenLength = 0;
 		chrCurrent = 0;
 		typeCurrent = null;
+		tabularFull = false;
 	}
 
 	@Override
@@ -433,7 +455,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 		for (int inx = 0; inx < cv.length(); inx++) {
 			prevType = type;
 			type = getType(cv.charAt(inx));
-			logger.trace("TYPE:{} / {}", type, cv);
+			// logger.trace("TYPE:{} / {}", type, cv);
 			if (prevType != null && type != prevType) {
 				if ((prevType == ALPHA && type == NUMBER) || (prevType == NUMBER && type == ALPHA)) {
 					type = ALPHANUM;
@@ -450,7 +472,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 			} else {
 
 			}
-			logger.trace("TYPE:{} / PREV:{}", type, prevType);
+			// logger.trace("TYPE:{} / PREV:{}", type, prevType);
 		}
 		ret = type;
 		return ret;
