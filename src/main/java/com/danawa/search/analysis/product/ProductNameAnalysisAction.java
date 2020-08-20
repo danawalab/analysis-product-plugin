@@ -1336,21 +1336,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void getSynonymListAction(RestRequest request, NodeClient client, JSONWriter writer){
 		JSONObject jparam = new JSONObject();
 		String keyword = "";
-		logger.debug("getSynonymList");
-
-		// 인덱스는 고정
-		String index = ES_DICTIONARY_INDEX;
-
-		// 검색된 구문들이 어디 영역에 포함되는지 ex. 동의어 확장, 등등
-		boolean detail = true;
-		// 검색어 확장
 		boolean useForQuery = true;
 		boolean useSynonym = true;
 		boolean useStopword = false;
 		boolean useFullString = true;
 
+		logger.debug("getSynonymList");
 		if (!Method.GET.equals(request.method())) {
-			// post 처리
 			jparam = parseRequestBody(request);
 			keyword = jparam.optString("keyword", "");
 		} else {
@@ -1366,7 +1358,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			writer.key("keyword").value(keyword);
 			writer.key("result").array();
 			stream = ProductNameAnalyzerProvider.getAnalyzer(keyword, useForQuery, useSynonym, useStopword, useFullString, false);
-			getSynonymList(client, keyword, stream, detail, index, writer);
+			getSynonymList(keyword, stream, writer);
 			writer.endArray();
 			writer.key("success").value(true);
 		} finally {
@@ -1377,17 +1369,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	/**
 	 * 동의어 리스트.
 	 */
-	public static void getSynonymList(NodeClient client, String text, TokenStream stream, boolean detail, String index, JSONWriter writer) {
+	public static void getSynonymList(String text, TokenStream stream, JSONWriter writer) {
 		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
 		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
 		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
-		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
 		Map<String, List<List<String>>> result = new HashMap<>();
-		Map<String, Boolean> synonymWayMap = new HashMap<>();
-		Map<String, List<String>> synonymMap = new HashMap<>();
-		List<List<String>> wordList = null;
-		List<String> words = null;
 		List<CharSequence> synonyms = synAttr.getSynonyms();
+
 		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
 			result.put(key, new ArrayList<>());
 		}
@@ -1395,30 +1383,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String term = null;
 		String type = null;
 		String setName = null;
-		String setNamePrev = null;
-		int[] offset = {0, 0};
-		int[] offsetPrev = {0, 0};
-		boolean oneWaySynonym = false;
 		try {
 			stream.reset();
 			while (stream.incrementToken()) {
-				setNamePrev = setName;
-				offsetPrev = new int[]{offset[0], offset[1]};
 				term = String.valueOf(termAttr);
 				type = typeAttr.type();
-				offset = new int[]{offAttr.startOffset(), offAttr.endOffset()};
 				logger.trace("TERM:{} / {}", term, type);
-				if (!ANALYZE_SET_FULL_STRING.equals(setNamePrev) && offset[0] < offsetPrev[1]) {
-					// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
-					wordList = result.get(setNamePrev);
-					if (wordList != null) {
-						words = wordList.get(wordList.size() - 1);
-						words.add(term);
-						setName = setNamePrev;
-						offset = new int[]{offsetPrev[0], offsetPrev[1]};
-						setAnalyzedResult(result, term, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
-					}
-				} else if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
 					// 전체 단어
 					setName = ANALYZE_SET_FULL_STRING;
 					setAnalyzedResult(result, term, ANALYZE_SET_FULL_STRING, ANALYZE_SET_FINAL);
@@ -1434,16 +1405,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 				if (!ANALYZE_SET_FULL_STRING.equals(setName)) {
 					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
-						wordList = result.get(ANALYZE_SET_SYNONYM);
-						wordList.add(words = new ArrayList<>());
-						words.add(term);
-						wordList = result.get(setName);
-
 						if (term.equals(text)) {
-							oneWaySynonym = isOneWaySynonym(client, index, term);
-							synonymWayMap.put(term, oneWaySynonym);
-							synonymMap.put(term, words);
-							logger.trace("SYNONYM [{}] {} / {} / {}", setName, term, oneWaySynonym, synonyms);
 							for (CharSequence synonym : synonyms) {
 								String s = String.valueOf(synonym);
 								writer.value(s);
