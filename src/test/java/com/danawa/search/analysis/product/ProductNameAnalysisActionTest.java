@@ -69,7 +69,7 @@ public class ProductNameAnalysisActionTest {
 		boostMap.put("BRANDKEYWORD", 100000.0f);
 
 		stream = getAnalyzer(dictionary, text, true, true, true, true);
-		QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, null, null, analysis);
+		QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, null, null, analysis,"whitespace");
 		logger.debug("Q:{}", query.toString());
 		logger.debug("ANALYSIS:{}", analysis);
 		assertTrue(true);
@@ -100,7 +100,7 @@ public class ProductNameAnalysisActionTest {
 		boostMap.put("CATEGORYWEIGHT", 100000.0f);
 
 		stream = getAnalyzer(dictionary, text, true, true, true, true);
-		JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex);
+		JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex, "whitespace");
 		logger.debug("Q:{}", query.toString(2));
 		assertTrue(true);
 	}
