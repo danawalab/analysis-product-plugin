@@ -1,12 +1,9 @@
 package com.danawa.search.analysis.product;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.*;
@@ -78,6 +75,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_ANALYZE_TEXT = "analyze";
 	private static final String ACTION_SEARCH = "search";
 	private static final String ACTION_BUILD_QUERY = "build-query";
+	private static final String ACTION_SYNONYM_LIST = "get-synonym-list";
+	private static final String ACTION_ANALYZE_MULTI_PARAMS = "multi-analyze";
 	private static final String ACTION_SEARCH_KEYWORD = "search-keyword";
 
 
@@ -188,6 +187,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			search(request, client, builder);
 		} else if (ACTION_BUILD_QUERY.equals(action)) {
 			buildQuery(request, client, builder);
+		}else if(ACTION_ANALYZE_MULTI_PARAMS.equals(action)){
+			builder.object();
+			analyzeMultiParamsAction(request, client, builder);
+			builder.endObject();
+		} else if(ACTION_SYNONYM_LIST.equals(action)){
+			builder.object();
+			getSynonymListAction(request, client, builder);
+			builder.endObject();
 		} else if (ACTION_SEARCH_KEYWORD.equals(action)) {
 			makeSearchKeyword(request, client, builder);
 		}
@@ -322,6 +329,74 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		if (test) {
 			distribute(request, client, ACTION_TEST, jparam, true);
+		}
+	}
+
+	/**
+	 * 텍스트 상품명 분석
+	 * 다중 파라미터 처리
+	 */
+	private void analyzeMultiParamsAction(RestRequest request, NodeClient client, JSONWriter writer) {
+		JSONObject jparam = new JSONObject();
+
+		logger.debug("multi-params");
+		// 인덱스는 고정
+		String index = ES_DICTIONARY_INDEX;
+
+		// 검색된 구문들이 어디 영역에 포함되는지 ex. 동의어 확장, 등등
+		boolean detail = false;
+		// 검색어 확장
+		boolean useForQuery = false;
+		boolean useSynonym = true;
+		boolean useStopword = false;
+		boolean useFullString = true;
+
+		Map<String, String> analyzeMap = new HashMap<>();
+		if (!Method.GET.equals(request.method())) {
+			// post 처리
+			jparam = parseRequestBody(request);
+			for( String key : jparam.keySet()){
+				analyzeMap.put(key, jparam.optString(key, ""));
+			}
+		} else {
+			try{
+				for(String key : request.params().keySet()){
+					if(key.equals("action") || key.equals("pretty")) continue;
+					analyzeMap.put(key, URLDecoder.decode(request.param(key, ""), "UTF-8"));
+				}
+			} catch (UnsupportedEncodingException e){
+				logger.debug("error >>> {}", e);
+			}
+		}
+
+		List<TokenStream> tokenStreamList = new ArrayList<>();
+
+		TokenStream stream = null;
+		try {
+			writer.key("result").object();
+
+			for(String key : analyzeMap.keySet()){
+				String value = analyzeMap.get(key);
+
+				logger.debug("key : {} :::::: value : {}", key, value);
+				stream = ProductNameAnalyzerProvider.getAnalyzer(value, useForQuery, useSynonym, useStopword, useFullString, false);
+
+				writer.key(key).array();
+				List<String> list = analyzeMultiParamsText(client, value, stream, index);
+				for(String item : list){
+					writer.value(item);
+				}
+				writer.endArray();
+				tokenStreamList.add(stream);
+			}
+			writer.endObject();
+			writer.key("success").value(true);
+		} finally {
+			try {
+				for(TokenStream tokenStream : tokenStreamList){
+					tokenStream.close();
+				}
+			} catch (Exception ignore) {  }
 		}
 	}
 
@@ -654,7 +729,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 				type = typeAttr.type();
 				offset = new int[]{offAttr.startOffset(), offAttr.endOffset()};
-				logger.info("TERM:{} / {}", term, type);
+				logger.trace("TERM:{} / {}", term, type);
 
 				//풀텀일 경우는 분석 하지 않는다 SKIP
 				if (type.equals("FULL_STRING")) {
@@ -711,7 +786,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						words = wordList.get(wordList.size() - 1);
 						while (iter.hasNext()) {
 							String s = iter.next();
-							logger.info("EXT [{}] {} / {} / {} / {}", setName, term, s, words, wordList);
+							logger.trace("EXT [{}] {} / {} / {} / {}", setName, term, s, words, wordList);
 							words.add(s);
 							setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
 							synonyms = synAttr.getSynonyms();
@@ -719,7 +794,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								oneWaySynonym = isOneWaySynonym(client, index, s);
 								//synonymWayMap.put(s, oneWaySynonym);
 								//synonymMap.put(term, words);
-								logger.info("EXT-SYN [{}] {} / {} / {} / {} / {}", setName, term, s, oneWaySynonym, synonyms, wordList);
+								logger.trace("EXT-SYN [{}] {} / {} / {} / {} / {}", setName, term, s, oneWaySynonym, synonyms, wordList);
 								setAnalyzedResult(result, s, ANALYZE_SET_SYNONYM);
 								wordList = result.get(ANALYZE_SET_SYNONYM);
 								List<String> list = wordList.get(wordList.size() - 1);
@@ -733,7 +808,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					}
 				}
 
-				logger.info("term : {} - {}", term, words);
+				logger.debug("term : {} - {}", term, words);
 				if (words == null) {
 					hash.put(term, term);
 				}else{
@@ -751,6 +826,146 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	/**
+	 * 다중 파라미터 분석.
+	 * analyzer 를 통해 텍스트를 분석해 출력한다.
+	 * 다나와 관리모듈에 맞는 형식으로 제작
+	 */
+	public static List<String> analyzeMultiParamsText(NodeClient client, String text, TokenStream stream,  String index) {
+		List<String> resultList = new ArrayList<>();
+
+		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
+		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
+		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
+		Map<String, List<List<String>>> result = new HashMap<>();
+		Map<String, Boolean> synonymWayMap = new HashMap<>();
+		Map<String, List<String>> synonymMap = new HashMap<>();
+		List<List<String>> wordList = null;
+		List<String> words = null;
+		List<String> words2 = null;
+		List<CharSequence> synonyms = synAttr.getSynonyms();
+		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
+			result.put(key, new ArrayList<>());
+		}
+
+		String term = null;
+		String type = null;
+		String setName = null;
+		String setNamePrev = null;
+		int[] offset = { 0, 0 };
+		int[] offsetPrev = { 0, 0 };
+		boolean oneWaySynonym = false;
+		try {
+			stream.reset();
+			while (stream.incrementToken()) {
+				setNamePrev = setName;
+				offsetPrev = new int[] { offset[0], offset[1] };
+				term = String.valueOf(termAttr);
+				type = typeAttr.type();
+				offset = new int[] { offAttr.startOffset(), offAttr.endOffset() };
+				logger.trace("TERM:{} / {}", term, type);
+				if (!ANALYZE_SET_FULL_STRING.equals(setNamePrev) && offset[0] < offsetPrev[1]) {
+					// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
+					wordList = result.get(setNamePrev);
+					if (wordList != null) {
+						words = wordList.get(wordList.size() - 1);
+						words.add(term);
+						setName = setNamePrev;
+						offset = new int[] { offsetPrev[0], offsetPrev[1] };
+						setAnalyzedResult(result, term, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+					}
+				} else if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+					// 전체 단어
+					setName = ANALYZE_SET_FULL_STRING;
+					setAnalyzedResult(result, term, ANALYZE_SET_FULL_STRING, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.MODEL_NAME.equals(type)) {
+					// 모델명의 경우 색인시와 질의시 추출방법이 서로 다르다.
+					setName = ANALYZE_SET_MODEL_NAME;
+					setAnalyzedResult(result, term, ANALYZE_SET_MODEL_NAME, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.UNIT.equals(type)) {
+					// 단위명
+					setName = ANALYZE_SET_UNIT;
+					setAnalyzedResult(result, term, ANALYZE_SET_UNIT, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.COMPOUND.equals(type)) {
+					setName = ANALYZE_SET_COMPOUND;
+					setAnalyzedResult(result, term, ANALYZE_SET_COMPOUND, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.STOPWORD.equals(type)) {
+					setName = ANALYZE_SET_STOPWORD;
+					setAnalyzedResult(result, term, ANALYZE_SET_STOPWORD);
+				} else {
+					// 일반단어
+					setName = ANALYZE_SET_NORMAL;
+					setAnalyzedResult(result, term, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				}
+
+				if (!ANALYZE_SET_FULL_STRING.equals(setName)) {
+					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+						wordList = result.get(ANALYZE_SET_SYNONYM);
+						wordList.add(words = new ArrayList<>());
+						words.add(term);
+						wordList = result.get(setName);
+						words2 = wordList.get(wordList.size() - 1);
+						oneWaySynonym = isOneWaySynonym(client, index, term);
+						synonymWayMap.put(term, oneWaySynonym);
+						synonymMap.put(term, words);
+						logger.trace("SYNONYM [{}] {} / {} / {}", setName, term, oneWaySynonym, synonyms);
+						for (CharSequence synonym : synonyms) {
+							String s = String.valueOf(synonym);
+							words.add(s);
+							if (!ANALYZE_SET_NORMAL.equals(setName)) {
+								words2.add(s);
+							}
+							setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
+						}
+					}
+
+					Iterator<String> iter = extAttr.iterator();
+					if (iter != null && iter.hasNext()) {
+						wordList = result.get(setName);
+						words = wordList.get(wordList.size() - 1);
+						while (iter.hasNext()) {
+							String s = iter.next();
+							logger.trace("EXT [{}] {} / {} / {} / {}", setName, term, s, words, wordList);
+							words.add(s);
+							setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
+							synonyms = synAttr.getSynonyms();
+							if (synonyms != null && synonyms.size() > 0) {
+								oneWaySynonym = isOneWaySynonym(client, index, s);
+								synonymWayMap.put(s, oneWaySynonym);
+								synonymMap.put(term, words);
+								logger.trace("EXT-SYN [{}] {} / {} / {} / {} / {}", setName, term, s, oneWaySynonym, synonyms, wordList);
+								setAnalyzedResult(result, s, ANALYZE_SET_SYNONYM);
+								wordList = result.get(ANALYZE_SET_SYNONYM);
+								List<String> list = wordList.get(wordList.size() - 1);
+								for (CharSequence synonym : synonyms) {
+									s = String.valueOf(synonym);
+									list.add(s);
+									setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
+								}
+							}
+						}
+					}
+				}
+			}
+			logger.trace("SYNONYM-WAY : {}", synonymWayMap);
+
+			wordList = result.get(ANALYZE_SET_FINAL);
+
+			logger.trace("RESULT:{}", wordList);
+			for (List<String> item : wordList) {
+				if (item.size() > 0) {
+					resultList.add(item.get(0));
+				}
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+
+		return resultList;
+	}
+
+	/**
 	 * 상세분석시 각 분류별 결과를 분류 맵핑에 입력해 준다.
 	 */
 	private static void setAnalyzedResult(Map<String, List<List<String>>> result, String term, String... types) {
@@ -760,7 +975,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			wordList = result.get(type);
 			wordList.add(words = new ArrayList<>());
 			words.add(term);
-			//logger.info("wordList : {} - words : {} - term : {}",wordList, words, term );
 		}
 	}
 
@@ -1283,5 +1497,92 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		@Override public void close() { }
+	}
+
+	private void getSynonymListAction(RestRequest request, NodeClient client, JSONWriter writer){
+		JSONObject jparam = new JSONObject();
+		String keyword = "";
+		boolean useForQuery = true;
+		boolean useSynonym = true;
+		boolean useStopword = false;
+		boolean useFullString = true;
+
+		logger.debug("getSynonymList");
+		if (!Method.GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			keyword = jparam.optString("keyword", "");
+		} else {
+			try{
+				keyword = URLDecoder.decode(request.param("keyword", ""), "UTF-8");
+			} catch (UnsupportedEncodingException e){
+				logger.debug("error >>> {}", e);
+			}
+		}
+
+		TokenStream stream = null;
+		try {
+			writer.key("keyword").value(keyword);
+			writer.key("result").array();
+			stream = ProductNameAnalyzerProvider.getAnalyzer(keyword, useForQuery, useSynonym, useStopword, useFullString, false);
+			getSynonymList(keyword, stream, writer);
+			writer.endArray();
+			writer.key("success").value(true);
+		} finally {
+			try { stream.close(); } catch (Exception ignore) {  }
+		}
+	}
+
+	/**
+	 * 동의어 리스트.
+	 */
+	public static void getSynonymList(String text, TokenStream stream, JSONWriter writer) {
+		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
+		Map<String, List<List<String>>> result = new HashMap<>();
+		List<CharSequence> synonyms = synAttr.getSynonyms();
+
+		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
+			result.put(key, new ArrayList<>());
+		}
+
+		String term = null;
+		String type = null;
+		String setName = null;
+		try {
+			stream.reset();
+			while (stream.incrementToken()) {
+				term = String.valueOf(termAttr);
+				type = typeAttr.type();
+				logger.trace("TERM:{} / {}", term, type);
+				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+					// 전체 단어
+					setName = ANALYZE_SET_FULL_STRING;
+					setAnalyzedResult(result, term, ANALYZE_SET_FULL_STRING, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.MODEL_NAME.equals(type)) {
+					// 모델명의 경우 색인시와 질의시 추출방법이 서로 다르다.
+					setName = ANALYZE_SET_MODEL_NAME;
+					setAnalyzedResult(result, term, ANALYZE_SET_MODEL_NAME, ANALYZE_SET_FINAL);
+				} else {
+					// 일반단어
+					setName = ANALYZE_SET_NORMAL;
+					setAnalyzedResult(result, term, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				}
+
+				if (!ANALYZE_SET_FULL_STRING.equals(setName)) {
+					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+						if (term.equals(text)) {
+							for (CharSequence synonym : synonyms) {
+								String s = String.valueOf(synonym);
+								writer.value(s);
+							}
+						}
+
+					}
+				}
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}
 	}
 }
