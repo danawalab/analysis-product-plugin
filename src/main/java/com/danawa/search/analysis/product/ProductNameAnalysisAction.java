@@ -339,7 +339,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void analyzeMultiParamsAction(RestRequest request, NodeClient client, JSONWriter writer) {
 		JSONObject jparam = new JSONObject();
 
-		logger.debug("multi-params");
+		logger.debug("multi-params Action");
 		// 인덱스는 고정
 		String index = ES_DICTIONARY_INDEX;
 
@@ -353,50 +353,48 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		Map<String, String> analyzeMap = new HashMap<>();
 		if (!Method.GET.equals(request.method())) {
-			// post 처리
+			// POST 처리
 			jparam = parseRequestBody(request);
-			for( String key : jparam.keySet()){
+			for (String key : jparam.keySet()) {
 				analyzeMap.put(key, jparam.optString(key, ""));
 			}
 		} else {
-			try{
-				for(String key : request.params().keySet()){
-					if(key.equals("action") || key.equals("pretty")) continue;
+			// GET 처리
+			try {
+				for (String key : request.params().keySet()) {
+					if (key.equals("action") || key.equals("pretty")) continue;
 					analyzeMap.put(key, URLDecoder.decode(request.param(key, ""), "UTF-8"));
 				}
-			} catch (UnsupportedEncodingException e){
+			} catch (UnsupportedEncodingException e) {
+				System.out.println("UnsupportedEncodingException Catched !!! >>>> \n" + e.getMessage());
+				writer.key("success").value(false);
 				logger.debug("error >>> {}", e);
 			}
 		}
 
-		List<TokenStream> tokenStreamList = new ArrayList<>();
-
 		TokenStream stream = null;
+		writer.key("result").object();
 		try {
-			writer.key("result").object();
-
 			for(String key : analyzeMap.keySet()){
 				String value = analyzeMap.get(key);
-
 				logger.debug("key : {} :::::: value : {}", key, value);
 				stream = ProductNameAnalyzerProvider.getAnalyzer(value, useForQuery, useSynonym, useStopword, useFullString, false);
-
 				writer.key(key).array();
 				List<String> list = analyzeMultiParamsText(client, value, stream, index);
 				for(String item : list){
 					writer.value(item);
 				}
 				writer.endArray();
-				tokenStreamList.add(stream);
+				stream.close();
 			}
+		} catch (Exception ignore){
+			writer.endObject();
+			writer.key("success").value(false);
+			logger.debug("exception >>> {}", ignore);
+			System.out.println("Exception Catched !!! >>>> \n" + ignore.getMessage());
+		} finally {
 			writer.endObject();
 			writer.key("success").value(true);
-		} finally {
-			try {
-				for(TokenStream tokenStream : tokenStreamList){
-					tokenStream.close();
-				}
-			} catch (Exception ignore) {  }
 		}
 	}
 
@@ -1516,7 +1514,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useStopword = false;
 		boolean useFullString = true;
 
-		logger.debug("getSynonymList");
+		logger.debug("get-synonym-list start");
 		if (!Method.GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			keyword = jparam.optString("keyword", "");
@@ -1524,6 +1522,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			try{
 				keyword = URLDecoder.decode(request.param("keyword", ""), "UTF-8");
 			} catch (UnsupportedEncodingException e){
+				System.out.println("UnsupportedEncodingException Catched !!! >>>> \n" + e.getMessage());
 				logger.debug("error >>> {}", e);
 			}
 		}
@@ -1537,7 +1536,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			writer.endArray();
 			writer.key("success").value(true);
 		} finally {
-			try { stream.close(); } catch (Exception ignore) {  }
+			try { stream.close(); } catch (Exception ignore) { logger.debug("Exception >>> {}", ignore.getMessage()); System.out.println("TokenStream Close Excption!!!"); }
 		}
 	}
 
