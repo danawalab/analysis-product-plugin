@@ -754,7 +754,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				if (!ANALYZE_SET_FULL_STRING.equals(setName)) {
 					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
 						termWords.add(term);
-						logger.trace("SYNONYM [{}] {} / {} ", setName, term, synonyms);
+						logger.info("SYNONYM [{}] {} / {} ", setName, term, synonyms);
 						for (CharSequence synonym : synonyms) {
 							String s = String.valueOf(synonym);
 							termWords.add(s);
@@ -763,7 +763,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 					Iterator<String> iter = extAttr.iterator();
 					if (iter != null && iter.hasNext()) {
-						List<String> extSynonymList = new ArrayList<>();
+
 						termWords = new ArrayList<>();
 						//확장어 원본 입력
 						termWords.add(term);
@@ -777,17 +777,24 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 
 								extSynonymHash = new HashMap<>();
-
+								List<String> extSynonymList = new ArrayList<>();
 								//확장어의 동의어가 있을 경우 원본 확장어 리스트에서 삭제 (이후 확장어 동의어 리스트 적재)
 								extAnalyeTerm.remove(s);
 
 								logger.trace("EXT-SYN [{}] {} / {} / {} / {}", setName, term, s, synonyms);
+
+								//확장어 동의어가 하나 혹은 여러개일 떄 별도?
 
 								for (CharSequence synonym : synonyms) {
 									logger.trace("synonym : {}" , synonym);
 									extSynonymList.add(String.valueOf(synonym));
 								}
 								logger.trace("synonymList : {} - {}", s, extSynonymList);
+//								if(extSynonymList.size() > 1) {
+//									extSynonymHash.put(s,extSynonymList);
+//								}else if(extSynonymList.size() == 1) {
+//									extSynonymHash.put(s,extSynonymList.get(0));
+//								}
 								extSynonymHash.put(s,extSynonymList);
 								if(extSynonymHash.size() > 0) {
 									extAnalyeTerm.add(extSynonymHash);
