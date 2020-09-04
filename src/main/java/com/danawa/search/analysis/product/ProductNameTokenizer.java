@@ -344,7 +344,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 						tokenAtt.addState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED);
 						continue;
 					}
-					if (exportTerm) {
+					if (exportTerm && entry != null) {
 						termAtt.copyBuffer(buffer, entry.offset(), entry.column());
 					}
 					break;

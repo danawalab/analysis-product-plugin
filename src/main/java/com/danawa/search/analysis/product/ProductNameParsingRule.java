@@ -189,6 +189,7 @@ public class ProductNameParsingRule {
 				if (!userDictionary.contains(e0.makeTerm(null))) {
 					RuleEntry entry = queue.remove(qinx);
 					split(entry, queue, qinx);
+					e0 = queue.get(qinx);
 				} else {
 					e0.type = HANGUL;
 				}
@@ -519,7 +520,7 @@ public class ProductNameParsingRule {
 							// 숫자 이전글자가 영문이며, 단위명 자투리도 영문인 경우 모델명 우선으로 인식 예:a1024mm
 							// 단. 단위직후 바로 다시 단위가 나오는 현상에 대해서는 단위로 취급.
 							if ((unitType == ALPHA && (typePrev == UNIT || typePrev == UNIT_ALPHA)) ||
-								!(getType(tempch1) == ALPHA && unitType == ALPHA)) {
+								(tempch1 != 0x0 && !(getType(tempch1) == ALPHA && unitType == ALPHA))) {
 								// 동의어 처리
 								// 단위명의 동의어가 있다면 처리한다.
 								RuleEntry backup = e0.clone();
@@ -931,7 +932,7 @@ public class ProductNameParsingRule {
 		// 특수문자 포함. 단 필요없는 특수문자는 버린다.
 		for (int qinx = 0; qinx < queue.size(); qinx++) {
 			e0 = queue.get(qinx);
-			if (e0.type == FULL_STRING) {
+			if (e0.type == FULL_STRING || userDictionary.contains(e0.makeTerm(null))) {
 				continue;
 			}
 			
