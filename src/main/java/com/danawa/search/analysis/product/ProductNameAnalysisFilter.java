@@ -127,7 +127,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						for (RuleEntry subEntry : entry.subEntry) {
 							List<CharSequence> synonyms = null;
 							CharVector cv = subEntry.makeTerm(null);
-							if (synonymDictionary.containsKey(cv)) {
+							if (option.useSynonym() && synonymDictionary.containsKey(cv)) {
 								synonyms = Arrays.asList(synonymDictionary.get(cv));
 								logger.trace("token:{} / synonym:{}", cv, synonyms);
 							}

@@ -85,10 +85,14 @@ public class ProductNameAnalysisFilterTest {
 		str = "bb탄총";
 		str = "nationalgeographic";
 		// str = "Sandisk Extream Z80 USB 16gb bacastv";
+		// str = "s8+";
+		// str = "21c파티션";
+		// str = "a3f[on]";
 		try {
 			// boolean useForQuery = false;
 			boolean useForQuery = true;
 			option = new AnalyzerOption(useForQuery, true, true, true, false);
+			option.useSynonym(false);
 			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary, true);
 			tokenizer.setReader(reader);
