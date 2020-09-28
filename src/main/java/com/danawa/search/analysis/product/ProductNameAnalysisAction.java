@@ -379,12 +379,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				String value = analyzeMap.get(key);
 				logger.debug("key : {} :::::: value : {}", key, value);
 				stream = ProductNameAnalyzerProvider.getAnalyzer(value, useForQuery, useSynonym, useStopword, useFullString, false);
-				writer.key(key).array();
 				List<String> list = analyzeMultiParamsText(client, value, stream, index);
-				for(String item : list){
-					writer.value(item);
+				if(list.size() != 0){
+					writer.key(key).array();
+					for(String item : list){
+						writer.value(item);
+					}
+					writer.endArray();
 				}
-				writer.endArray();
 				stream.close();
 			}
 		} catch (Exception ignore){
