@@ -32,29 +32,30 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.http.HttpInfo;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.plugins.PluginInfo;
-import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.*;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
+
+import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 public class ProductNameAnalysisAction extends BaseRestHandler {
 
@@ -133,15 +134,31 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
 	 */
 	@Inject ProductNameAnalysisAction(Settings settings, RestController controller) {
-		controller.registerHandler(Method.GET, BASE_URI + "/{action}", this);
-		controller.registerHandler(Method.POST, BASE_URI + "/{action}", this);
-		controller.registerHandler(Method.GET, BASE_URI, this);
-		controller.registerHandler(Method.POST, BASE_URI, this);
+
+
+		//controller.registerHandler(this);
+//		controller.rd(Method.GET, BASE_URI + "/{action}", this);
+		//controller.registerHandler(Method.POST, BASE_URI + "/{action}", this);
+//		controller.registerHandler(Method.GET, BASE_URI, this);
+//		controller.registerHandler(Method.POST, BASE_URI, this);
 	}
 
 	@Override
 	public String getName() {
 		return "rest_handler_product_name_analysis";
+	}
+
+	@Override
+	public List<Route> routes() {
+		List<Route> list = new ArrayList<>();
+		//        controller.registerHandler(GET, BASE_URI + "/{action}", this);
+		//        controller.registerHandler(POST, BASE_URI + "/{action}", this);
+		//        controller.registerHandler(GET, BASE_URI, this);
+		//        controller.registerHandler(POST, BASE_URI, this);
+		list.add(new Route(GET, BASE_URI + "/{action}"));
+		list.add(new Route(POST, BASE_URI + "/{action}"));
+
+		return list;
 	}
 
 	/**
@@ -227,7 +244,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body, boolean selfDist) {
 		String localNodeId = client.getLocalNodeId();
 		NodesInfoRequest infoRequest = new NodesInfoRequest();
-		infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true).indices(true);
+		infoRequest.clear().addMetrics("jvm","os","process","http","plugins","indices");
+		//infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true).indices(true);
 		try {
 			NodesInfoResponse response = client.admin().cluster().nodesInfo(infoRequest).get();
 			List<NodeInfo> nodes = response.getNodes();
@@ -237,9 +255,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					continue;
 				}
 				boolean hasPlugin = false;
-				TransportAddress address = node.getHttp().getAddress().publishAddress();
+				TransportAddress address = node.getInfo(HttpInfo.class).getAddress().publishAddress();
 				// 상품명분석기 플러그인을 가진 노드에만 전파
-				List<PluginInfo> plugins = node.getPlugins().getPluginInfos();
+				List<PluginInfo> plugins = node.getInfo(PluginsAndModules.class).getPluginInfos();
 				for (PluginInfo info : plugins) {
 					if (hasPlugin = info.getClassname().equals(AnalysisProductNamePlugin.class.getName())) {
 						break;
@@ -307,7 +325,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useStopword = request.paramAsBoolean("useStopword", false);
 		boolean useFullString = request.paramAsBoolean("useFullString", true);
 		boolean test = false;
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 			text = jparam.optString("text", "");
@@ -352,7 +370,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useFullString = true;
 
 		Map<String, String> analyzeMap = new HashMap<>();
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			// POST 처리
 			jparam = parseRequestBody(request);
 			for (String key : jparam.keySet()) {
@@ -754,7 +772,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				if (!ANALYZE_SET_FULL_STRING.equals(setName)) {
 					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
 						termWords.add(term);
-						logger.info("SYNONYM [{}] {} / {} ", setName, term, synonyms);
+						logger.trace("SYNONYM [{}] {} / {} ", setName, term, synonyms);
 						for (CharSequence synonym : synonyms) {
 							String s = String.valueOf(synonym);
 							termWords.add(s);
@@ -809,7 +827,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 				//동의어 없을 경우는 해당 term
 				if (termWords.size() == 0) {
-					hash.put(term, term);
+					hash.put(term, new Object[]{term});
 				}else{
 					hash.put(term, termWords.toArray());
 				}
@@ -1038,7 +1056,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean exportFile = request.paramAsBoolean("exportFile", false);
 		boolean distribute = request.paramAsBoolean("distribute", false);
 
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			/* POST */
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
@@ -1069,7 +1087,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 		}
@@ -1109,7 +1127,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
 		String word = request.param("word", "");
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 			word = jparam.optString("word", "");
@@ -1169,7 +1187,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void restoreDictionary(RestRequest request, NodeClient client) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 		}
@@ -1189,7 +1207,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String path = request.param("path", "");
 		String enc = request.param("enc", "euc-kr");
 		int flush = request.paramAsInt("flush", 50000);
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", "");
 			path = jparam.optString("path", "");
@@ -1228,7 +1246,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String sortStr = request.param("sort");
 		String highlightStr = request.param("highlight");
 		String analyzer = request.param("analyzer", "whitespace");
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", "");
 			fields = jparam.optString("fields", "").split("[,]");
@@ -1376,7 +1394,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String totalIndex = request.param("totalIndex", ES_INDEX_TOTALINDEX);
 		String text = request.param("text", "");
 		String analyzer = request.param("analyzer", "whitespace");
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			fields = jparam.optString("fields", "").split("[,]");
 			totalIndex = jparam.optString("totalIndex", ES_INDEX_TOTALINDEX);
@@ -1405,7 +1423,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean stopWord = request.paramAsBoolean("stopWord", true);
 		boolean synonym = request.paramAsBoolean("synonym", true);
 
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 			text = jparam.optString("text", "");
@@ -1522,7 +1540,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useFullString = true;
 
 		logger.debug("get-synonym-list start");
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			keyword = jparam.optString("keyword", "");
 		} else {
