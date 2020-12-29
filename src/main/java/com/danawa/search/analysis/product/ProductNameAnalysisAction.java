@@ -81,7 +81,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_SEARCH_KEYWORD = "search-keyword";
 
 
-	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
+	private static final String ES_DICTIONARY_INDEX = ".dsearch_dict";
 	private static final String ES_DICT_FIELD_ID = "id";
 	private static final String ES_DICT_FIELD_TYPE = "type";
 	private static final String ES_DICT_FIELD_KEYWORD = "keyword";
