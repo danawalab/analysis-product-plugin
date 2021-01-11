@@ -35,12 +35,13 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest.Metric;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.http.HttpInfo;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -48,7 +49,6 @@ import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
@@ -58,6 +58,11 @@ import org.elasticsearch.rest.RestStatus;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
+
+import static java.util.Arrays.asList;
+import static java.util.Collections.unmodifiableList;
+import static org.elasticsearch.rest.RestRequest.Method.GET;
+import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 public class ProductNameAnalysisAction extends BaseRestHandler {
 
@@ -129,17 +134,28 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private DanawaBulkTextIndexer indexingThread;
 
 	/**
+	 * ES-7.6 SPEC
 	 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
 	 */
-	@Inject ProductNameAnalysisAction(Settings settings, RestController controller) {
-		controller.registerHandler(Method.GET, BASE_URI + "/{action}", this);
-		controller.registerHandler(Method.POST, BASE_URI + "/{action}", this);
-		controller.registerHandler(Method.GET, BASE_URI, this);
-		controller.registerHandler(Method.POST, BASE_URI, this);
+	// @Inject ProductNameAnalysisAction(Settings settings, RestController controller) {
+	// 	controller.registerHandler(Method.GET, BASE_URI + "/{action}", this);
+	// 	controller.registerHandler(Method.POST, BASE_URI + "/{action}", this);
+	// 	controller.registerHandler(Method.GET, BASE_URI, this);
+	// 	controller.registerHandler(Method.POST, BASE_URI, this);
+	// }
+	@Override public List<Route> routes() {
+		/**
+		 * ES-7.8 SPEC
+		 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
+		 */
+		return unmodifiableList(asList(
+			new Route(GET, BASE_URI + "/{action}"),
+			new Route(POST, BASE_URI + "/{action}"),
+			new Route(GET, BASE_URI + "/"),
+			new Route(POST, BASE_URI + "/")));
 	}
 
-	@Override
-	public String getName() {
+	@Override public String getName() {
 		return "rest_handler_product_name_analysis";
 	}
 
@@ -216,7 +232,18 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body, boolean selfDist) {
 		String localNodeId = client.getLocalNodeId();
 		NodesInfoRequest infoRequest = new NodesInfoRequest();
-		infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true).indices(true);
+		/* ES-7.6 SPEC */
+		// infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true).indices(true);
+		/* ES-7.8 SPEC */
+		infoRequest.clear()
+			.addMetrics(Metric.JVM.metricName())
+			.addMetrics(Metric.OS.metricName())
+			.addMetrics(Metric.PROCESS.metricName())
+			.addMetrics(Metric.HTTP.metricName())
+			.addMetrics(Metric.PLUGINS.metricName())
+			.addMetrics(Metric.INDICES.metricName());
+	
+
 		try {
 			NodesInfoResponse response = client.admin().cluster().nodesInfo(infoRequest).get();
 			List<NodeInfo> nodes = response.getNodes();
@@ -226,9 +253,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					continue;
 				}
 				boolean hasPlugin = false;
-				TransportAddress address = node.getHttp().getAddress().publishAddress();
+				/* ES-7.6 SPEC */
+				// TransportAddress address = node.getHttp().getAddress().publishAddress();
+				/* ES-7.8 SPEC */
+				TransportAddress address = node.getInfo(HttpInfo.class).address().publishAddress();
 				// 상품명분석기 플러그인을 가진 노드에만 전파
-				List<PluginInfo> plugins = node.getPlugins().getPluginInfos();
+				/* ES-7.6 SPEC */
+				// List<PluginInfo> plugins = node.getPlugins().getPluginInfos();
+				/* ES-7.8 SPEC */
+				List<PluginInfo> plugins = node.getInfo(PluginsAndModules.class).getPluginInfos();
 				for (PluginInfo info : plugins) {
 					if (hasPlugin = info.getClassname().equals(AnalysisProductNamePlugin.class.getName())) {
 						break;
@@ -327,7 +360,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	public static boolean isOneWaySynonym(NodeClient client, String index, String word) {
 		boolean ret = false;
 		// 단방향 판단
-		// TODO:사전에서 직접 비교하는것과 색인을 이용하는것 중 어떤것이 좋을지 생각해 볼것
 		if (client != null && index != null && !"".equals(index)) {
 			// 색인을 사용하는 경우
 			BoolQueryBuilder query = QueryBuilders.boolQuery()
@@ -632,33 +664,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			ProductNameDictionary.reloadDictionary();
 		}
 	}
-
-	/**
-	 * 상품명사전을 컴파일 한다. (ES 색인 사용) - 원본
-	 */
-//	private void compileDictionary(RestRequest request, NodeClient client) {
-//		JSONObject jparam = new JSONObject();
-//		String index = request.param("index", ES_DICTIONARY_INDEX);
-//		boolean exportFile = request.paramAsBoolean("exportFile", false);
-//		boolean distribute = request.paramAsBoolean("distribute", false);
-//		if (!Method.GET.equals(request.method())) {
-//			jparam = parseRequestBody(request);
-//			index = jparam.optString("index", ES_DICTIONARY_INDEX);
-//			exportFile = jparam.optBoolean("exportFile", false);
-//			distribute = jparam.optBoolean("distribute", false);
-//		} else {
-//			jparam.put("index", index);
-//			jparam.put("exportFile", exportFile);
-//			jparam.put("distribute", distribute);
-//		}
-//
-//		DictionarySource repo = new DictionarySource(client, index);
-//		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionary(repo, exportFile));
-//		if (distribute) {
-//			jparam.put("distribute", false);
-//			distribute(request, client, ACTION_COMPILE_DICT, jparam, false);
-//		}
-//	}
 
 	/**
 	 * 상품명사전을 컴파일 한다. (ES 색인 사용) - 변경된 부분

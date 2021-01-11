@@ -69,6 +69,6 @@ public class AnalysisProductNamePlugin extends Plugin implements AnalysisPlugin,
 	@Override public List<RestHandler> getRestHandlers(Settings settings, RestController controller,
 		ClusterSettings clusterSettings, IndexScopedSettings indexScopedSettings, SettingsFilter filter,
 		IndexNameExpressionResolver resolver, Supplier<DiscoveryNodes> nodes) {
-		return singletonList(new ProductNameAnalysisAction(settings, controller));
+		return singletonList(new ProductNameAnalysisAction());
 	}
 }
