@@ -121,6 +121,16 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 
 				if (option.useForQuery()) {
 					// 질의용
+					if(subEntryList != null) {
+						//질의어에서는 단위명의 숫자만을 뽑지는 않는다. (검색의 정확도를 위해)
+						//역으로는 뽑아야 한다. (1,204 를 검색할 경우 1,024gb 를 포함해야 하지만 1,024gb 를 검색했을 때 1,024 가 검색되지는 않는다.
+						if(entry.type == UNIT || entry.type == UNIT_ALPHA) {
+							if (subEntryList.size() > 0 && (subEntryList.get(0).type == NUMBER || 
+								subEntryList.get(0).type == NUMBER_TRANS)) {
+								subEntryList.remove(0);
+							}
+						}
+					}
 					token = applyEntry(entry);
 					applySynonym(token, entry);
 					if (entry.subEntry != null && entry.subEntry.size() > 0) {

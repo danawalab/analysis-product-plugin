@@ -62,8 +62,8 @@ public class ProductNameAnalysisFilterTest {
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		TokenStream tstream = null;
-		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		// ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		SpaceDictionary spDict = dictionary.getDictionary(ProductNameDictionary.DICT_SPACE, SpaceDictionary.class);
 		spDict.addEntry("", new CharVector[] { new CharVector("bacas tv") });
 		AnalyzerOption option = null;
@@ -93,7 +93,7 @@ public class ProductNameAnalysisFilterTest {
 			// boolean useForQuery = false;
 			boolean useForQuery = true;
 			option = new AnalyzerOption(useForQuery, true, true, true, false);
-			option.useSynonym(false);
+			option.useSynonym(true);
 			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary, true);
 			tokenizer.setReader(reader);

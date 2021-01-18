@@ -1087,8 +1087,17 @@ public class ProductNameParsingRule {
 
 		if (queue.size() > 1 && (e0 = queue.get(0)).type == FULL_STRING && 
 			(e1 = queue.get(1)).startOffset == e0.startOffset && e1.endOffset == e0.endOffset) {
-			// FIXME:동의어 합치기 필요
-			e1.synonym = e0.synonym;
+			// 동의어 합치기 (FULL-TERM 과 나머지 1개 TERM 이 같은 경우 동의어 합침)
+			if (e0.synonym != null && e0.synonym.length > 0 &&
+				e1.synonym != null && e1.synonym.length > 0) {
+				int len = e1.synonym.length;
+				e1.synonym = Arrays.copyOf(e1.synonym, len + e0.synonym.length);
+				System.arraycopy(e0.synonym, 0, e1.synonym, len, e0.synonym.length);
+			} else if(e0.synonym != null && e0.synonym.length > 0) {
+				e1.synonym = e0.synonym;
+			} else {
+				// NOP
+			}
 			queue.remove(0);
 		}
 		
@@ -1148,7 +1157,7 @@ public class ProductNameParsingRule {
 		return addInx;
 	}
 	
-	private void testEntry(RuleEntry entry, RuleEntry parent) {
+	public static void testEntry(RuleEntry entry, RuleEntry parent) {
 		if ((parent == null || parent.type == MODEL_NAME) && entry.type == NUMBER && entry.length >= 5) {
 			entry.type = MODEL_NAME;
 		} else if (entry.type == UNIT_ALPHA) {
@@ -1156,7 +1165,7 @@ public class ProductNameParsingRule {
 		} else if (entry.type == NUMBER_TRANS) {
 			entry.type = NUMBER;
 			CharVector entryStr = new CharVector(entry.makeTerm(null).toString().replace(",", ""));
-			if (entry.length != entryStr.length()) {
+			if (entry.length != entryStr.length() && parent != null) {
 				int inx = parent.subEntry.indexOf(entry);
 				parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
 			}
