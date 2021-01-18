@@ -520,11 +520,11 @@ public class ProductNameParsingRule {
 							// 숫자 이전글자가 영문이며, 단위명 자투리도 영문인 경우 모델명 우선으로 인식 예:a1024mm
 							// 단. 단위직후 바로 다시 단위가 나오는 현상에 대해서는 단위로 취급.
 							if ((unitType == ALPHA && (typePrev == UNIT || typePrev == UNIT_ALPHA)) ||
-								(tempch1 != 0x0 && !(getType(tempch1) == ALPHA && unitType == ALPHA))) {
+								!(getType(tempch1) == ALPHA && unitType == ALPHA)) {	
 								// 동의어 처리
 								// 단위명의 동의어가 있다면 처리한다.
 								RuleEntry backup = e0.clone();
-								if (fullExtract && !option.useForQuery()) {
+								if (fullExtract) {
 									e0.subEntry = new ArrayList<>();
 									e0.subEntry.add(backup);
 								}
@@ -608,7 +608,7 @@ public class ProductNameParsingRule {
 								e0.modifiable = true;
 								e1.modifiable = true;
 							} else {
-								if (fullExtract && !option.useForQuery()) {
+								if (fullExtract) {
 									e0.subEntry = new ArrayList<>();
 									e0.subEntry.add(e0.clone());
 								}
@@ -697,8 +697,12 @@ public class ProductNameParsingRule {
 					} else if (e0.start == e1.start + e1.length && (
 						// 특수문자는 연달아 나올수 없다.
 						(e0.type != SYMBOL && (isAlphaNumPrev || e1.type == UNIT_ALPHA || (e1.type == SYMBOL && typeContinuous > 0))) ||
-						(e0.type == SYMBOL && (isAlphaNumPrev || (e1.type == UNIT_ALPHA && typeContinuous > 0)) && e0.length == 1
-							&& containsChar(AVAIL_SYMBOLS_CONNECTOR, e0.buf[e0.start])))) {
+						(e0.type == SYMBOL && (isAlphaNumPrev || (e1.type == UNIT_ALPHA && typeContinuous > 0)) && e0.length == 1 &&
+							containsChar(AVAIL_SYMBOLS_CONNECTOR, e0.buf[e0.start])) ||
+						// 영단위는 - 를 만나면 일단 이어질수 있는것으로 본다.
+						(e0.type == UNIT_ALPHA && e1.length == 1 && e1.buf[e1.start] == AVAIL_SYMBOLS[0]) ||
+						(e0.type == SYMBOL && (isAlphaNumPrev || (e1.type == UNIT_ALPHA && typeContinuous >= 0)) && e0.length == 1 &&
+							e0.buf[e0.start] == AVAIL_SYMBOLS[0]))) {
 						typeContinuous++;
 						isContinue = true;
 					} else {
@@ -714,7 +718,7 @@ public class ProductNameParsingRule {
 				isContinue = false;
 			}
 			if (logger.isTraceEnabled()) {
-				logger.trace("qinx:{} / type:{} / typePrev:{} / typeCont:{} / e0:{} / char:[{}]:{}", qinx, type, typePrev, typeContinuous, e0, e0.buf[e0.start], containsChar(AVAIL_SYMBOLS_INNUMBER, e0.buf[e0.start]));
+				logger.trace("qinx:{} / type:{} / typePrev:{} / typeCont:{} / continue:{} / e0:{} / char:[{}]:{}", qinx, type, typePrev, typeContinuous, isContinue, e0, e0.buf[e0.start], containsChar(AVAIL_SYMBOLS_INNUMBER, e0.buf[e0.start]));
 			}
 			
 			// 병합되기 직전의 처리로 병합을 취소할 수 있는. 예외로직을 기재한다.
@@ -826,14 +830,14 @@ public class ProductNameParsingRule {
 					}
 				}
 			} else if (type == UNIT_ALPHA) {
-				if (qinx > 0 && qinx + 1 < queue.size()) {
-					e1 = queue.get(qinx - 1);
-					e2 = queue.get(qinx + 1);
-					// 단위명 앞 뒤로 기호일 경우는 일단 모델명에서 제외, 단위명 우선.
-					// 단 단위가 연결자일 경우는 모델명 우선.
+				e1 = e2 = null;
+				if (qinx > 0) { e1 = queue.get(qinx - 1); }
+				if (qinx+ 1 < queue.size()) { e2 = queue.get(qinx + 1);}
+				// 단위명 앞 뒤로 기호일 경우는 일단 모델명에서 제외, 단위명 우선.
+				// 단 단위가 연결자일 경우는 모델명 우선.
+				if (e1 != null & e2 != null) {
 					if (e1.type == SYMBOL && !(e2.type == ALPHA || e2.type == NUMBER) || 
 						e2.type == SYMBOL && !(e1.type == ALPHA || e1.type == NUMBER)) {
-						
 						// 한쪽이라도 - 연결자가 발견되면 다시 모델명으로 인식.
 						if (!(e1.buf[e1.start] == '-' ||
 							e2.buf[e2.start] == '-')) {
@@ -848,6 +852,22 @@ public class ProductNameParsingRule {
 								isContinue = true;
 							}
 						}
+					}
+				} else {
+					if (!((e1 != null && e1.buf[e1.start] == '-') ||
+						(e2 != null && e2.buf[e2.start] == '-'))) {
+						e0.modifiable = false;
+						if (typeContinuous > 0) {
+							logger.trace("model name cancel 6");
+							typeContinuousMerge = typeContinuous - 1;
+							typeContinuous = 0;
+							isContinue = false;
+						} else {
+							typeContinuous = 0;
+							isContinue = true;
+						}
+					} else {
+						isContinue = false;
 					}
 				}
 			}
@@ -1136,7 +1156,7 @@ public class ProductNameParsingRule {
 		} else if (entry.type == NUMBER_TRANS) {
 			entry.type = NUMBER;
 			CharVector entryStr = new CharVector(entry.makeTerm(null).toString().replace(",", ""));
-			if (entry.length != entryStr.length() && parent != null) {
+			if (entry.length != entryStr.length()) {
 				int inx = parent.subEntry.indexOf(entry);
 				parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
 			}
@@ -1149,36 +1169,136 @@ public class ProductNameParsingRule {
 		RuleEntry e0, e1, e2, e3, e4;
 		e0 = e1 = e2 = null;
 		boolean settable = true;
-
 		if (entry.type == MODEL_NAME) {
-			if (subQueue.size() == 2) {
-				// 모델명이 2블럭이며, 1글자씩이 붙어서 나온 것이면 붙여서만 출력 한다.
-				e0 = subQueue.get(0);
-				e1 = subQueue.get(1);
-				if (e0.length == 1 && e1.length == 1) {
-					subQueue.clear();
-				} else if (e1.type == SYMBOL) {
-					entry.length -= e1.length;
-					entry.endOffset -= e1.length;
-					entry.type = e0.type;
+			// 바이트 비교가 많으므로 버퍼기준으로 처리하도록 한다.
+			boolean processed = false;
+			if (subQueue.size() == 3) {
+				// 모델명이 3블럭이며, 가운데 기호가 있는 경우, 붙여서만 출력함.
+				// 단위명 + 1글자 등의 조합으로 나올수 있으므로 일단 합쳐서 체크하도록 한다.
+				int contCnt = 0;
+				e1 = subQueue.get(0).clone();
+				e0 = e1;
+				for (int cinx = 1; cinx < subQueue.size(); cinx++, contCnt++) {
+					e2 = subQueue.get(cinx);
+					if (e1.startOffset + e1.length != e2.startOffset) {
+						break;
+					}
+					e0.length += e2.length;
+					e1 = e2;
 				}
-			} else if (subQueue.size() == 3) {
-				e0 = subQueue.get(0);
-				e1 = subQueue.get(1);
-				e2 = subQueue.get(2);
-				if (e0.length == 1 && e1.length == 1 && e2.length == 1) {
-					// 모델명이 3블럭이며, 가운데 기호가 있는 경우, 붙여서만 출력함.
-					if ((e0.type == ALPHA || e0.type == NUMBER)
-						&& (e2.type == ALPHA || e2.type == NUMBER)) {
-						if (e1.type == SYMBOL) {
-							if (e1.buf[e1.start] != '+') {
-								subQueue.clear();
+				// 합칠수 있는 블럭인 경우.
+				if (contCnt > 0 && contCnt == subQueue.size() - 1) {
+					if (e0.length == 2) {
+						String t1 = getType(e0.buf[e0.start]);
+						String t2 = getType(e0.buf[e0.start + 1]);
+						if ((t1 == ALPHA || t1 == NUMBER) &&
+							// 모델명이 2블럭이며, 영숫자 + 특수기호 인 경우
+							(t2 == SYMBOL)) {
+							entry.length -= 1;
+							entry.endOffset -= 1;
+							entry.type = t1;
+							subQueue.clear();
+							processed = true;
+						} else if ((t1 == SYMBOL) &&
+							// 모델명이 2블럭이며, 영숫자 + 특수기호 인 경우
+							(t2 == ALPHA || t2 == NUMBER)) {
+							entry.start++;
+							entry.startOffset++;
+							entry.length--;
+							entry.type = t2;
+							subQueue.clear();
+							processed = true;
+						} else if (t1 != t2 && 
+							// 모델명이 2블럭이며, 1글자씩이 붙어서 나온 것이면 붙여서만 출력 한다.
+							(t1 == ALPHA || t1 == NUMBER) && 
+							(t2 == ALPHA || t2 == NUMBER)) {
+							subQueue.clear();
+							processed = true;
+						}
+					} else if (e0.length == 3) {
+						String t1 = getType(e0.buf[e0.start]);
+						String t2 = getType(e0.buf[e0.start + 1]);
+						String t3 = getType(e0.buf[e0.start + 2]);
+						if ((t1 == ALPHA || t1 == NUMBER) && 
+							(t2 == SYMBOL) && 
+							(t3 == ALPHA || t3 == NUMBER)) {
+							subQueue.clear();
+						} else if (t1 != t2 && t2 != t3 &&
+							(t1 == ALPHA || t1 == NUMBER) && 
+							(t2 == ALPHA || t2 == NUMBER) && 
+							(t3 == ALPHA || t3 == NUMBER)) {
+							subQueue.clear();
+						}
+						processed = true;
+					}
+				}
+//
+//				// 모델명이 2블럭이며, 1글자씩이 붙어서 나온 것이면 붙여서만 출력 한다.
+//				e0 = subQueue.get(0);
+//				e1 = subQueue.get(1);
+//				if (e0.length == 1 && e1.length == 1) {
+//					subQueue.clear();
+//				} else if (e1.type == SYMBOL) {
+//					entry.length -= e1.length;
+//					entry.endOffset -= e1.length;
+//					entry.type = e0.type;
+//				}
+//			} else if (subQueue.size() == 3) {
+//				e0 = subQueue.get(0);
+//				e1 = subQueue.get(1);
+//				e2 = subQueue.get(2);
+//				if (e0.length == 1 && e1.length == 1 && e2.length == 1) {
+//					// 모델명이 3블럭이며, 가운데 기호가 있는 경우, 붙여서만 출력함.
+//					if ((e0.type == ALPHA || e0.type == NUMBER)
+//						&& (e2.type == ALPHA || e2.type == NUMBER)) {
+//						if (e1.type == SYMBOL) {
+//							if (e1.buf[e1.start] != '+') {
+//								subQueue.clear();
+//							}
+//						} else if (e0.type == e2.type) {
+//							e0.length += e1.length + e2.length;
+//							e0.endOffset = e2.endOffset;
+//							subQueue.remove(2);
+//							subQueue.remove(1);
+//						}
+//					}
+//				}
+			}
+			if (!processed) {
+				if (subQueue.size() == 2) {
+					// 모델명이 2블럭이며, 1글자씩이 붙어서 나온 것이면 붙여서만 출력 한다.
+					e0 = subQueue.get(0);
+					e1 = subQueue.get(1);
+					if (e0.length == 1 && e1.length == 1) {
+						subQueue.clear();
+					} else if (e0.type == SYMBOL) {
+						entry.start += e0.length;
+						entry.startOffset += e0.length;
+						entry.length -= e0.length;
+						entry.type = e1.type;
+					} else if (e1.type == SYMBOL) {
+						entry.length -= e1.length;
+						entry.endOffset -= e1.length;
+						entry.type = e0.type;
+					}
+				} else if (subQueue.size() == 3) {
+					e0 = subQueue.get(0);
+					e1 = subQueue.get(1);
+					e2 = subQueue.get(2);
+					if (e0.length == 1 && e1.length == 1 && e2.length == 1) {
+						// 모델명이 3블럭이며, 가운데 기호가 있는 경우, 붙여서만 출력함.
+						if ((e0.type == ALPHA || e0.type == NUMBER)
+							&& (e2.type == ALPHA || e2.type == NUMBER)) {
+							if (e1.type == SYMBOL) {
+								if (e1.buf[e1.start] != '+') {
+									subQueue.clear();
+								}
+							} else if (e0.type == e2.type) {
+								e0.length += e1.length + e2.length;
+								e0.endOffset = e2.endOffset;
+								subQueue.remove(2);
+								subQueue.remove(1);
 							}
-						} else if (e0.type == e2.type) {
-							e0.length += e1.length + e2.length;
-							e0.endOffset = e2.endOffset;
-							subQueue.remove(2);
-							subQueue.remove(1);
 						}
 					}
 				}
@@ -1667,10 +1787,11 @@ public class ProductNameParsingRule {
 	}
 	
 	private boolean containsDictionary(CharVector cv) {
+		/**
+		 * 2020. 12. 7. 요청사항 형태소 분석시 제조사/브랜드/카테고리 사전 사용하지 않음
+		 */
 		if (extractor.dictionary().find(cv) != null ||
-			userDictionary.contains(cv) ||
-			(brandDictionary != null && brandDictionary.contains(cv)) ||
-			(makerDictionary != null && makerDictionary.contains(cv))) {
+			userDictionary.contains(cv)) {
 			return true;
 		}
 		return false;
