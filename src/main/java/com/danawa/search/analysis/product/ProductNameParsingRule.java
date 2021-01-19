@@ -520,7 +520,7 @@ public class ProductNameParsingRule {
 							// 숫자 이전글자가 영문이며, 단위명 자투리도 영문인 경우 모델명 우선으로 인식 예:a1024mm
 							// 단. 단위직후 바로 다시 단위가 나오는 현상에 대해서는 단위로 취급.
 							if ((unitType == ALPHA && (typePrev == UNIT || typePrev == UNIT_ALPHA)) ||
-								!(getType(tempch1) == ALPHA && unitType == ALPHA)) {	
+								!(getType(tempch1) == ALPHA && unitType == ALPHA)) {
 								// 동의어 처리
 								// 단위명의 동의어가 있다면 처리한다.
 								RuleEntry backup = e0.clone();
