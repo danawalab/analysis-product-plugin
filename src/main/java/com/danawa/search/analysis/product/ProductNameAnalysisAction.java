@@ -1,12 +1,9 @@
 package com.danawa.search.analysis.product;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.*;
@@ -49,18 +46,21 @@ import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.plugins.PluginInfo;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
+
+import org.elasticsearch.rest.*;
+
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
 
+
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
+
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
@@ -83,8 +83,12 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_ANALYZE_TEXT = "analyze";
 	private static final String ACTION_SEARCH = "search";
 	private static final String ACTION_BUILD_QUERY = "build-query";
+	private static final String ACTION_SYNONYM_LIST = "get-synonym-list";
+	private static final String ACTION_ANALYZE_MULTI_PARAMS = "multi-analyze";
+	private static final String ACTION_SEARCH_KEYWORD = "search-keyword";
 
-	private static final String ES_DICTIONARY_INDEX = ".fastcatx_dict";
+
+	private static final String ES_DICTIONARY_INDEX = ".dsearch_dict";
 	private static final String ES_DICT_FIELD_ID = "id";
 	private static final String ES_DICT_FIELD_TYPE = "type";
 	private static final String ES_DICT_FIELD_KEYWORD = "keyword";
@@ -202,6 +206,16 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			search(request, client, builder);
 		} else if (ACTION_BUILD_QUERY.equals(action)) {
 			buildQuery(request, client, builder);
+		}else if(ACTION_ANALYZE_MULTI_PARAMS.equals(action)){
+			builder.object();
+			analyzeMultiParamsAction(request, client, builder);
+			builder.endObject();
+		} else if(ACTION_SYNONYM_LIST.equals(action)){
+			builder.object();
+			getSynonymListAction(request, client, builder);
+			builder.endObject();
+		} else if (ACTION_SEARCH_KEYWORD.equals(action)) {
+			makeSearchKeyword(request, client, builder);
 		}
 		return channel -> {
 			channel.sendResponse(new BytesRestResponse(RestStatus.OK, CONTENT_TYPE_JSON, buffer.toString()));
@@ -242,7 +256,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			.addMetrics(Metric.HTTP.metricName())
 			.addMetrics(Metric.PLUGINS.metricName())
 			.addMetrics(Metric.INDICES.metricName());
-	
 
 		try {
 			NodesInfoResponse response = client.admin().cluster().nodesInfo(infoRequest).get();
@@ -329,7 +342,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useStopword = request.paramAsBoolean("useStopword", false);
 		boolean useFullString = request.paramAsBoolean("useFullString", true);
 		boolean test = false;
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 			text = jparam.optString("text", "");
@@ -351,6 +364,74 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		if (test) {
 			distribute(request, client, ACTION_TEST, jparam, true);
+		}
+	}
+
+	/**
+	 * 텍스트 상품명 분석
+	 * 다중 파라미터 처리
+	 */
+	private void analyzeMultiParamsAction(RestRequest request, NodeClient client, JSONWriter writer) {
+		JSONObject jparam = new JSONObject();
+
+		logger.debug("multi-params Action");
+		// 인덱스는 고정
+		String index = ES_DICTIONARY_INDEX;
+
+		// 검색된 구문들이 어디 영역에 포함되는지 ex. 동의어 확장, 등등
+		boolean detail = false;
+		// 검색어 확장
+		boolean useForQuery = false;
+		boolean useSynonym = true;
+		boolean useStopword = false;
+		boolean useFullString = true;
+
+		Map<String, String> analyzeMap = new HashMap<>();
+		if (!GET.equals(request.method())) {
+			// POST 처리
+			jparam = parseRequestBody(request);
+			for (String key : jparam.keySet()) {
+				analyzeMap.put(key, jparam.optString(key, ""));
+			}
+		} else {
+			// GET 처리
+			try {
+				for (String key : request.params().keySet()) {
+					if (key.equals("action") || key.equals("pretty")) continue;
+					analyzeMap.put(key, URLDecoder.decode(request.param(key, ""), "UTF-8"));
+				}
+			} catch (UnsupportedEncodingException e) {
+				System.out.println("UnsupportedEncodingException Catched !!! >>>> \n" + e.getMessage());
+				writer.key("success").value(false);
+				logger.debug("error >>> {}", e);
+			}
+		}
+
+		TokenStream stream = null;
+		writer.key("result").object();
+		try {
+			for(String key : analyzeMap.keySet()){
+				String value = analyzeMap.get(key);
+				logger.debug("key : {} :::::: value : {}", key, value);
+				stream = ProductNameAnalyzerProvider.getAnalyzer(value, useForQuery, useSynonym, useStopword, useFullString, false);
+				List<String> list = analyzeMultiParamsText(client, value, stream, index);
+				if(list.size() != 0){
+					writer.key(key).array();
+					for(String item : list){
+						writer.value(item);
+					}
+					writer.endArray();
+				}
+				stream.close();
+			}
+		} catch (Exception ignore){
+			writer.endObject();
+			writer.key("success").value(false);
+			logger.debug("exception >>> {}", ignore);
+			System.out.println("Exception Catched !!! >>>> \n" + ignore.getMessage());
+		} finally {
+			writer.endObject();
+			writer.key("success").value(true);
 		}
 	}
 
@@ -505,7 +586,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			logger.trace("SYNONYM-WAY : {}", synonymWayMap);
 			writer.object()
 				.key("query").value(text)
-				.key("resutl").array();
+				.key("result").array();
 			if (detail) {
 				for (String key : new TreeSet<String>(result.keySet())) {
 					String label = ANALYSIS_RESULT_LABELS.get(key);
@@ -644,6 +725,297 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	/**
+	 * 검색어 확장 각텀의 확장된 검색어들을 만든다
+	 */
+	public static void expansionKeyword(NodeClient client, String text, TokenStream stream, String index, JSONWriter writer) {
+		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
+		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
+		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
+		Map<String, List<List<String>>> result = new HashMap<>();
+
+		List<List<String>> wordList = null;
+		List<Object> termWords = null;
+
+		List<CharSequence> synonyms = synAttr.getSynonyms();
+		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
+			result.put(key, new ArrayList<>());
+		}
+
+		Map<String, Object> hash = new LinkedHashMap<>();
+		Map<String, Object> extSynonymHash = null;
+
+		String term = null;
+		String type = null;
+		String setName = null;
+		String setNamePrev = null;
+		int[] offset = {0, 0};
+		int[] offsetPrev = {0, 0};
+
+		try {
+			stream.reset();
+			while (stream.incrementToken()) {
+				setNamePrev = setName;
+				offsetPrev = new int[]{offset[0], offset[1]};
+				term = String.valueOf(termAttr);
+				termWords = new ArrayList<>();
+				type = typeAttr.type();
+				offset = new int[]{offAttr.startOffset(), offAttr.endOffset()};
+				logger.trace("TERM:{} / {}", term, type);
+
+				//풀텀일 경우는 분석 하지 않는다 SKIP
+				if (type.equals("FULL_STRING")) {
+					continue;
+				}
+				if (!ANALYZE_SET_FULL_STRING.equals(setNamePrev) && offset[0] < offsetPrev[1]) {
+					// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
+					wordList = result.get(setNamePrev);
+					if (wordList != null) {
+						termWords.add(term);
+						setName = setNamePrev;
+						offset = new int[]{offsetPrev[0], offsetPrev[1]};
+					}
+				} else if (ProductNameTokenizer.MODEL_NAME.equals(type)) {
+					// 모델명의 경우 색인시와 질의시 추출방법이 서로 다르다.
+					setName = ANALYZE_SET_MODEL_NAME;
+				} else if (ProductNameTokenizer.UNIT.equals(type)) {
+					// 단위명
+					setName = ANALYZE_SET_UNIT;
+				} else {
+					// 일반단어
+					setName = ANALYZE_SET_NORMAL;
+				}
+
+				if (!ANALYZE_SET_FULL_STRING.equals(setName)) {
+					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+						termWords.add(term);
+						logger.trace("SYNONYM [{}] {} / {} ", setName, term, synonyms);
+						for (CharSequence synonym : synonyms) {
+							String s = String.valueOf(synonym);
+							termWords.add(s);
+						}
+					}
+
+					Iterator<String> iter = extAttr.iterator();
+					if (iter != null && iter.hasNext()) {
+
+						termWords = new ArrayList<>();
+						//확장어 원본 입력
+						termWords.add(term);
+						List<Object> extAnalyeTerm = new ArrayList<>();
+						while (iter.hasNext()) {
+							String s = iter.next();
+							logger.trace("EXT [{}] {} / {} / {} / {}", setName, term, s, termWords);
+							extAnalyeTerm.add(s);
+							synonyms = synAttr.getSynonyms();
+							if (synonyms != null && synonyms.size() > 0) {
+
+
+								extSynonymHash = new HashMap<>();
+								List<String> extSynonymList = new ArrayList<>();
+								//확장어의 동의어가 있을 경우 원본 확장어 리스트에서 삭제 (이후 확장어 동의어 리스트 적재)
+								extAnalyeTerm.remove(s);
+
+								logger.trace("EXT-SYN [{}] {} / {} / {} / {}", setName, term, s, synonyms);
+
+								//확장어 동의어가 하나 혹은 여러개일 떄 별도?
+
+								for (CharSequence synonym : synonyms) {
+									logger.trace("synonym : {}" , synonym);
+									extSynonymList.add(String.valueOf(synonym));
+								}
+								logger.trace("synonymList : {} - {}", s, extSynonymList);
+//								if(extSynonymList.size() > 1) {
+//									extSynonymHash.put(s,extSynonymList);
+//								}else if(extSynonymList.size() == 1) {
+//									extSynonymHash.put(s,extSynonymList.get(0));
+//								}
+								extSynonymHash.put(s,extSynonymList);
+								if(extSynonymHash.size() > 0) {
+									extAnalyeTerm.add(extSynonymHash);
+								}
+							}
+						}
+						termWords.add(extAnalyeTerm);
+					}
+				}
+
+				logger.trace("term : {} - {}", term, termWords);
+
+				//동의어 없을 경우는 해당 term
+				if (termWords.size() == 0) {
+					hash.put(term, new Object[]{term});
+				}else{
+					hash.put(term, termWords.toArray());
+				}
+			}
+
+			writer.object()
+					.key("query").value(text)
+					.key("result").value(hash)
+					.endObject();
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+	}
+//
+//	private static void setAnalyzedResult2(Map<String, List<List<String>>> result, String term, String... types) {
+//		List<List<String>> wordList = null;
+//		List<String> words = null;
+//		List<List<String>> termWordList = null;
+//		List<String> termWords = null;
+//		for (String type : types) {
+//			words = new ArrayList<>();
+//			termWords = new ArrayList<>();
+//			//wordList = result.get(type);
+//			//.add();
+//			words.add(term);
+//			termWords.add(term);
+//		}
+//	}
+
+	/**
+	 * 다중 파라미터 분석.
+	 * analyzer 를 통해 텍스트를 분석해 출력한다.
+	 * 다나와 관리모듈에 맞는 형식으로 제작
+	 */
+	public static List<String> analyzeMultiParamsText(NodeClient client, String text, TokenStream stream,  String index) {
+		List<String> resultList = new ArrayList<>();
+
+		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+		ExtraTermAttribute extAttr = stream.addAttribute(ExtraTermAttribute.class);
+		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
+		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
+		Map<String, List<List<String>>> result = new HashMap<>();
+		Map<String, Boolean> synonymWayMap = new HashMap<>();
+		Map<String, List<String>> synonymMap = new HashMap<>();
+		List<List<String>> wordList = null;
+		List<String> words = null;
+		List<String> words2 = null;
+		List<CharSequence> synonyms = synAttr.getSynonyms();
+		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
+			result.put(key, new ArrayList<>());
+		}
+
+		String term = null;
+		String type = null;
+		String setName = null;
+		String setNamePrev = null;
+		int[] offset = { 0, 0 };
+		int[] offsetPrev = { 0, 0 };
+		boolean oneWaySynonym = false;
+		try {
+			stream.reset();
+			while (stream.incrementToken()) {
+				setNamePrev = setName;
+				offsetPrev = new int[] { offset[0], offset[1] };
+				term = String.valueOf(termAttr);
+				type = typeAttr.type();
+				offset = new int[] { offAttr.startOffset(), offAttr.endOffset() };
+				logger.trace("TERM:{} / {}", term, type);
+				if (!ANALYZE_SET_FULL_STRING.equals(setNamePrev) && offset[0] < offsetPrev[1]) {
+					// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
+					wordList = result.get(setNamePrev);
+					if (wordList != null) {
+						words = wordList.get(wordList.size() - 1);
+						words.add(term);
+						setName = setNamePrev;
+						offset = new int[] { offsetPrev[0], offsetPrev[1] };
+						setAnalyzedResult(result, term, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+					}
+				} else if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+					// 전체 단어
+					setName = ANALYZE_SET_FULL_STRING;
+					setAnalyzedResult(result, term, ANALYZE_SET_FULL_STRING, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.MODEL_NAME.equals(type)) {
+					// 모델명의 경우 색인시와 질의시 추출방법이 서로 다르다.
+					setName = ANALYZE_SET_MODEL_NAME;
+					setAnalyzedResult(result, term, ANALYZE_SET_MODEL_NAME, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.UNIT.equals(type)) {
+					// 단위명
+					setName = ANALYZE_SET_UNIT;
+					setAnalyzedResult(result, term, ANALYZE_SET_UNIT, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.COMPOUND.equals(type)) {
+					setName = ANALYZE_SET_COMPOUND;
+					setAnalyzedResult(result, term, ANALYZE_SET_COMPOUND, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.STOPWORD.equals(type)) {
+					setName = ANALYZE_SET_STOPWORD;
+					setAnalyzedResult(result, term, ANALYZE_SET_STOPWORD);
+				} else {
+					// 일반단어
+					setName = ANALYZE_SET_NORMAL;
+					setAnalyzedResult(result, term, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				}
+
+				if (!ANALYZE_SET_FULL_STRING.equals(setName)) {
+					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+						wordList = result.get(ANALYZE_SET_SYNONYM);
+						wordList.add(words = new ArrayList<>());
+						words.add(term);
+						wordList = result.get(setName);
+						words2 = wordList.get(wordList.size() - 1);
+						oneWaySynonym = isOneWaySynonym(client, index, term);
+						synonymWayMap.put(term, oneWaySynonym);
+						synonymMap.put(term, words);
+						logger.trace("SYNONYM [{}] {} / {} / {}", setName, term, oneWaySynonym, synonyms);
+						for (CharSequence synonym : synonyms) {
+							String s = String.valueOf(synonym);
+							words.add(s);
+							if (!ANALYZE_SET_NORMAL.equals(setName)) {
+								words2.add(s);
+							}
+							setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
+						}
+					}
+
+					Iterator<String> iter = extAttr.iterator();
+					if (iter != null && iter.hasNext()) {
+						wordList = result.get(setName);
+						words = wordList.get(wordList.size() - 1);
+						while (iter.hasNext()) {
+							String s = iter.next();
+							logger.trace("EXT [{}] {} / {} / {} / {}", setName, term, s, words, wordList);
+							words.add(s);
+							setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
+							synonyms = synAttr.getSynonyms();
+							if (synonyms != null && synonyms.size() > 0) {
+								oneWaySynonym = isOneWaySynonym(client, index, s);
+								synonymWayMap.put(s, oneWaySynonym);
+								synonymMap.put(term, words);
+								logger.trace("EXT-SYN [{}] {} / {} / {} / {} / {}", setName, term, s, oneWaySynonym, synonyms, wordList);
+								setAnalyzedResult(result, s, ANALYZE_SET_SYNONYM);
+								wordList = result.get(ANALYZE_SET_SYNONYM);
+								List<String> list = wordList.get(wordList.size() - 1);
+								for (CharSequence synonym : synonyms) {
+									s = String.valueOf(synonym);
+									list.add(s);
+									setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
+								}
+							}
+						}
+					}
+				}
+			}
+			logger.trace("SYNONYM-WAY : {}", synonymWayMap);
+
+			wordList = result.get(ANALYZE_SET_FINAL);
+
+			logger.trace("RESULT:{}", wordList);
+			for (List<String> item : wordList) {
+				if (item.size() > 0) {
+					resultList.add(item.get(0));
+				}
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}
+
+		return resultList;
+	}
+
+	/**
 	 * 상세분석시 각 분류별 결과를 분류 맵핑에 입력해 준다.
 	 */
 	private static void setAnalyzedResult(Map<String, List<List<String>>> result, String term, String... types) {
@@ -675,7 +1047,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean exportFile = request.paramAsBoolean("exportFile", false);
 		boolean distribute = request.paramAsBoolean("distribute", false);
 
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			/* POST */
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
@@ -706,7 +1078,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 		}
@@ -746,7 +1118,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
 		String word = request.param("word", "");
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 			word = jparam.optString("word", "");
@@ -806,7 +1178,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void restoreDictionary(RestRequest request, NodeClient client) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 		}
@@ -826,7 +1198,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String path = request.param("path", "");
 		String enc = request.param("enc", "euc-kr");
 		int flush = request.paramAsInt("flush", 50000);
-		if (!Method.GET.equals(request.method())) {
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", "");
 			path = jparam.optString("path", "");
@@ -864,7 +1236,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean useScroll = request.paramAsBoolean("useScroll", false);
 		String sortStr = request.param("sort");
 		String highlightStr = request.param("highlight");
-		if (!Method.GET.equals(request.method())) {
+		String analyzer = request.param("analyzer", "whitespace");
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", "");
 			fields = jparam.optString("fields", "").split("[,]");
@@ -879,6 +1252,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			useScroll = jparam.optBoolean("useScroll", false);
 			sortStr = jparam.optString("sort");
 			highlightStr = jparam.optString("highlight");
+			analyzer = jparam.optString("analyzer","whitespace");
 		}
 
 		for (int inx = 0; inx < fields.length; inx++) {
@@ -934,7 +1308,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			}
 
 			final List<String> highlightTerms = new ArrayList<>();
-			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, views, highlightTerms, explain);
+			QueryBuilder query = DanawaSearchQueryBuilder.buildAnalyzedQuery(stream, fields, totalIndex, boostMap, views, highlightTerms, explain, analyzer);
 			if (queryString != null && !"".equals(queryString)) {
 				try {
 					QueryBuilder baseQuery = DanawaSearchQueryBuilder.parseQuery(queryString);
@@ -1010,22 +1384,48 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String[] fields = request.param("fields", "").split("[,]");
 		String totalIndex = request.param("totalIndex", ES_INDEX_TOTALINDEX);
 		String text = request.param("text", "");
-		if (!Method.GET.equals(request.method())) {
+		String analyzer = request.param("analyzer", "whitespace");
+		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			fields = jparam.optString("fields", "").split("[,]");
 			totalIndex = jparam.optString("totalIndex", ES_INDEX_TOTALINDEX);
 			text = jparam.optString("text", "");
+			analyzer = jparam.optString("analyzer", "whitespace");
 		}
 		TokenStream stream = null;
 		try {
 			logger.trace("ANALYZE TEXT : {}", text);
 			stream = ProductNameAnalyzerProvider.getAnalyzer(text, true, true, true, true, false);
-			JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex);
+			JSONObject query = DanawaSearchQueryBuilder.buildAnalyzedJSONQuery(stream, fields, totalIndex, analyzer);
 			builder.object()
 				.key("query").value(query)
 			.endObject();
 		} catch (Exception e) {
 			logger.error("", e);
+		} finally {
+			try { stream.close(); } catch (Exception ignore) { }
+		}
+	}
+
+	private void makeSearchKeyword(RestRequest request, NodeClient client, JSONWriter writer) {
+		JSONObject jparam = new JSONObject();
+		String index = request.param("index", ES_DICTIONARY_INDEX);
+		String text = request.param("text", "");
+		boolean stopWord = request.paramAsBoolean("stopWord", true);
+		boolean synonym = request.paramAsBoolean("synonym", true);
+
+		if (!GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+			text = jparam.optString("text", "");
+			stopWord = jparam.optBoolean("stopWord", true);
+			synonym = jparam.optBoolean("synonym", true);
+		}
+
+		TokenStream stream = null;
+		try {
+			stream = ProductNameAnalyzerProvider.getAnalyzer(text, true, synonym, stopWord, false, false);
+			expansionKeyword(client, text, stream, index, writer);
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
 		}
@@ -1120,5 +1520,93 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		@Override public void close() { }
+	}
+
+	private void getSynonymListAction(RestRequest request, NodeClient client, JSONWriter writer){
+		JSONObject jparam = new JSONObject();
+		String keyword = "";
+		boolean useForQuery = true;
+		boolean useSynonym = true;
+		boolean useStopword = false;
+		boolean useFullString = true;
+
+		logger.debug("get-synonym-list start");
+		if (!GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			keyword = jparam.optString("keyword", "");
+		} else {
+			try{
+				keyword = URLDecoder.decode(request.param("keyword", ""), "UTF-8");
+			} catch (UnsupportedEncodingException e){
+				System.out.println("UnsupportedEncodingException Catched !!! >>>> \n" + e.getMessage());
+				logger.debug("error >>> {}", e);
+			}
+		}
+
+		TokenStream stream = null;
+		try {
+			writer.key("query").value(keyword);
+			writer.key("result").array();
+			stream = ProductNameAnalyzerProvider.getAnalyzer(keyword, useForQuery, useSynonym, useStopword, useFullString, false);
+			getSynonymList(keyword, stream, writer);
+			writer.endArray();
+			writer.key("success").value(true);
+		} finally {
+			try { stream.close(); } catch (Exception ignore) { logger.debug("Exception >>> {}", ignore.getMessage()); System.out.println("TokenStream Close Excption!!!"); }
+		}
+	}
+
+	/**
+	 * 동의어 리스트.
+	 */
+	public static void getSynonymList(String text, TokenStream stream, JSONWriter writer) {
+		CharTermAttribute termAttr = stream.addAttribute(CharTermAttribute.class);
+		TypeAttribute typeAttr = stream.addAttribute(TypeAttribute.class);
+		SynonymAttribute synAttr = stream.addAttribute(SynonymAttribute.class);
+		Map<String, List<List<String>>> result = new HashMap<>();
+		List<CharSequence> synonyms = synAttr.getSynonyms();
+
+		for (String key : ANALYSIS_RESULT_LABELS.keySet()) {
+			result.put(key, new ArrayList<>());
+		}
+
+		String term = null;
+		String type = null;
+		String setName = null;
+		try {
+			stream.reset();
+			while (stream.incrementToken()) {
+				term = String.valueOf(termAttr);
+				type = typeAttr.type();
+				logger.trace("TERM:{} / {}", term, type);
+				if (ProductNameTokenizer.FULL_STRING.equals(type)) {
+					// 전체 단어
+					setName = ANALYZE_SET_FULL_STRING;
+					setAnalyzedResult(result, term, ANALYZE_SET_FULL_STRING, ANALYZE_SET_FINAL);
+				} else if (ProductNameTokenizer.MODEL_NAME.equals(type)) {
+					// 모델명의 경우 색인시와 질의시 추출방법이 서로 다르다.
+					setName = ANALYZE_SET_MODEL_NAME;
+					setAnalyzedResult(result, term, ANALYZE_SET_MODEL_NAME, ANALYZE_SET_FINAL);
+				} else {
+					// 일반단어
+					setName = ANALYZE_SET_NORMAL;
+					setAnalyzedResult(result, term, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
+				}
+
+				if (!ANALYZE_SET_FULL_STRING.equals(setName)) {
+					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+						if (term.equals(text)) {
+							for (CharSequence synonym : synonyms) {
+								String s = String.valueOf(synonym);
+								writer.value(s);
+							}
+						}
+
+					}
+				}
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}
 	}
 }
