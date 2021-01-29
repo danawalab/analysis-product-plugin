@@ -125,12 +125,13 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						//질의어에서는 단위명의 숫자만을 뽑지는 않는다. (검색의 정확도를 위해)
 						//역으로는 뽑아야 한다. (1,204 를 검색할 경우 1,024gb 를 포함해야 하지만 1,024gb 를 검색했을 때 1,024 가 검색되지는 않는다.
 						if(entry.type == UNIT || entry.type == UNIT_ALPHA) {
-							if (subEntryList.size() > 0 && (subEntryList.get(0).type == NUMBER || 
-								subEntryList.get(0).type == NUMBER_TRANS)) {
-								subEntryList.remove(0);
+							if (subEntryList.size() > 1 && (subEntryList.get(1).type == NUMBER || 
+								subEntryList.get(1).type == NUMBER_TRANS)) {
+								subEntryList.remove(1);
 							}
 						}
 					}
+					testEntry(entry, null);
 					token = applyEntry(entry);
 					applySynonym(token, entry);
 					if (entry.subEntry != null && entry.subEntry.size() > 0) {
@@ -157,6 +158,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				} else {
 					// 색인용
 					if (entry.buf != null) {
+						testEntry(entry, null);
 						token = applyEntry(entry);
 						if (subEntryList == null) {
 							termList.remove(0);
@@ -175,6 +177,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						break;
 					} else if (subEntryList.size() > 0) {
 						RuleEntry subEntry = subEntryList.get(0);
+						testEntry(entry, null);
 						token = applyEntry(subEntry);
 						subEntryList.remove(0);
 						if (tokenAttribute.isState(TokenInfoAttribute.STATE_TERM_STOP)) {
@@ -228,6 +231,26 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				logger.trace("SET-SYNONYM:{}", synonyms);
 				synonymAttribute.setSynonyms(synonyms);
 			}
+		}
+	}
+
+	public void testEntry(RuleEntry entry, RuleEntry parent) {
+		if ((parent == null || parent.type == MODEL_NAME) && entry.type == NUMBER && entry.length >= 5) {
+			entry.type = MODEL_NAME;
+		} else if (entry.type == UNIT_ALPHA) {
+			entry.type = UNIT;
+		} else if (entry.type == NUMBER_TRANS) {
+			entry.type = NUMBER;
+			CharVector entryStr = new CharVector(entry.makeTerm(null).toString().replace(",", ""));
+			// if (entry.length != entryStr.length() && parent != null) {
+			// 	int inx = parent.subEntry.indexOf(entry);
+			// 	parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
+			// }
+			if (entry.length != entryStr.length()) {
+				extraTermAttribute.addExtraTerm(entryStr.toString(), NUMBER, null);
+			}
+		} else if (entry.type == null) {
+			entry.type = UNCATEGORIZED;
 		}
 	}
 

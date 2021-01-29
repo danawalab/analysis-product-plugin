@@ -1056,13 +1056,13 @@ public class ProductNameParsingRule {
 			if (e0.type == FULL_STRING) {
 				continue;
 			}
-			testEntry(e0, null);
-			if (e0.subEntry != null) {
-				for (int inx = 0; inx < e0.subEntry.size(); inx++) {
-					RuleEntry subEntry = e0.subEntry.get(inx);
-					testEntry(subEntry, e0);
-				}
-			}
+			// testEntry(e0, null);
+			// if (e0.subEntry != null) {
+			// 	for (int inx = 0; inx < e0.subEntry.size(); inx++) {
+			// 		RuleEntry subEntry = e0.subEntry.get(inx);
+			// 		testEntry(subEntry, e0);
+			// 	}
+			// }
 			if (e0.subEntry != null && e0.subEntry.size() > 0) {
 				logger.trace("subEntry:{}", e0.subEntry);
 				e0.modifiable = true;
@@ -1157,22 +1157,22 @@ public class ProductNameParsingRule {
 		return addInx;
 	}
 	
-	public static void testEntry(RuleEntry entry, RuleEntry parent) {
-		if ((parent == null || parent.type == MODEL_NAME) && entry.type == NUMBER && entry.length >= 5) {
-			entry.type = MODEL_NAME;
-		} else if (entry.type == UNIT_ALPHA) {
-			entry.type = UNIT;
-		} else if (entry.type == NUMBER_TRANS) {
-			entry.type = NUMBER;
-			CharVector entryStr = new CharVector(entry.makeTerm(null).toString().replace(",", ""));
-			if (entry.length != entryStr.length() && parent != null) {
-				int inx = parent.subEntry.indexOf(entry);
-				parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
-			}
-		} else if (entry.type == null) {
-			entry.type = UNCATEGORIZED;
-		}
-	}
+	// public static void testEntry(RuleEntry entry, RuleEntry parent) {
+	// 	if ((parent == null || parent.type == MODEL_NAME) && entry.type == NUMBER && entry.length >= 5) {
+	// 		entry.type = MODEL_NAME;
+	// 	} else if (entry.type == UNIT_ALPHA) {
+	// 		entry.type = UNIT;
+	// 	} else if (entry.type == NUMBER_TRANS) {
+	// 		entry.type = NUMBER;
+	// 		CharVector entryStr = new CharVector(entry.makeTerm(null).toString().replace(",", ""));
+	// 		if (entry.length != entryStr.length() && parent != null) {
+	// 			int inx = parent.subEntry.indexOf(entry);
+	// 			parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
+	// 		}
+	// 	} else if (entry.type == null) {
+	// 		entry.type = UNCATEGORIZED;
+	// 	}
+	// }
 	
 	private boolean mergeSubQueue(RuleEntry entry, List<RuleEntry> subQueue) {
 		RuleEntry e0, e1, e2, e3, e4;
