@@ -144,20 +144,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private FastcatMigrateIndexer migratingThread;
 
 	/**
-	 * ES-7.6 SPEC
 	 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
 	 */
-	// @Inject ProductNameAnalysisAction(Settings settings, RestController controller) {
-	// 	controller.registerHandler(Method.GET, BASE_URI + "/{action}", this);
-	// 	controller.registerHandler(Method.POST, BASE_URI + "/{action}", this);
-	// 	controller.registerHandler(Method.GET, BASE_URI, this);
-	// 	controller.registerHandler(Method.POST, BASE_URI, this);
-	// }
 	@Override public List<Route> routes() {
-		/**
-		 * ES-7.8 SPEC
-		 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
-		 */
 		return unmodifiableList(asList(
 			new Route(GET, BASE_URI + "/{action}"),
 			new Route(POST, BASE_URI + "/{action}"),
@@ -261,9 +250,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body, boolean selfDist) {
 		String localNodeId = client.getLocalNodeId();
 		NodesInfoRequest infoRequest = new NodesInfoRequest();
-		/* ES-7.6 SPEC */
-		// infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true).indices(true);
-		/* ES-7.8 SPEC */
 		infoRequest.clear()
 			.addMetrics(Metric.JVM.metricName())
 			.addMetrics(Metric.OS.metricName())
@@ -281,14 +267,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					continue;
 				}
 				boolean hasPlugin = false;
-				/* ES-7.6 SPEC */
-				// TransportAddress address = node.getHttp().getAddress().publishAddress();
-				/* ES-7.8 SPEC */
 				TransportAddress address = node.getInfo(HttpInfo.class).address().publishAddress();
 				// 상품명분석기 플러그인을 가진 노드에만 전파
-				/* ES-7.6 SPEC */
-				// List<PluginInfo> plugins = node.getPlugins().getPluginInfos();
-				/* ES-7.8 SPEC */
 				List<PluginInfo> plugins = node.getInfo(PluginsAndModules.class).getPluginInfos();
 				for (PluginInfo info : plugins) {
 					if (hasPlugin = info.getClassname().equals(AnalysisProductNamePlugin.class.getName())) {
@@ -839,11 +819,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 									extSynonymList.add(String.valueOf(synonym));
 								}
 								logger.trace("synonymList : {} - {}", s, extSynonymList);
-//								if(extSynonymList.size() > 1) {
-//									extSynonymHash.put(s,extSynonymList);
-//								}else if(extSynonymList.size() == 1) {
-//									extSynonymHash.put(s,extSynonymList.get(0));
-//								}
 								extSynonymHash.put(s,extSynonymList);
 								if(extSynonymHash.size() > 0) {
 									extAnalyeTerm.add(extSynonymHash);
@@ -872,21 +847,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			logger.error("", e);
 		}
 	}
-//
-//	private static void setAnalyzedResult2(Map<String, List<List<String>>> result, String term, String... types) {
-//		List<List<String>> wordList = null;
-//		List<String> words = null;
-//		List<List<String>> termWordList = null;
-//		List<String> termWords = null;
-//		for (String type : types) {
-//			words = new ArrayList<>();
-//			termWords = new ArrayList<>();
-//			//wordList = result.get(type);
-//			//.add();
-//			words.add(term);
-//			termWords.add(term);
-//		}
-//	}
 
 	/**
 	 * 다중 파라미터 분석.
@@ -1346,7 +1306,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					highlightTags.add(preTags[0]);
 					highlightTags.add(postTags[0]);
 				}
-				// List<String> list = new ArrayList<>();
 				for (Field field : highlight.fields()) {
 					String name = field.name();
 					logger.trace("FIELD:{}", name);
@@ -1354,8 +1313,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						views.add(name);
 					}
 				}
-				// views = new String[list.size()];
-				// views = list.toArray(views);
 			}
 
 			final List<String> highlightTerms = new ArrayList<>();

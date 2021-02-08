@@ -49,7 +49,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private ProductNameParsingRule parsingRule;
 	private CharVector token;
 	private List<RuleEntry> termList;
-	private RuleEntry parent;
 	
 	public ProductNameAnalysisFilter(TokenStream input) {
 		super(input);
