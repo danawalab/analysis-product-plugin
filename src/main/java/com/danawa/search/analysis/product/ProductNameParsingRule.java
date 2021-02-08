@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
-import com.danawa.search.analysis.dict.CustomDictionary;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
@@ -44,8 +43,6 @@ public class ProductNameParsingRule {
 	private SynonymDictionary unitSynonymDictionary;
 	private SynonymDictionary synonymDictionary;
 	private SetDictionary userDictionary;
-	private Set<CharSequence> brandDictionary;
-	private Set<CharSequence> makerDictionary;
 	private CompoundDictionary compoundDictionary;
 	private SetDictionary stopDictionary;
 	private CharVector term;
@@ -64,14 +61,6 @@ public class ProductNameParsingRule {
 			userDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_USER, SetDictionary.class);
 			compoundDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_COMPOUND, CompoundDictionary.class);
 			stopDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_STOP, SetDictionary.class);
-			{
-				CustomDictionary dict = dictionary.getDictionary(ProductNameDictionary.DICT_BRAND, CustomDictionary.class);
-				if (dict != null) { brandDictionary = dict.getWordSet(); }
-			}
-			{
-				CustomDictionary dict = dictionary.getDictionary(ProductNameDictionary.DICT_MAKER, CustomDictionary.class);
-				if (dict != null) { makerDictionary = dict.getWordSet(); }
-			}
 		}
 		queue = new ArrayList<>();
 	}
@@ -1849,15 +1838,20 @@ public class ProductNameParsingRule {
 		
 		@Override public String toString() {
 			String str = "";
-			try {
-				str = "\"" + new String(buf, start, length) + "\"";
-			} catch (Exception ex) {
-				str = "\"" + new String(buf) + "\" [" + start + ":" + length + "]";
-				logger.debug("EE:{}", ex.getMessage());
+			if (buf != null) {
+				try {
+					str = "\"" + new String(buf, start, length) + "\"";
+				} catch (Exception ex) {
+					str = "\"" + new String(buf) + "\" [" + start + ":" + length + "]";
+					logger.debug("EE:{}", ex.getMessage());
+				}
 			}
 			str += " / " + type + " / " + modifiable + " (" + start + "~" + (start + length) + "/" + startOffset + "~" + endOffset + ")";
 			if (subEntry != null) {
 				str += "[" + subEntry.size() + "]";
+			}
+			if (synonym != null) {
+				str += "[" + synonym.length + "]";
 			}
 			return str;
 		}

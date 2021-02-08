@@ -1,6 +1,6 @@
 ﻿################################################################################
 # 사전색인 생성용 맵핑
-PUT /.fastcatx_dict
+PUT /.dsearch_dict
 {
   "settings": {
     "index": {
@@ -952,7 +952,7 @@ PUT /product
 # index: 사전색인명
 POST /_analysis-product-name/info-dict
 {
-  "index": ".fastcatx_dict"
+  "index": ".dsearch_dict"
 }
 
 GET /_analysis-product-name/info-dict
@@ -963,11 +963,11 @@ GET /_analysis-product-name/info-dict
 # word: 검색단어
 POST /_analysis-product-name/find-dict
 {
-  "index": ".fastcatx_dict",
+  "index": ".dsearch_dict",
   "word": "산디스크"
 }
 
-GET /_analysis-product-name/find-dict?index=.fastcatx_dict&word=산디스크
+GET /_analysis-product-name/find-dict?index=.dsearch_dict&word=산디스크
 
 ################################################################################
 # 상품명 사전 재시작 (바이너리 사전 로딩 재시작)
@@ -981,12 +981,12 @@ GET /_analysis-product-name/reload-dict
 # distribute: 각 노드에 신호 전파
 POST /_analysis-product-name/compile-dict
 {
-  "index": ".fastcatx_dict",
+  "index": ".dsearch_dict",
   "exportFile": true,
   "distribute": true
 }
 
-GET /_analysis-product-name/compile-dict?index=.fastcatx_dict&exportFile=true&distribute=true
+GET /_analysis-product-name/compile-dict?index=.dsearch_dict&exportFile=true&distribute=true
 
 ################################################################################
 # 상품명 사전 역컴파일
@@ -994,10 +994,10 @@ GET /_analysis-product-name/compile-dict?index=.fastcatx_dict&exportFile=true&di
 # index: 사전색인명
 POST /_analysis-product-name/restore-dict
 {
-  "index": ".fastcatx_dict"
+  "index": ".dsearch_dict"
 }
 
-GET /_analysis-product-name/restore-dict?index=.fastcatx_dict
+GET /_analysis-product-name/restore-dict?index=.dsearch_dict
 
 ################################################################################
 # 상품명 사전
@@ -1008,13 +1008,13 @@ GET /_analysis-product-name/restore-dict?index=.fastcatx_dict
 # text: 분석용 텍스트
 POST /_analysis-product-name/analyze
 {
-  "index": ".fastcatx_dict",
+  "index": ".dsearch_dict",
   "detail": true,
   "useForQuery": true,
   "text": "Sandisk Extream Z80 USB 16gb"
 }
 
-GET /_analysis-product-name/analyze?index=.fastcatx_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
+GET /_analysis-product-name/analyze?index=.dsearch_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
 
 ################################################################################
 # 상품명 상세분석
@@ -1025,13 +1025,13 @@ GET /_analysis-product-name/analyze?index=.fastcatx_dict&detail=true&useForQuery
 # text: 분석용 텍스트
 POST /_analysis-product-name/analyze-text
 {
-  "index": ".fastcatx_dict",
+  "index": ".dsearch_dict",
   "detail": true,
   "useForQuery": true,
   "text": "Sandisk Extream Z80 USB 16gb"
 }
 
-GET /_analysis-product-name/analyze-text?index=.fastcatx_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
+GET /_analysis-product-name/analyze-text?index=.dsearch_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
 
 # ES 기본 제공 형태소 분석은 다음과 같음
 
@@ -1155,3 +1155,24 @@ POST /_analysis-product-name/full-index
 }
 
 GET /_analysis-product-name/full-index?index=product1&path=/home/elastic/data/&enc=euc-kr&flush=50000
+
+################################################################################
+# 상품색인 (FASTCAT 검색엔진을 통해 직접 임포트)
+# index: 색인할 색인명
+# url: fastcatsearch 검색질의 (http 부터 시작, sn, ln 제외, se=NOT{PRODUCTCODE:-1} 등으로 전체질의)
+# start: 질의검색 결과 시작 행 (sn)
+# length: 1회 검색수량 (ln)
+# path: 텍스트 파일 생성 (다나와 벌크 텍스트 형식)
+# enc: 생성할 텍스트 파일 인코딩
+# flush: 색인 플러시 수량
+# 
+POST /_analysis-product-name/fastcat-index
+{
+  "index": "product1",
+  "url": "http://localhost:8090/service/search?cn=TEST&se=NOT{PRODUCTCODE:-1}&fl=ID,BUNDLEKEY,PRODUCTCODE,SHOPCODE,SHOPPRODUCTCODE,PRODUCTNAME,PRODUCTMAKER,MAKERKEYWORD,PRODUCTBRAND,BRANDKEYWORD,PRODUCTMODEL,MODELWEIGHT,PRODUCTIMAGEURL,LOWESTPRICE,MOBILEPRICE,PCPRICE,TOTALPRICE,SHOPQUANTITY,CATEGORYCODE1,CATEGORYCODE2,CATEGORYCODE3,CATEGORYCODE4,CATEGORYKEYWORD,CATEGORYWEIGHT,REGISTERDATE,MANUFACTUREDATE,POPULARITYSCORE,PRODUCTCLASSIFICATION,BUNDLEDISPLAYSEQUENCE,PRODTYPE,DISPYN,WRITECNT,CATEGORYDISPYN,ADDDESCRIPTION,PROMOTIONPRICE,MAKERCODE,BRANDCODE,NATTRIBUTEVALUESEQ",
+  "start": 1,
+  "length": 1000,
+  "flush": 50000
+}
+
+GET /_analysis-product-name/fastcat-index?index=product1?url=http%3A%2F%2Flocalhost%3A8090%2Fservice%2Fsearch%3Fcn%3DTEST%26se%3DNOT%7BPRODUCTCODE%3A-1%7D%26fl%3DID%2CBUNDLEKEY%2CPRODUCTCODE%2CSHOPCODE%2CSHOPPRODUCTCODE%2CPRODUCTNAME%2CPRODUCTMAKER%2CMAKERKEYWORD%2CPRODUCTBRAND%2CBRANDKEYWORD%2CPRODUCTMODEL%2CMODELWEIGHT%2CPRODUCTIMAGEURL%2CLOWESTPRICE%2CMOBILEPRICE%2CPCPRICE%2CTOTALPRICE%2CSHOPQUANTITY%2CCATEGORYCODE1%2CCATEGORYCODE2%2CCATEGORYCODE3%2CCATEGORYCODE4%2CCATEGORYKEYWORD%2CCATEGORYWEIGHT%2CREGISTERDATE%2CMANUFACTUREDATE%2CPOPULARITYSCORE%2CPRODUCTCLASSIFICATION%2CBUNDLEDISPLAYSEQUENCE%2CPRODTYPE%2CDISPYN%2CWRITECNT%2CCATEGORYDISPYN%2CADDDESCRIPTION%2CPROMOTIONPRICE%2CMAKERCODE%2CBRANDCODE%2CNATTRIBUTEVALUESEQ&start=1&length=1000&flush=50000

@@ -49,6 +49,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private ProductNameParsingRule parsingRule;
 	private CharVector token;
 	private List<RuleEntry> termList;
+	private RuleEntry parent;
 	
 	public ProductNameAnalysisFilter(TokenStream input) {
 		super(input);
@@ -114,10 +115,14 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				while ((entry = termList.get(0)) == null) { termList.remove(0); }
 
 				List<RuleEntry> subEntryList = entry.subEntry;
-				logger.trace("SUB:{}", subEntryList);
+				CharSequence[] synonyms = entry.synonym;
+				logger.trace("SUB:{} / {} / {}", entry, synonyms, subEntryList);
 
-				// 분기. 색인시에는 모델명을 일반텀으로 추출, 질의시에는 추가텀으로 추출
-				// 색인시에는 오프셋이 앞으로 갈수 없으므로 일반텀으로 추출한다
+				// 분기. ES에서는 Synonym, ExtraTerm 등의 Attribute를 쓸수 없으므로
+				// 색인시에는 동의어, 추가어를 일반텀으로 추출함.
+				// 질의시에는 Synonym, ExtraTerm 속성으로 추출 하되 
+				// 따로 ES 에 질의 가능한 질의문을 생성하여 처리한다.
+				// 색인시에는 오프셋이 앞으로 갈수 없으므로 긴 텀부터 순서대로 일반텀 추출한다
 
 				if (option.useForQuery()) {
 					// 질의용
@@ -125,9 +130,12 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						//질의어에서는 단위명의 숫자만을 뽑지는 않는다. (검색의 정확도를 위해)
 						//역으로는 뽑아야 한다. (1,204 를 검색할 경우 1,024gb 를 포함해야 하지만 1,024gb 를 검색했을 때 1,024 가 검색되지는 않는다.
 						if(entry.type == UNIT || entry.type == UNIT_ALPHA) {
-							if (subEntryList.size() > 1 && (subEntryList.get(1).type == NUMBER || 
-								subEntryList.get(1).type == NUMBER_TRANS)) {
-								subEntryList.remove(1);
+							for (int sinx = 0; sinx < subEntryList.size(); sinx++) {
+								if (subEntryList.get(sinx).type == NUMBER || 
+									subEntryList.get(sinx).type == NUMBER_TRANS) {
+									subEntryList.remove(sinx);
+									sinx--;
+								}
 							}
 						}
 					}
@@ -136,13 +144,14 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					applySynonym(token, entry);
 					if (entry.subEntry != null && entry.subEntry.size() > 0) {
 						for (RuleEntry subEntry : entry.subEntry) {
-							List<CharSequence> synonyms = null;
+							List<CharSequence> synonymList = null;
 							CharVector cv = subEntry.makeTerm(null);
+							testEntry(subEntry, null);
 							if (option.useSynonym() && synonymDictionary.containsKey(cv)) {
-								synonyms = Arrays.asList(synonymDictionary.get(cv));
-								logger.trace("token:{} / synonym:{}", cv, synonyms);
+								synonymList = Arrays.asList(synonymDictionary.get(cv));
+								logger.trace("token:{} / synonym:{}", cv, synonymList);
 							}
-							extraTermAttribute.addExtraTerm(String.valueOf(cv), subEntry.type, synonyms);
+							extraTermAttribute.addExtraTerm(String.valueOf(cv), subEntry.type, synonymList);
 						}
 					}
 					termList.remove(0);
@@ -158,8 +167,23 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				} else {
 					// 색인용
 					if (entry.buf != null) {
+						logger.trace("TERMLIST:{}", termList);
+						logger.trace("SUB:{}", entry.subEntry);
+						logger.trace("SYN:{}{}", "", entry.synonym);
 						testEntry(entry, null);
 						token = applyEntry(entry);
+						if (synonyms != null) {
+							// 동의어 -> 일반텀으로 변경
+							if (subEntryList == null) {
+								entry.subEntry = subEntryList = new ArrayList<>();
+							}
+							for (int sinx = 0; sinx < synonyms.length; sinx++) {
+								CharVector cv = new CharVector(synonyms[sinx]);
+								subEntryList.add(sinx, new RuleEntry(cv.array(), 0, cv.length(),
+									entry.startOffset, entry.endOffset, entry.type));
+							}
+							entry.synonym = synonyms = null;
+						}
 						if (subEntryList == null) {
 							termList.remove(0);
 						} else {
@@ -177,7 +201,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						break;
 					} else if (subEntryList.size() > 0) {
 						RuleEntry subEntry = subEntryList.get(0);
-						testEntry(entry, null);
+						testEntry(subEntry, entry);
 						token = applyEntry(subEntry);
 						subEntryList.remove(0);
 						if (tokenAttribute.isState(TokenInfoAttribute.STATE_TERM_STOP)) {
@@ -197,7 +221,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		} // LOOP
 		if (logger.isTraceEnabled()) {
 			if (ret) {
-				logger.trace("TERM:{} / {}~{} / {}", termAttribute, offsetAttribute.startOffset(), offsetAttribute.endOffset());
+				logger.trace("TERM:{} / {}~{} / {} ", termAttribute, offsetAttribute.startOffset(), offsetAttribute.endOffset());
 			} else {
 				logger.trace("FILTER STOPPED!!");
 			}
@@ -206,8 +230,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	}
 
 	private void applySynonym(CharVector token, RuleEntry entry) {
+		List<CharSequence> synonyms = new ArrayList<>();
 		if (option.useSynonym() && option.useForQuery()) {
-			List<CharSequence> synonyms = new ArrayList<>();
 			if (synonymDictionary != null && synonymDictionary.containsKey(token)) {
 				CharSequence[] wordSynonym = synonymDictionary.get(token);
 				logger.trace("SYNONYM-FOUND:{}{}", "", wordSynonym);
@@ -223,14 +247,14 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 					}
 				}
 			}
-			// 본래 entry 에 있던 동의어는 이미 분석된 동의어 이므로 따로 처리할 필요가 없다.
-			if (entry.synonym != null && option.useSynonym()) {
-				synonyms.addAll(Arrays.asList(entry.synonym));
-			}
-			if (synonyms.size() > 0) {
-				logger.trace("SET-SYNONYM:{}", synonyms);
-				synonymAttribute.setSynonyms(synonyms);
-			}
+		}
+		// 본래 entry 에 있던 동의어는 이미 분석된 동의어 이므로 따로 처리할 필요가 없다.
+		if (entry.synonym != null && option.useSynonym()) {
+			synonyms.addAll(Arrays.asList(entry.synonym));
+		}
+		if (synonyms.size() > 0) {
+			logger.trace("SET-SYNONYM:{}", synonyms);
+			synonymAttribute.setSynonyms(synonyms);
 		}
 	}
 
@@ -242,12 +266,25 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		} else if (entry.type == NUMBER_TRANS) {
 			entry.type = NUMBER;
 			CharVector entryStr = new CharVector(entry.makeTerm(null).toString().replace(",", ""));
-			// if (entry.length != entryStr.length() && parent != null) {
-			// 	int inx = parent.subEntry.indexOf(entry);
-			// 	parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
-			// }
-			if (entry.length != entryStr.length()) {
-				extraTermAttribute.addExtraTerm(entryStr.toString(), NUMBER, null);
+			if (entryStr.length() != entry.length) {
+				if (option.useForQuery()) {
+					if (entry.length != entryStr.length()) {
+						extraTermAttribute.addExtraTerm(entryStr.toString(), NUMBER, null);
+					}
+				} else if (parent != null) {
+					List<RuleEntry> subEntryList = parent.subEntry;
+					// parent 가 존재한다면 subEntryList 가 null 일 이유는 없으므로 
+					// 현재(2021.02.09)는 불필요 코드
+					if (subEntryList == null) {
+						subEntryList = new ArrayList<>();
+						parent.subEntry = subEntryList;
+					}
+					// 여기까지 정상적으로 타고 들어왔다면 subEntryList[0] = entry 임
+					if (subEntryList.get(0) == entry) {
+						subEntryList.add(1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(),
+							entry.startOffset, entry.endOffset, entry.type));
+					}
+				}
 			}
 		} else if (entry.type == null) {
 			entry.type = UNCATEGORIZED;

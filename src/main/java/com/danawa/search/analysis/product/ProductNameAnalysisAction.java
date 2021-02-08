@@ -16,6 +16,7 @@ import com.danawa.search.analysis.dict.ProductNameDictionary.DictionaryRepositor
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
 import com.danawa.search.index.DanawaBulkTextIndexer;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
+import com.danawa.search.index.FastcatMigrateIndexer;
 import com.danawa.search.util.SearchUtil;
 import com.danawa.search.util.SearchUtil.DataModifier;
 import com.danawa.util.CharVector;
@@ -49,7 +50,6 @@ import org.elasticsearch.rest.BytesRestResponse;
 
 import org.elasticsearch.rest.*;
 
-import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
@@ -80,6 +80,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_RESTORE_DICT = "restore-dict";
 	private static final String ACTION_COMPILE_DICT = "compile-dict";
 	private static final String ACTION_FULL_INDEX = "full-index";
+	private static final String ACTION_FASTCAT_INDEX = "fastcat-index";
 	private static final String ACTION_ANALYZE_TEXT = "analyze";
 	private static final String ACTION_SEARCH = "search";
 	private static final String ACTION_BUILD_QUERY = "build-query";
@@ -138,6 +139,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private DanawaBulkTextIndexer indexingThread;
 
 	/**
+	 * FASTCAT 임포트 스레드
+	 */
+	private FastcatMigrateIndexer migratingThread;
+
+	/**
 	 * ES-7.6 SPEC
 	 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
 	 */
@@ -193,6 +199,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			builder.object().key("action").value(action).endObject();
 		} else if (ACTION_FULL_INDEX.equals(action)) {
 			int count = bulkIndex(request, client);
+			builder.object().key("action").value(action);
+			if (count > 0) {
+				builder.key("working").value("true").key("count").value(count);
+			} else {
+				builder.key("working").value("false");
+			}
+			builder.endObject();
+		} else if (ACTION_FASTCAT_INDEX.equals(action)) {
+			int count = fastcatIndex(request, client);
 			builder.object().key("action").value(action);
 			if (count > 0) {
 				builder.key("working").value("true").key("count").value(count);
@@ -378,8 +393,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		// 인덱스는 고정
 		String index = ES_DICTIONARY_INDEX;
 
-		// 검색된 구문들이 어디 영역에 포함되는지 ex. 동의어 확장, 등등
-		boolean detail = false;
 		// 검색어 확장
 		boolean useForQuery = false;
 		boolean useSynonym = true;
@@ -1212,6 +1225,44 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				indexingThread.start();
 			} else {
 				ret = indexingThread.count();
+			}
+		}
+		return ret;
+	}
+
+	/**
+	 * 다나와 상품 FASTCAT -> ES색인 수행
+	 */
+	private int fastcatIndex(final RestRequest request, final NodeClient client) {
+		int ret = 0;
+		JSONObject jparam = new JSONObject();
+		String url = request.param("url", "");
+		int start = request.paramAsInt("start", 1);
+		int length = request.paramAsInt("length", 1000);
+		String path = request.param("path", "");
+		String enc = request.param("enc", "euc-kr");
+		String index = request.param("index", "");
+		int flush = request.paramAsInt("flush", 50000);
+		try {
+			url = URLDecoder.decode(url, "utf-8");
+		} catch (Exception ignore) { }
+		if (!GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			url = jparam.optString("url", "");
+			start = jparam.optInt("start", 1);
+			length = jparam.optInt("length", 1000);
+			path = jparam.optString("path", "");
+			enc = jparam.optString("enc", "euc-kr");
+			index = jparam.optString("index", "");
+			flush = jparam.optInt("flush", 50000);
+		}
+
+		synchronized (this) {
+			if (migratingThread == null || !migratingThread.running()) {
+				migratingThread = new FastcatMigrateIndexer(url, start, length, path, enc, index, flush, client);
+				migratingThread.start();
+			} else {
+				ret = migratingThread.count();
 			}
 		}
 		return ret;
