@@ -16,6 +16,7 @@ import com.danawa.search.analysis.dict.ProductNameDictionary.DictionaryRepositor
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
 import com.danawa.search.index.DanawaBulkTextIndexer;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
+import com.danawa.search.index.FastcatMigrateIndexer;
 import com.danawa.search.util.SearchUtil;
 import com.danawa.search.util.SearchUtil.DataModifier;
 import com.danawa.util.CharVector;
@@ -49,7 +50,6 @@ import org.elasticsearch.rest.BytesRestResponse;
 
 import org.elasticsearch.rest.*;
 
-import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
@@ -80,6 +80,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_RESTORE_DICT = "restore-dict";
 	private static final String ACTION_COMPILE_DICT = "compile-dict";
 	private static final String ACTION_FULL_INDEX = "full-index";
+	private static final String ACTION_FASTCAT_INDEX = "fastcat-index";
 	private static final String ACTION_ANALYZE_TEXT = "analyze";
 	private static final String ACTION_SEARCH = "search";
 	private static final String ACTION_BUILD_QUERY = "build-query";
@@ -138,20 +139,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private DanawaBulkTextIndexer indexingThread;
 
 	/**
-	 * ES-7.6 SPEC
+	 * FASTCAT 임포트 스레드
+	 */
+	private FastcatMigrateIndexer migratingThread;
+
+	/**
 	 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
 	 */
-	// @Inject ProductNameAnalysisAction(Settings settings, RestController controller) {
-	// 	controller.registerHandler(Method.GET, BASE_URI + "/{action}", this);
-	// 	controller.registerHandler(Method.POST, BASE_URI + "/{action}", this);
-	// 	controller.registerHandler(Method.GET, BASE_URI, this);
-	// 	controller.registerHandler(Method.POST, BASE_URI, this);
-	// }
 	@Override public List<Route> routes() {
-		/**
-		 * ES-7.8 SPEC
-		 * 액션등록, {action} 플레이스 홀더를 사용하여 변수로 받는다.
-		 */
 		return unmodifiableList(asList(
 			new Route(GET, BASE_URI + "/{action}"),
 			new Route(POST, BASE_URI + "/{action}"),
@@ -193,6 +188,15 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			builder.object().key("action").value(action).endObject();
 		} else if (ACTION_FULL_INDEX.equals(action)) {
 			int count = bulkIndex(request, client);
+			builder.object().key("action").value(action);
+			if (count > 0) {
+				builder.key("working").value("true").key("count").value(count);
+			} else {
+				builder.key("working").value("false");
+			}
+			builder.endObject();
+		} else if (ACTION_FASTCAT_INDEX.equals(action)) {
+			int count = fastcatIndex(request, client);
 			builder.object().key("action").value(action);
 			if (count > 0) {
 				builder.key("working").value("true").key("count").value(count);
@@ -246,9 +250,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body, boolean selfDist) {
 		String localNodeId = client.getLocalNodeId();
 		NodesInfoRequest infoRequest = new NodesInfoRequest();
-		/* ES-7.6 SPEC */
-		// infoRequest.clear().jvm(true).os(true).process(true).http(true).plugins(true).indices(true);
-		/* ES-7.8 SPEC */
 		infoRequest.clear()
 			.addMetrics(Metric.JVM.metricName())
 			.addMetrics(Metric.OS.metricName())
@@ -266,14 +267,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					continue;
 				}
 				boolean hasPlugin = false;
-				/* ES-7.6 SPEC */
-				// TransportAddress address = node.getHttp().getAddress().publishAddress();
-				/* ES-7.8 SPEC */
 				TransportAddress address = node.getInfo(HttpInfo.class).address().publishAddress();
 				// 상품명분석기 플러그인을 가진 노드에만 전파
-				/* ES-7.6 SPEC */
-				// List<PluginInfo> plugins = node.getPlugins().getPluginInfos();
-				/* ES-7.8 SPEC */
 				List<PluginInfo> plugins = node.getInfo(PluginsAndModules.class).getPluginInfos();
 				for (PluginInfo info : plugins) {
 					if (hasPlugin = info.getClassname().equals(AnalysisProductNamePlugin.class.getName())) {
@@ -378,8 +373,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		// 인덱스는 고정
 		String index = ES_DICTIONARY_INDEX;
 
-		// 검색된 구문들이 어디 영역에 포함되는지 ex. 동의어 확장, 등등
-		boolean detail = false;
 		// 검색어 확장
 		boolean useForQuery = false;
 		boolean useSynonym = true;
@@ -826,11 +819,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 									extSynonymList.add(String.valueOf(synonym));
 								}
 								logger.trace("synonymList : {} - {}", s, extSynonymList);
-//								if(extSynonymList.size() > 1) {
-//									extSynonymHash.put(s,extSynonymList);
-//								}else if(extSynonymList.size() == 1) {
-//									extSynonymHash.put(s,extSynonymList.get(0));
-//								}
 								extSynonymHash.put(s,extSynonymList);
 								if(extSynonymHash.size() > 0) {
 									extAnalyeTerm.add(extSynonymHash);
@@ -859,21 +847,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			logger.error("", e);
 		}
 	}
-//
-//	private static void setAnalyzedResult2(Map<String, List<List<String>>> result, String term, String... types) {
-//		List<List<String>> wordList = null;
-//		List<String> words = null;
-//		List<List<String>> termWordList = null;
-//		List<String> termWords = null;
-//		for (String type : types) {
-//			words = new ArrayList<>();
-//			termWords = new ArrayList<>();
-//			//wordList = result.get(type);
-//			//.add();
-//			words.add(term);
-//			termWords.add(term);
-//		}
-//	}
 
 	/**
 	 * 다중 파라미터 분석.
@@ -1218,6 +1191,44 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	/**
+	 * 다나와 상품 FASTCAT -> ES색인 수행
+	 */
+	private int fastcatIndex(final RestRequest request, final NodeClient client) {
+		int ret = 0;
+		JSONObject jparam = new JSONObject();
+		String url = request.param("url", "");
+		int start = request.paramAsInt("start", 1);
+		int length = request.paramAsInt("length", 1000);
+		String path = request.param("path", "");
+		String enc = request.param("enc", "euc-kr");
+		String index = request.param("index", "");
+		int flush = request.paramAsInt("flush", 50000);
+		try {
+			url = URLDecoder.decode(url, "utf-8");
+		} catch (Exception ignore) { }
+		if (!GET.equals(request.method())) {
+			jparam = parseRequestBody(request);
+			url = jparam.optString("url", "");
+			start = jparam.optInt("start", 1);
+			length = jparam.optInt("length", 1000);
+			path = jparam.optString("path", "");
+			enc = jparam.optString("enc", "euc-kr");
+			index = jparam.optString("index", "");
+			flush = jparam.optInt("flush", 50000);
+		}
+
+		synchronized (this) {
+			if (migratingThread == null || !migratingThread.running()) {
+				migratingThread = new FastcatMigrateIndexer(url, start, length, path, enc, index, flush, client);
+				migratingThread.start();
+			} else {
+				ret = migratingThread.count();
+			}
+		}
+		return ret;
+	}
+
+	/**
 	 * 상품명 분석기를 사용하여 검색 수행
 	 */
 	private void search(final RestRequest request, final NodeClient client, final JSONWriter builder) {
@@ -1295,7 +1306,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					highlightTags.add(preTags[0]);
 					highlightTags.add(postTags[0]);
 				}
-				// List<String> list = new ArrayList<>();
 				for (Field field : highlight.fields()) {
 					String name = field.name();
 					logger.trace("FIELD:{}", name);
@@ -1303,8 +1313,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						views.add(name);
 					}
 				}
-				// views = new String[list.size()];
-				// views = list.toArray(views);
 			}
 
 			final List<String> highlightTerms = new ArrayList<>();

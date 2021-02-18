@@ -12,6 +12,7 @@ import java.util.Map;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
+import com.danawa.search.index.FastcatMigrateIndexer;
 import com.danawa.util.ContextStore;
 import com.danawa.util.TestUtil;
 
@@ -204,6 +205,15 @@ public class ProductNameAnalysisActionTest {
 		JSONWriter writer = new JSONWriter(buffer);
 		ProductNameAnalysisAction.analyzeTextDetail(null, str, stream, detail, index, writer);
 		logger.debug("RESULT : {}", String.valueOf(buffer));
+	}
+
+	@Test public void testFastcatsearch() throws Exception {
+		if (TestUtil.launchForBuild()) { return; }
+
+		String url = "http://192.168.1.1:8090/service/search?cn=TEST&se=NOT{PRODUCTCODE:-1}&fl=ID,BUNDLEKEY,PRODUCTCODE,SHOPCODE,SHOPPRODUCTCODE,PRODUCTNAME,PRODUCTMAKER,MAKERKEYWORD,PRODUCTBRAND,BRANDKEYWORD,PRODUCTMODEL,MODELWEIGHT,PRODUCTIMAGEURL,LOWESTPRICE,MOBILEPRICE,PCPRICE,TOTALPRICE,SHOPQUANTITY,CATEGORYCODE1,CATEGORYCODE2,CATEGORYCODE3,CATEGORYCODE4,CATEGORYKEYWORD,CATEGORYWEIGHT,REGISTERDATE,MANUFACTUREDATE,POPULARITYSCORE,PRODUCTCLASSIFICATION,BUNDLEDISPLAYSEQUENCE,PRODTYPE,DISPYN,WRITECNT,CATEGORYDISPYN,ADDDESCRIPTION,PROMOTIONPRICE,MAKERCODE,BRANDCODE,NATTRIBUTEVALUESEQ";
+
+		FastcatMigrateIndexer indexer = new FastcatMigrateIndexer (url, 0, 1000, "Z:/Documents/workspace/TEST_HOME/test_prod.txt", "euc-kr", "", 0, null);
+		indexer.migrateFastcat();
 	}
 
 	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str, boolean useForQuery, boolean useSynonym, boolean useStopword, boolean useFullString) {

@@ -82,6 +82,7 @@ public class DanawaBulkTextIndexer extends Thread implements FileFilter {
 					BulkRequestBuilder builder = null;
 					Map<String, Object> source;
 					
+					builder = client.prepareBulk();
 					for (File file : files) {
 						if (!file.exists()) {
 							logger.debug("FILE NOT FOUND : {}", file);
@@ -91,7 +92,6 @@ public class DanawaBulkTextIndexer extends Thread implements FileFilter {
 						istream =  new FileInputStream(file);
 						reader = new BufferedReader(new InputStreamReader(istream, String.valueOf(enc)));
 						logger.debug("PARSING FILE..{}", file);
-						builder = client.prepareBulk();
 						for (String line; (line = reader.readLine()) != null; count++) {
 							Matcher mat = ptnHead.matcher(line);
 							String key = null;
@@ -122,9 +122,9 @@ public class DanawaBulkTextIndexer extends Thread implements FileFilter {
 								break;
 							}
 						}
-						builder.execute().actionGet();
 						try { reader.close(); } catch (Exception ignore) { }
 					}
+					builder.execute().actionGet();
 					logger.debug("TOTAL {} ROWS in {}ms", count, System.currentTimeMillis() - time);
 				} catch (Exception e) {
 					logger.error("", e);
@@ -142,8 +142,10 @@ public class DanawaBulkTextIndexer extends Thread implements FileFilter {
 	private void fieldValue(Map<String, Object> source, String key , String value) throws Exception {
 		if ("".equals(key)) {
 		} else if ("REGISTERDATE".equals(key)) {
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
-			source.put(key, sdf.parse(value));
+			if (value != null && !"".equals(value)) {
+				SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+				source.put(key, sdf.parse(value));
+			}
 		} else {
 			source.put(key, value);
 		}
