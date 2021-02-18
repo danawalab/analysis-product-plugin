@@ -28,7 +28,6 @@ public class KoreanWordExtractor {
 	private PosTagProbEntry[][] tabular;
 	private int[] status;
 	private Set<CharVector> josaSet;
-	boolean isDebug;
 	// 최상의 후보가 만들어지면 바로 리턴. 기본 true;
 	boolean fastResultOption = true;
 	// 발견되었는지 여부.
@@ -37,6 +36,8 @@ public class KoreanWordExtractor {
 	int remnantLength;
 	boolean isUnicode;
 	CharVector charVector = new CharVector();
+	TabularStringer tabularStringer;
+	EntryStringer entryStringer;
 
 	private PriorityQueue<ExtractedEntry> queue = new PriorityQueue<ExtractedEntry>(8, new Comparator<ExtractedEntry>() {
 		@Override
@@ -71,6 +72,8 @@ public class KoreanWordExtractor {
 		for (String j : jl) {
 			josaSet.add(new CharVector(j));
 		}
+		tabularStringer = new TabularStringer();
+		entryStringer = new EntryStringer();
 	}
 
 	public ProductNameDictionary dictionary() {
@@ -81,36 +84,8 @@ public class KoreanWordExtractor {
 		this.koreanDict = koreanDict;
 	}
 
-	public void setDebug(boolean isDebug) {
-		this.isDebug = isDebug;
-	}
-
 	public void setFastResultOption(boolean fastResultOption) {
 		this.fastResultOption = fastResultOption;
-	}
-
-	public void showTabular() {
-		for (int row = 0; row < length; row++) {
-			PosTagProbEntry[] el = tabular[row];
-			int count = status[row];
-			StringBuilder sb = new StringBuilder();
-			sb.append("{ ");
-			sb.append(count);
-			sb.append(" }");
-			sb.append(" | ");
-			for (int column = 1; column <= row + 1; column++) {
-				PosTagProbEntry e = el[column];
-				sb.append(new String(source, row - column + 1 + offset, column));
-				sb.append("[");
-				while (e != null) {
-					sb.append(e.get());
-					e = e.next();
-				}
-				sb.append("]");
-				sb.append(" | ");
-			}
-			logger.debug("{}", sb);
-		}
 	}
 
 	/*
@@ -207,15 +182,15 @@ public class KoreanWordExtractor {
 		return null;
 	}
 
-	// 유니코드 블럭인지 판단
+	// 유니코드 블럭인지 판단 (일부가 유니코드이면 유니코드 블럭으로 인식)
 	private boolean isUnicode(char[] buffer, int offset, int length) {
 		for (int inx = 0; inx < length; inx++) {
 			char ch = buffer[offset + inx];
-			if (ch < 128) {
-				return false;
+			if (ch > 127) {
+				return true;
 			}
 		}
-		return true;
+		return false;
 	}
 
 	// 단어가 전부숫자인지.
@@ -281,7 +256,9 @@ public class KoreanWordExtractor {
 				connectAllTo(headRow, null);
 			}
 			ExtractedEntry tail = null;
+			// logger.trace("Q:{}", queue);
 			while ((tail = queue.poll()) != null) {
+				// logger.trace("T:{}", tail);
 				int connectRow = tail.row() - tail.column();
 				if (status[connectRow] > 0) {
 					connectAllTo(connectRow, tail);
@@ -305,6 +282,7 @@ public class KoreanWordExtractor {
 		for (int headColumn = headRow + 1; headColumn > 0; headColumn--) {
 			if (rowData[headColumn] != null) {
 				PosTagProbEntry tagEntry = rowData[headColumn];
+				entryStringer.set(tagEntry, source, headRow, headColumn, offset);
 				/* 2019.3.28 @swsong 알파벳은 무조건 성공분석으로 잡혀서 사전에 없는 단어들도 후보가 되어 ALPHA를 건너뛰게 한다. */
 				if (tagEntry.tagProb.posTag() != PosTag.ALPHA) {
 					connectTo(tagEntry, headRow, headColumn, tail);
@@ -319,6 +297,7 @@ public class KoreanWordExtractor {
 
 		}
 		// 추가 20190725 (영문인경우 모두 분석되어야 분석성공으로 만들도록)
+		// logger.trace("CHECK:{} / {}", isUnicode, result);
 		if (!isUnicode) {
 			for (int inx = 0; inx < result.size(); inx++) {
 				if (result.get(inx).last().posTag() == PosTag.UNK) {
@@ -331,6 +310,8 @@ public class KoreanWordExtractor {
 	}
 
 	private int connectTo(PosTagProbEntry headTagEntry, int headRow, int headColumn, ExtractedEntry tail) throws AnalyzeExceedException {
+		// entryStringer.set(headTagEntry, source, headRow, headColumn, offset);
+		// logger.trace("CONNECTTO:{}/{}", entryStringer, tail);
 		// headColumn = -1 이면 앞쪽에 연결될 단어가 없는것이다.
 		if (tail == null) {
 			// 처음
@@ -388,6 +369,7 @@ public class KoreanWordExtractor {
 			return;
 		}
 		// 결과로 넣음.
+		// logger.trace("ADD-QUEUE:{}", entry);
 		queue.add(entry);
 		if (queue.size() >= QUEUE_MAX) {
 			throw new AnalyzeExceedException("Queue size exceed " + queue.size() + " : " + new String(source));
@@ -395,6 +377,7 @@ public class KoreanWordExtractor {
 	}
 
 	protected void addResult(ExtractedEntry entry) throws AnalyzeExceedException {
+		// logger.trace("ADD-RESULT:{}", entry);
 		ExtractedEntry e = finalCheck(entry);
 		if (e == null) {
 			return;
@@ -510,6 +493,8 @@ public class KoreanWordExtractor {
 	}
 
 	public ExtractedEntry extract() {
+		tabularStringer.set(tabular, source, status, length, offset);
+		ExtractedEntry.source = source;
 		ExtractedEntry e = extract0();
 		ExtractedEntry last = e.last();
 		while (remnantLength > 0) {
@@ -535,9 +520,7 @@ public class KoreanWordExtractor {
 		if (e != null) {
 			return e;
 		}
-		if (isDebug || logger.isTraceEnabled()) {
-			showTabular();
-		}
+		// logger.trace(tabularStringer);
 		makeResult();
 		return getBestResult();
 	}
@@ -548,6 +531,7 @@ public class KoreanWordExtractor {
 	
 	private ExtractedEntry getHighResult() {
 		ExtractedEntry highEntry = null;
+		// logger.trace("RESULT:{}", result);
 		for (int k = 0; k < result.size(); k++) {
 			ExtractedEntry entry = result.get(k);
 			entry = finalCheck(entry);
@@ -560,6 +544,7 @@ public class KoreanWordExtractor {
 				highEntry = entry;
 			} else {
 				if (isBetterThan(entry, highEntry)) {
+					// logger.trace("HIGHER:{} / {}", entry, highEntry);
 					highEntry = entry;
 				}
 			}
@@ -572,6 +557,7 @@ public class KoreanWordExtractor {
 		if (bestEntry == null) {
 			// 통째 미등록어.
 			bestEntry = new ExtractedEntry(length - 1, length, TagProb.UNK, offset);
+			// logger.trace("UNKNOWN:{}", bestEntry);
 			return bestEntry;
 		}
 		return bestEntry;
@@ -677,6 +663,7 @@ public class KoreanWordExtractor {
 	}
 
 	public static class ExtractedEntry implements Cloneable {
+		private static char[] source;
 		private int row;
 		private int column;
 		private TagProb tagProb;
@@ -694,6 +681,7 @@ public class KoreanWordExtractor {
 			this.column = column;
 			this.tagProb = tagProb;
 			this.score += (tagProb.prob() + scoreAdd);
+			// logger.trace("NEWENTRY:{}", this);
 		}
 		
 		public ExtractedEntry(int row, int column, TagProb tagProb, int offset) {
@@ -702,6 +690,7 @@ public class KoreanWordExtractor {
 			this.tagProb = tagProb;
 			this.score += tagProb.prob();
 			this.offset = offset;
+			// logger.trace("NEWENTRY:{}", this);
 		}
 
 		public TagProb tagProb() {
@@ -833,7 +822,7 @@ public class KoreanWordExtractor {
 
 		@Override
 		public String toString() {
-			return "(" + (row + offset) + "," + column + "):" + tagProb + ":" + score;
+			return "(" + new String(source, row + offset - column + 1, column) + ":" + (row + offset) + "," + column + "):" + tagProb + ":" + score;
 		}
 
 		public String toWord(char[] source) {
@@ -853,6 +842,74 @@ public class KoreanWordExtractor {
 				logger.debug("{} ({},{})", new String(source), row + offset - column + 1, column);
 				throw new RuntimeException();
 			}
+		}
+	}
+
+	public static class EntryStringer {
+		private static char[] source;
+		private PosTagProbEntry entry;
+		private int row;
+		private int column;
+		private static int offset;
+
+		public void set (PosTagProbEntry entry, char[] source, int row, int column, int offset) {
+			this.entry = entry;
+			this.row = row;
+			this.column = column;
+			EntryStringer.source = source;
+			EntryStringer.offset = offset;
+		}
+
+		@Override public String toString() {
+			StringBuilder sb = new StringBuilder();
+			sb.append(new String(source, row - column + 1 + offset, column))
+				.append("[");
+			while (entry != null) {
+				sb.append(entry.get());
+				entry = entry.next();
+			}
+			sb.append("]");
+			return String.valueOf(sb);
+		}
+	}
+
+	public static class TabularStringer {
+		private static char[] source;
+		private static PosTagProbEntry[][] tabular;
+		private static int[] status;
+		private static int length;
+		private static int offset;
+
+		public void set (PosTagProbEntry[][] tabular, char[] source, int[] status, int length, int offset) {
+			TabularStringer.tabular = tabular;
+			TabularStringer.source = source;
+			TabularStringer.status = status;
+			TabularStringer.length = length;
+			TabularStringer.offset = offset;
+		}
+
+		@Override public String toString() {
+			StringBuilder ret = new StringBuilder();
+			for (int row = 0; row < length; row++) {
+				PosTagProbEntry[] el = tabular[row];
+				int count = status[row];
+				StringBuilder sb = new StringBuilder();
+				sb.append("").append(row).append(" ")
+					.append("{ ").append(count).append(" }").append(" | ");
+				for (int column = 1; column <= row + 1; column++) {
+					PosTagProbEntry e = el[column];
+					sb.append(new String(source, row - column + 1 + offset, column))
+						.append("[");
+					while (e != null) {
+						sb.append(e.get());
+						e = e.next();
+					}
+					sb.append("]").append(" | ");
+				}
+				ret.append("\r\n").append(sb);
+				// logger.debug("{}", sb);
+			}
+			return String.valueOf(ret);
 		}
 	}
 }

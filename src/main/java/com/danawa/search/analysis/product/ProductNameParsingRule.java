@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 
 import com.danawa.search.analysis.dict.CompoundDictionary;
-import com.danawa.search.analysis.dict.CustomDictionary;
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SetDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
@@ -44,8 +43,6 @@ public class ProductNameParsingRule {
 	private SynonymDictionary unitSynonymDictionary;
 	private SynonymDictionary synonymDictionary;
 	private SetDictionary userDictionary;
-	private Set<CharSequence> brandDictionary;
-	private Set<CharSequence> makerDictionary;
 	private CompoundDictionary compoundDictionary;
 	private SetDictionary stopDictionary;
 	private CharVector term;
@@ -64,14 +61,6 @@ public class ProductNameParsingRule {
 			userDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_USER, SetDictionary.class);
 			compoundDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_COMPOUND, CompoundDictionary.class);
 			stopDictionary = dictionary.getDictionary(ProductNameDictionary.DICT_STOP, SetDictionary.class);
-			{
-				CustomDictionary dict = dictionary.getDictionary(ProductNameDictionary.DICT_BRAND, CustomDictionary.class);
-				if (dict != null) { brandDictionary = dict.getWordSet(); }
-			}
-			{
-				CustomDictionary dict = dictionary.getDictionary(ProductNameDictionary.DICT_MAKER, CustomDictionary.class);
-				if (dict != null) { makerDictionary = dict.getWordSet(); }
-			}
 		}
 		queue = new ArrayList<>();
 	}
@@ -1056,13 +1045,6 @@ public class ProductNameParsingRule {
 			if (e0.type == FULL_STRING) {
 				continue;
 			}
-			testEntry(e0, null);
-			if (e0.subEntry != null) {
-				for (int inx = 0; inx < e0.subEntry.size(); inx++) {
-					RuleEntry subEntry = e0.subEntry.get(inx);
-					testEntry(subEntry, e0);
-				}
-			}
 			if (e0.subEntry != null && e0.subEntry.size() > 0) {
 				logger.trace("subEntry:{}", e0.subEntry);
 				e0.modifiable = true;
@@ -1157,23 +1139,6 @@ public class ProductNameParsingRule {
 		return addInx;
 	}
 	
-	public static void testEntry(RuleEntry entry, RuleEntry parent) {
-		if ((parent == null || parent.type == MODEL_NAME) && entry.type == NUMBER && entry.length >= 5) {
-			entry.type = MODEL_NAME;
-		} else if (entry.type == UNIT_ALPHA) {
-			entry.type = UNIT;
-		} else if (entry.type == NUMBER_TRANS) {
-			entry.type = NUMBER;
-			CharVector entryStr = new CharVector(entry.makeTerm(null).toString().replace(",", ""));
-			if (entry.length != entryStr.length() && parent != null) {
-				int inx = parent.subEntry.indexOf(entry);
-				parent.subEntry.add(inx + 1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(), entry.startOffset, entry.endOffset, NUMBER));
-			}
-		} else if (entry.type == null) {
-			entry.type = UNCATEGORIZED;
-		}
-	}
-	
 	private boolean mergeSubQueue(RuleEntry entry, List<RuleEntry> subQueue) {
 		RuleEntry e0, e1, e2, e3, e4;
 		e0 = e1 = e2 = null;
@@ -1241,37 +1206,6 @@ public class ProductNameParsingRule {
 						processed = true;
 					}
 				}
-//
-//				// 모델명이 2블럭이며, 1글자씩이 붙어서 나온 것이면 붙여서만 출력 한다.
-//				e0 = subQueue.get(0);
-//				e1 = subQueue.get(1);
-//				if (e0.length == 1 && e1.length == 1) {
-//					subQueue.clear();
-//				} else if (e1.type == SYMBOL) {
-//					entry.length -= e1.length;
-//					entry.endOffset -= e1.length;
-//					entry.type = e0.type;
-//				}
-//			} else if (subQueue.size() == 3) {
-//				e0 = subQueue.get(0);
-//				e1 = subQueue.get(1);
-//				e2 = subQueue.get(2);
-//				if (e0.length == 1 && e1.length == 1 && e2.length == 1) {
-//					// 모델명이 3블럭이며, 가운데 기호가 있는 경우, 붙여서만 출력함.
-//					if ((e0.type == ALPHA || e0.type == NUMBER)
-//						&& (e2.type == ALPHA || e2.type == NUMBER)) {
-//						if (e1.type == SYMBOL) {
-//							if (e1.buf[e1.start] != '+') {
-//								subQueue.clear();
-//							}
-//						} else if (e0.type == e2.type) {
-//							e0.length += e1.length + e2.length;
-//							e0.endOffset = e2.endOffset;
-//							subQueue.remove(2);
-//							subQueue.remove(1);
-//						}
-//					}
-//				}
 			}
 			if (!processed) {
 				if (subQueue.size() == 2) {
@@ -1849,15 +1783,20 @@ public class ProductNameParsingRule {
 		
 		@Override public String toString() {
 			String str = "";
-			try {
-				str = "\"" + new String(buf, start, length) + "\"";
-			} catch (Exception ex) {
-				str = "\"" + new String(buf) + "\" [" + start + ":" + length + "]";
-				logger.debug("EE:{}", ex.getMessage());
+			if (buf != null) {
+				try {
+					str = "\"" + new String(buf, start, length) + "\"";
+				} catch (Exception ex) {
+					str = "\"" + new String(buf) + "\" [" + start + ":" + length + "]";
+					logger.debug("EE:{}", ex.getMessage());
+				}
 			}
 			str += " / " + type + " / " + modifiable + " (" + start + "~" + (start + length) + "/" + startOffset + "~" + endOffset + ")";
 			if (subEntry != null) {
 				str += "[" + subEntry.size() + "]";
+			}
+			if (synonym != null) {
+				str += "[" + synonym.length + "]";
 			}
 			return str;
 		}
