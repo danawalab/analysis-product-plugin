@@ -143,6 +143,8 @@ public final class ProductNameTokenizer extends Tokenizer {
 		int end = -1;
 		int bufferStart = position;
 		boolean continueTerm = false;
+		int startOffset = 0;
+		int endOffset = 0;
 		while (!tokenAtt.isState(TokenInfoAttribute.STATE_INPUT_FINISHED)) {
 			if (entry == null) {
 				while (true) {
@@ -206,9 +208,6 @@ public final class ProductNameTokenizer extends Tokenizer {
 
 						if (typePrev == null) {
 							// 이전문자가 없다면 패스
-						} else if (position >= tokenLength) {
-							// 
-							pass = 0;
 						} else if (typePrev == WHITESPACE && typeCurrent != WHITESPACE) {
 							// 
 						} else if (typePrev == WHITESPACE && typeCurrent == WHITESPACE) {
@@ -223,6 +222,9 @@ public final class ProductNameTokenizer extends Tokenizer {
 							pass = 0;
 						} else if ((chrPrev < 128 && chrCurrent > 128) || (chrCurrent < 128 && chrPrev > 128)) {
 							// 알파벳 과 유니코드 분리
+							pass = 0;
+						}else if (position >= tokenLength) {
+							// 
 							pass = 0;
 						}
 						// logger.trace("CH:{}[{}] / {} / {} / {} / {}", chrCurrent, typeCurrent, typePrev, position, length, pass);
@@ -256,8 +258,8 @@ public final class ProductNameTokenizer extends Tokenizer {
 				}
 
 				assert start != -1;
-				int startOffset = correctOffset(start);
-				int endOffset = correctOffset(end);
+				startOffset = correctOffset(start);
+				endOffset = correctOffset(end);
 
 				if (extractor != null) {
 					logger.trace("TOKEN:{} / {}~{} / {}", new CharVector(buffer, bufferStart, length), position - bufferStart, length);
@@ -288,12 +290,12 @@ public final class ProductNameTokenizer extends Tokenizer {
 						entry = entry.next();
 						continue;
 					}
-					int startOffset = correctOffset(baseOffset + entry.offset());
-					int endOffset = correctOffset(baseOffset + entry.offset() + entry.column());
+					startOffset = correctOffset(baseOffset + entry.offset());
+					endOffset = correctOffset(baseOffset + entry.offset() + entry.column());
 					tokenAtt.ref(buffer, entry.offset(), entry.column());
 					tokenAtt.posTag(entry.posTag());
 					offsetAtt.setOffset(startOffset, endOffset);
-					logger.trace("TERM:{} / {}~{} / {} / {}", tokenAtt.ref(), startOffset, endOffset, baseOffset, tokenAtt.posTag());
+					logger.trace("TERM:{} / {}~{} / {} / {} / {}", tokenAtt.ref(), startOffset, endOffset, baseOffset, readLength, tokenAtt.posTag());
 
 					int extPosition = entry.offset() + entry.column();
 					int prevOffset = entry.offset();
@@ -349,6 +351,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 					}
 					break;
 				}
+				logger.trace("OFFSET:{} / {} / {} / {}", startOffset, endOffset, position, baseOffset + readLength);
 			}
 			return true;
 		}
