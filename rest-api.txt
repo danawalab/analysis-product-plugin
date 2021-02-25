@@ -1023,7 +1023,7 @@ GET /_analysis-product-name/analyze?index=.dsearch_dict&detail=true&useForQuery=
 # detail: 상세분석 여부 (true / false)
 # useForQuery: 질의 / 색인 여부 (true / false)
 # text: 분석용 텍스트
-POST /_analysis-product-name/analyze-text
+POST /_analysis-product-name/analyze
 {
   "index": ".dsearch_dict",
   "detail": true,
@@ -1031,7 +1031,7 @@ POST /_analysis-product-name/analyze-text
   "text": "Sandisk Extream Z80 USB 16gb"
 }
 
-GET /_analysis-product-name/analyze-text?index=.dsearch_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
+GET /_analysis-product-name/analyze?index=.dsearch_dict&detail=true&useForQuery=true&text=Sandisk Extream Z80 USB 16gb
 
 # ES 기본 제공 형태소 분석은 다음과 같음
 
