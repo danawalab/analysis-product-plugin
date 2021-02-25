@@ -228,8 +228,9 @@ public final class ProductNameTokenizer extends Tokenizer {
 						} else if ((chrPrev < 128 && chrCurrent > 128) || (chrCurrent < 128 && chrPrev > 128)) {
 							// 알파벳 과 유니코드 분리
 							pass = 0;
-						} else if (position >= tokenLength) {
-							// 
+						}
+						// 버퍼 마지막인 경우 무조건 끊어줌
+						if (position >= tokenLength) {
 							pass = 0;
 						}
 						// logger.trace("CH:{}[{}] / {} / {} / {} / {}", chrCurrent, typeCurrent, typePrev, position, length, pass);

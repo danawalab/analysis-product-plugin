@@ -144,7 +144,8 @@ public class ProductNameAnalysisFilterTest {
 		File textFile = TestUtil.getFileByProperty("SYSPROP_SAMPLE_TEXT_PATH");
 		if (!textFile.exists()) { return; }
 
-		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		// ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		BufferedReader reader = null;
 		Tokenizer tokenizer = null;
 		AnalyzerOption option = null;
