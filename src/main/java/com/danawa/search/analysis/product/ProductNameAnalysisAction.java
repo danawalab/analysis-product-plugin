@@ -786,7 +786,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						logger.trace("SYNONYM [{}] {} / {} ", setName, term, synonyms);
 						for (CharSequence synonym : synonyms) {
 							String s = String.valueOf(synonym);
-							termWords.add(s);
+
+							String[] synonymList = s.split(" ");
+
+							if(synonymList.length > 1){
+								termWords.add(synonymList);
+							}else{
+								termWords.add(s);
+							}
 						}
 					}
 
