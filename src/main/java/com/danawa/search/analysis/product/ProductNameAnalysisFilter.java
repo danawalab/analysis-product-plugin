@@ -18,6 +18,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
@@ -37,6 +38,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private final ExtraTermAttribute extraTermAttribute = addAttribute(ExtraTermAttribute.class);
 	private final SynonymAttribute synonymAttribute = addAttribute(SynonymAttribute.class);
 	private final TypeAttribute typeAttribute = addAttribute(TypeAttribute.class);
+	private final PositionIncrementAttribute posIncrAtt = addAttribute(PositionIncrementAttribute.class);
 	private AnalyzerOption option;
 	
 	private KoreanWordExtractor extractor;
@@ -74,8 +76,12 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		boolean ret = false;
 		// FIXME : 큐 마지막에 ASCII 텀이 남아 있다면 모델명규칙 등을 위해 남겨 두어야 함.
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
+		int prevStartOffset = 0;
 		if (parsingRule == null) {
 			parsingRule = new ProductNameParsingRule(extractor, dictionary, option);
+			prevStartOffset = -1;
+		} else {
+			prevStartOffset = offsetAttribute.startOffset();
 		}
 		synonymAttribute.setSynonyms(null);
 		extraTermAttribute.init(this);
@@ -218,6 +224,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 				}
 			}
 		} // LOOP
+
+		posIncrAtt.setPositionIncrement(offsetAttribute.startOffset() - prevStartOffset);
+
 		if (logger.isTraceEnabled()) {
 			if (ret) {
 				logger.trace("TERM:{} / {}~{} / {} ", termAttribute, offsetAttribute.startOffset(), offsetAttribute.endOffset());

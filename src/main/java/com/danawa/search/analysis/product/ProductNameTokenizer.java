@@ -12,7 +12,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.util.AttributeFactory;
@@ -102,7 +101,6 @@ public final class ProductNameTokenizer extends Tokenizer {
 	private final TokenInfoAttribute tokenAtt = addAttribute(TokenInfoAttribute.class);
 	private final OffsetAttribute offsetAtt = addAttribute(OffsetAttribute.class);
 	private final TypeAttribute typeAtt = addAttribute(TypeAttribute.class);
-	private final PositionIncrementAttribute posIncrAtt = addAttribute(PositionIncrementAttribute.class);
 
 	private int 
 		baseOffset = 0, 
@@ -110,8 +108,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 		extLength = 0, 
 		readLength = 0, 
 		tokenLength = 0,
-		finalOffset = 0,
-		skippedPositions = 0;
+		finalOffset = 0;
 
 	private char[] buffer;
 	private char[][] backBuffer = new char[2][IO_BUFFER_SIZE];
@@ -132,7 +129,6 @@ public final class ProductNameTokenizer extends Tokenizer {
 
 	public ProductNameTokenizer(AttributeFactory factory) {
 		super(factory);
-		skippedPositions = 0;
 	}
 
 	protected boolean isTokenChar(int c1, int c2) {
@@ -359,8 +355,6 @@ public final class ProductNameTokenizer extends Tokenizer {
 				}
 				logger.trace("OFFSET:{} / {} / {} / {}", startOffset, endOffset, position, baseOffset + readLength);
 			}
-			posIncrAtt.setPositionIncrement(skippedPositions + 1);
-			skippedPositions++;
 			return true;
 		}
 		return false;
@@ -371,7 +365,6 @@ public final class ProductNameTokenizer extends Tokenizer {
 		logger.trace("TOKENIZER-END {}", finalOffset);
 		super.end();
 		offsetAtt.setOffset(finalOffset, finalOffset);
-		posIncrAtt.setPositionIncrement(posIncrAtt.getPositionIncrement() + skippedPositions);
 	}
 
 	@Override

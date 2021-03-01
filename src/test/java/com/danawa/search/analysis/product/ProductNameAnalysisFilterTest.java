@@ -28,6 +28,7 @@ import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
+import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.SynonymAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.search.highlight.Encoder;
@@ -89,9 +90,10 @@ public class ProductNameAnalysisFilterTest {
 		// str = "21c파티션";
 		// str = "a3f[on]";
 		str = "Z80 RA1531A 1000m";
+		str = "적용모델: CRP-JHR0660FD/FBM, CRP-JHTS0660FS, CRP-JHTR0610FD, CRP-JHT0610FS, CRP-JHI0630FG, CRP-JHR0610FB, CRP-JHR0620FD, CRP-FHR0610FG/FD, CRP-FHTS0610FD, CRP-FHTR0610FS, CRP-BHSL0610FB 등(상세정보참고)";
 		try {
-			// boolean useForQuery = false;
-			boolean useForQuery = true;
+			boolean useForQuery = false;
+			// boolean useForQuery = true;
 			option = new AnalyzerOption(useForQuery, true, true, true, false);
 			option.useSynonym(true);
 			reader = new StringReader(str);
@@ -105,8 +107,9 @@ public class ProductNameAnalysisFilterTest {
 			TypeAttribute typeAttr = tstream.addAttribute(TypeAttribute.class);
 			SynonymAttribute synAttr = tstream.addAttribute(SynonymAttribute.class);
 			ExtraTermAttribute addAttr = tstream.addAttribute(ExtraTermAttribute.class);
+			PositionIncrementAttribute posIncrAtt = tstream.addAttribute(PositionIncrementAttribute.class);
 			while (tstream.incrementToken()) {
-				logger.debug("TOKEN:{} / {}~{} / {} / [{}|{}]", termAttr, offsetAttr.startOffset(), offsetAttr.endOffset(), typeAttr.type(), synAttr, addAttr);
+				logger.debug("TOKEN:{} / {}~{} / {} / {} / [{}|{}]", termAttr, offsetAttr.startOffset(), offsetAttr.endOffset(), posIncrAtt.getPositionIncrement(), typeAttr.type(), synAttr, addAttr);
 
 				if (synAttr != null && synAttr.getSynonyms() != null) {
 					List<CharSequence> synonymObj = synAttr.getSynonyms();
