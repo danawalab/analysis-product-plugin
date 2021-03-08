@@ -327,4 +327,5 @@ M&A	M&A <MODEL_NAME>
 15키	15 <NUMBER:0~2>	키 <HANGUL:2~3>
 15키키	15 <NUMBER:0~2>	키키 <HANGUL:2~4>
 침대매트리스s	침대 <HANGUL:0~2>	매트리스 <HANGUL:2~6>	s <ALPHA:6~7>
+침대매트리스 s	침대 <HANGUL:0~2>	매트리스 <HANGUL:2~6>	s <ALPHA:7~8>
 #
