@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.search.analysis.dict.SpaceDictionary;
@@ -232,6 +234,8 @@ public class ProductNameAnalysisFilterTest {
 		InputStream stream = null;
 		BufferedReader reader = null;
 		ProductNameAnalyzer analyzer = null;
+		Pattern ptnAttr = Pattern.compile("<([A-Z_]+)([:]([0-9]+)[~]([0-9]+)){0,1}>");
+		Matcher mat = null;
 		try {
 			ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 			stream = getClass().getResourceAsStream(testFile);
@@ -249,6 +253,7 @@ public class ProductNameAnalysisFilterTest {
 				CharTermAttribute termAttribute = tokenStream.addAttribute(CharTermAttribute.class);
 				SynonymAttribute synonymAttribute = tokenStream.addAttribute(SynonymAttribute.class);
 				ExtraTermAttribute additionalTermAttribute = tokenStream.addAttribute(ExtraTermAttribute.class);
+				OffsetAttribute offsetAttribute = tokenStream.addAttribute(OffsetAttribute.class);
 				
 				logger.debug("--------------------------------------------------------------------------------");
 				logger.debug("test for {}{}", "", testdata);
@@ -260,11 +265,30 @@ public class ProductNameAnalysisFilterTest {
 				for (; tokenStream.incrementToken(); inx++) {
 					assertTrue(inx + 1 < testdata.length);
 					String[] data = testdata[inx + 1].split(" ");
+					assertTrue(data.length > 1);
+					int[] offset = {-1, -1};
+					{
+						mat = ptnAttr.matcher(data[1]);
+						if (mat != null && mat.find()) {
+							logger.trace("GCOUNT:{} / {} / {} / {}", mat.groupCount(), mat.group(0), mat.group(1), mat.group(2));
+							if (mat.group(2) != null) {
+								offset = new int[] {
+									Integer.parseInt(mat.group(3)),
+									Integer.parseInt(mat.group(4))
+								};
+							}
+							data[1] = "<" + mat.group(1) + ">";
+						}
+					}
+
 					logger.debug("term:{}:{} / type:{}:{}", termAttribute, data[0], typeAttribute.type(), data[1]);
 					
 					assertTrue(termAttribute.toString().equals(data[0]));
 					assertTrue(typeAttribute.type().toString().equals(data[1]));
-					
+					if (!(offset[0] == offset[1] && offset[1] == -1)) {
+						assertTrue(offsetAttribute.startOffset() == offset[0]);
+						assertTrue(offsetAttribute.endOffset() == offset[1]);
+					}
 					int inx2 = 0;
 					
 					if (synonymAttribute != null && synonymAttribute.getSynonyms() != null) {

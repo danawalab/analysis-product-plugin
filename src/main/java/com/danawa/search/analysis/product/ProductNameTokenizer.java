@@ -225,8 +225,8 @@ public final class ProductNameTokenizer extends Tokenizer {
 							// 알파벳 과 유니코드 분리
 							pass = 0;
 						}
-						// 버퍼 마지막인 경우 무조건 끊어줌
-						if (position >= tokenLength) {
+						if (pass != 0 && position >= tokenLength) {
+							// 버퍼 마지막인 경우 무조건 끊어줌 (15키 등)
 							pass = 0;
 						}
 						// logger.trace("CH:{}[{}] / {} / {} / {} / {}", chrCurrent, typeCurrent, typePrev, position, length, pass);
