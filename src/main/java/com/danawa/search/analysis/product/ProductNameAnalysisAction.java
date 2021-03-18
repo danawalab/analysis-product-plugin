@@ -604,11 +604,19 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					} else if (ANALYZE_SET_MODEL_NAME.equals(key)) {
 						for (List<String> item : wordList) {
 							if (analyzed.length() > 0) { analyzed.append(TAG_BR); }
+
+							// 모델명규칙 풀텀 가장 뒤에 나오도록 변경
+							// 2021-03-17 선지호
+							String tmp = item.get(0);
+							item.remove(0);
+							item.add(tmp);
+
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w))
-										.append(" ( ").append(w);
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, text))
+											.append(" ( ");
+									analyzed.append(w);
 								} else {
 									if (inx > 0) { analyzed.append(", "); }
 									analyzed.append(w);
@@ -647,7 +655,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						}
 					} else if (ANALYZE_SET_NORMAL.equals(key)) {
 						for (List<String> item : wordList) {
-							if (analyzed.length() > 0) { analyzed.append(COMMA).append(" "); }
+							if (analyzed.length() > 0) {
+								analyzed.append(COMMA).append(" ");
+							}
 							if (item.size() > 0) {
 								analyzed.append(item.get(0));
 							}
@@ -687,6 +697,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							}
 						}
 					} else if (ANALYZE_SET_FINAL.equals(key)) {
+
+						List<String> list = wordList.get(0);
+						wordList.remove(0);
+						wordList.add(list);
+
 						for (List<String> item : wordList) {
 							if (analyzed.length() > 0) { analyzed.append(COMMA).append(" "); }
 							if (item.size() > 0) {
@@ -1042,6 +1057,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			jparam.put("distribute", distribute);
 		}
 
+		System.out.println("compile - dict");
 		/* 실제적으로 여기서 함 */
 		DictionarySource repo = new DictionarySource(client, index);
 		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionaryOne(repo, exportFile, getDictionary(), type));
@@ -1475,7 +1491,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				QueryBuilder query = null;
 
 				query = QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type.toUpperCase());
-
 
 				logger.trace("QUERY:{}", query);
 				iterator = SearchUtil.search(client, index, query, null, null, 0, -1, true, null);
