@@ -17,6 +17,7 @@ import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
 import com.danawa.search.index.DanawaBulkTextIndexer;
 import com.danawa.search.index.DanawaSearchQueryBuilder;
 import com.danawa.search.index.FastcatMigrateIndexer;
+import com.danawa.search.util.RemoteNodeClient;
 import com.danawa.search.util.SearchUtil;
 import com.danawa.search.util.SearchUtil.DataModifier;
 import com.danawa.util.CharVector;
@@ -36,8 +37,10 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest.Metric;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.http.HttpInfo;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -53,6 +56,8 @@ import org.elasticsearch.rest.*;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
+import org.elasticsearch.transport.RemoteClusterAwareRequest;
+import org.elasticsearch.transport.RemoteClusterService;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
@@ -1041,6 +1046,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		String type = request.param("type", null);
 		boolean exportFile = request.paramAsBoolean("exportFile", false);
 		boolean distribute = request.paramAsBoolean("distribute", false);
+		String host = request.param("host", null);
+		int port = request.paramAsInt("port", 9200);
 
 		if (!GET.equals(request.method())) {
 			/* POST */
@@ -1049,6 +1056,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			type = jparam.optString("type", null);
 			exportFile = jparam.optBoolean("exportFile", false);
 			distribute = jparam.optBoolean("distribute", false);
+			host = jparam.optString("host", null);
+			port = jparam.optInt("port", 9200);
 		} else {
 			/* GET */
 			jparam.put("index", index);
@@ -1058,14 +1067,21 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		System.out.println("compile - dict");
-		/* 실제적으로 여기서 함 */
-		DictionarySource repo = new DictionarySource(client, index);
-		ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionaryOne(repo, exportFile, getDictionary(), type));
+		// 원격
+		if (host != null && !"".equals(host)) {
+			RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port);
+			DictionarySource repo = new DictionarySource(remoteNodeClient, index);
+			ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionaryOne(repo, exportFile, getDictionary(), type));
+		} else {
+			DictionarySource repo = new DictionarySource(client, index);
+			ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionaryOne(repo, exportFile, getDictionary(), type));
+		}
 
 		if (distribute) {
 			jparam.put("distribute", false);
 			distribute(request, client, ACTION_COMPILE_DICT, jparam, false);
 		}
+
 	}
 
 	/**
@@ -1078,6 +1094,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
 		}
+
+		String host = request.param("host", null);
+		int port = request.paramAsInt("port", 9200);
+		RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port);
 
 		ProductNameDictionary productNameDictionary = getDictionary();
 		builder
@@ -1093,7 +1113,13 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			String type = key.toUpperCase();
 			SourceDictionary<?> sourceDictionary = dictionaryMap.get(key);
 			int[] info = ProductNameDictionary.getDictionaryInfo(sourceDictionary);
-			long indexCount = SearchUtil.count(client, index, QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type));
+			long indexCount;
+			if (host != null && !"".equals(host)) {
+				indexCount = SearchUtil.count(remoteNodeClient, index, QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type));
+			} else {
+				indexCount = SearchUtil.count(client, index, QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type));
+			}
+
 			builder.object()
 				.key(ES_DICT_FIELD_TYPE).value(type)
 				.key("class").value(sourceDictionary.getClass().getSimpleName())
@@ -1477,11 +1503,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	 * 사전 컴파일 등에 사용한다.
 	 */
 	public static class DictionarySource extends DictionaryRepository implements Iterator<CharSequence[]> {
-		private NodeClient client;
+		private Client client;
 		private String index;
 		private Iterator<Map<String, Object>> iterator;
 
-		public DictionarySource(NodeClient client, String index) {
+		public DictionarySource(Client client, String index) {
 			this.client = client;
 			this.index = index;
 		}
