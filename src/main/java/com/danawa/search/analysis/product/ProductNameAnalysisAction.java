@@ -612,14 +612,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 							// 모델명규칙 풀텀 가장 뒤에 나오도록 변경
 							// 2021-03-17 선지호
-							String tmp = item.get(0);
+							String fullTermKeyword = item.get(0);
 							item.remove(0);
-							item.add(tmp);
+							item.add(fullTermKeyword);
 
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, text))
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, fullTermKeyword))
 											.append(" ( ");
 									analyzed.append(w);
 								} else {
