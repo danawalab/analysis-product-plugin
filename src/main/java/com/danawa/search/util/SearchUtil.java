@@ -25,6 +25,7 @@ import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.unit.TimeValue;
@@ -95,7 +96,7 @@ public class SearchUtil {
 		}
 	}
 
-	public static long count(NodeClient client, String index, QueryBuilder query) {
+	public static long count(Client client, String index, QueryBuilder query) {
 		long ret = 0;
 		try {
 			SearchRequest countRequest = new SearchRequest(index.split("[,]"));
@@ -109,7 +110,7 @@ public class SearchUtil {
 		return ret;
 	}
 
-	public static Iterator<Map<String, Object>> search(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, int from, int size, boolean doScroll, DataModifier dataModifier) {
+	public static Iterator<Map<String, Object>> search(Client client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, int from, int size, boolean doScroll, DataModifier dataModifier) {
 		Iterator<Map<String, Object>> ret = null;
 		if (doScroll) {
 			ret = new ScrollSearchResultIterator().doSearch(client, index, query, sortSet, highlight, dataModifier, from, size);
@@ -166,7 +167,8 @@ public class SearchUtil {
 		public static final String FIELD_ROWNUM = "_ROWNUM";
 		public static final String FIELD_SORT = "_SORT";
 		public static final String FIELD_HIGHLIGHT = "_HIGHLIGHT";
-		abstract Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size);
+		abstract Iterator<Map<String, Object>> doSearch(Client client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size);
+
 		static Map<String, Object> processHit(SearchHit hit, int rowNum, DataModifier dataModifier) {
 			Map<String, Object> rowData;
 			rowData = hit.getSourceAsMap();
@@ -201,8 +203,10 @@ public class SearchUtil {
 		private TimeValue timeOut;
 		private DataModifier dataModifier;
 
+
+
 		@Override 
-		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size) {
+		public Iterator<Map<String, Object>> doSearch(Client client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size) {
 			/**
 			 * 단순 검색. 빠르지만 1만건 이상 검색결과 검색 불가능
 			 **/
@@ -271,7 +275,7 @@ public class SearchUtil {
 
 	static class ScrollSearchResultIterator extends AbstractSearchResultIterator {
 
-		private NodeClient client;
+		private Client client;
 		private SearchHit[] hits;
 		private ClearScrollRequest clearScroll;
 		private Scroll scroll;
@@ -296,7 +300,7 @@ public class SearchUtil {
 		}
 
 		@Override
-		public Iterator<Map<String, Object>> doSearch(NodeClient client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size) {
+		public Iterator<Map<String, Object>> doSearch(Client client, String index, QueryBuilder query, List<SortBuilder<?>> sortSet, HighlightBuilder highlight, DataModifier dataModifier, int from, int size) {
 			/**
 			 * 스크롤 스트리밍 검색. 느리지만 1만건 이상 검색결과를 추출가능함.
 			 **/
