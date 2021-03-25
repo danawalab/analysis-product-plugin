@@ -85,9 +85,10 @@ public class KoreanWordExtractorTest {
 
 	@Test public void testSynonymDictionary() {
 		if (TestUtil.launchForBuild()) { return; }
-		ProductNameDictionary dictionary = null;
-		dictionary = TestUtil.loadDictionary();
-		// dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 		SynonymDictionary synonymDict = dictionary.getDictionary(ProductNameDictionary.DICT_SYNONYM, SynonymDictionary.class);
 		CharSequence word = null;
 		word = new CharVector("sandisk");
@@ -123,8 +124,10 @@ public class KoreanWordExtractorTest {
 
 	@Test public void testExtractorSimple() {
 		if (TestUtil.launchForBuild()) { return; }
-		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 		KoreanWordExtractor extractor = new KoreanWordExtractor(dictionary);
 		String str = "한글분석기테스트중입니다";
 		str = "/F20005W_F10011M_F20246W_247W_251W_FMS10";

@@ -34,8 +34,10 @@ public class ProductNameAnalyzerTest {
 	@Test public void testAnalyzerSimple() {
 		if (TestUtil.launchForBuild()) { return; }
 
-		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 
 		ProductNameAnalyzer analyzer = null;
 		String str = "한글분석기테스트중입니다";

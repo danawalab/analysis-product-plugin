@@ -65,8 +65,10 @@ public class ProductNameAnalysisFilterTest {
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		TokenStream tstream = null;
-		// ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 		SpaceDictionary spDict = dictionary.getDictionary(ProductNameDictionary.DICT_SPACE, SpaceDictionary.class);
 		spDict.addEntry("", new CharVector[] { new CharVector("bacas tv") });
 		AnalyzerOption option = null;
@@ -95,7 +97,6 @@ public class ProductNameAnalysisFilterTest {
 		str = "적용모델: CRP-JHR0660FD/FBM, CRP-JHTS0660FS, CRP-JHTR0610FD, CRP-JHT0610FS, CRP-JHI0630FG, CRP-JHR0610FB, CRP-JHR0620FD, CRP-FHR0610FG/FD, CRP-FHTS0610FD, CRP-FHTR0610FS, CRP-BHSL0610FB 등(상세정보참고)";
 		try {
 			boolean useForQuery = false;
-			// boolean useForQuery = true;
 			option = new AnalyzerOption(useForQuery, true, true, true, false);
 			option.useSynonym(true);
 			reader = new StringReader(str);
@@ -149,8 +150,10 @@ public class ProductNameAnalysisFilterTest {
 		File textFile = TestUtil.getFileByProperty("SYSPROP_SAMPLE_TEXT_PATH");
 		if (!textFile.exists()) { return; }
 
-		// ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 		BufferedReader reader = null;
 		Tokenizer tokenizer = null;
 		AnalyzerOption option = null;
@@ -237,7 +240,10 @@ public class ProductNameAnalysisFilterTest {
 		Pattern ptnAttr = Pattern.compile("<([A-Z_]+)([:]([0-9]+)[~]([0-9]+)){0,1}>");
 		Matcher mat = null;
 		try {
-			ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+			ProductNameDictionary dictionary = TestUtil.loadDictionary();
+			if (dictionary == null) {
+				dictionary = TestUtil.loadTestDictionary();
+			}
 			stream = getClass().getResourceAsStream(testFile);
 			reader = new BufferedReader(new InputStreamReader(stream));
 			for (String rline = ""; (rline = reader.readLine()) != null;) {
@@ -348,7 +354,10 @@ public class ProductNameAnalysisFilterTest {
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		TokenStream tstream = null;
-		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 		AnalyzerOption option = null;
 		String str = "Sandisk Extream Z80 USB 16gb bacastv";;
 		try {

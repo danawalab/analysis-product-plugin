@@ -32,7 +32,10 @@ public class HighlighterTest {
         QueryScorer queryScorer = new CustomQueryScorer(query);
         org.apache.lucene.search.highlight.Highlighter highlighter = new org.apache.lucene.search.highlight.Highlighter(queryScorer);
 
-        ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
         Analyzer analyzer = new ProductNameAnalyzer(dictionary);
 
         String text = "적용모델: CRP-JHR0660FD/FBM, CRP-JHTS0660FS, CRP-JHTR0610FD, CRP-JHT0610FS, CRP-JHI0630FG, CRP-JHR0610FB, CRP-JHR0620FD, CRP-FHR0610FG/FD, CRP-FHTS0610FD, CRP-FHTR0610FS, CRP-BHSL0610FB 등(상세정보참고)";

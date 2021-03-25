@@ -58,8 +58,10 @@ public class ProductNameAnalysisActionTest {
 		text = "LGNOTEBOOK 판매";
 		text = "RF85R901301 판매";
 
-		// ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 		TokenStream stream = null;
 		JSONObject analysis = new JSONObject();
 
@@ -88,8 +90,10 @@ public class ProductNameAnalysisActionTest {
 		text = "LGNOTEBOOK 판매";
 		text = "RF85R901301 판매";
 
-		ProductNameDictionary dictionary = TestUtil.loadTestDictionary();
-		// ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 		TokenStream stream = null;
 
 		String[] fields = "MODELWEIGHT^10000,MAKERKEYWORD^20000,BRANDKEYWORD^300000,CATEGORYWEIGHT^100".split("[,]");
@@ -186,7 +190,9 @@ public class ProductNameAnalysisActionTest {
 		String index = "";
 		ProductNameDictionary dictionary = null;
 		dictionary = TestUtil.loadDictionary();
-		// dictionary = TestUtil.loadTestDictionary();
+		if (dictionary == null) {
+			dictionary = TestUtil.loadTestDictionary();
+		}
 		contextStore.put(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, dictionary);
 		String str = "";
 		str = "Sandisk Extream Z80 USB 16gb 스위스알파인클럽";
@@ -203,7 +209,7 @@ public class ProductNameAnalysisActionTest {
 		TokenStream stream = getAnalyzer(dictionary, str, useForQuery, useSynonym, useStopword, useFullString);
 		StringWriter buffer = new StringWriter();
 		JSONWriter writer = new JSONWriter(buffer);
-		ProductNameAnalysisAction.analyzeTextDetail(null, str, stream, detail, index, writer);
+		ProductNameAnalysisAction.analyzeTextDetailWriteJSON(null, str, stream, index, detail, writer);
 		logger.debug("RESULT : {}", String.valueOf(buffer));
 	}
 
