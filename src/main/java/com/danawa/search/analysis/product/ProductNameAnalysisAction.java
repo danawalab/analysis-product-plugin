@@ -399,7 +399,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					analyzeMap.put(key, URLDecoder.decode(request.param(key, ""), "UTF-8"));
 				}
 			} catch (UnsupportedEncodingException e) {
-				System.out.println("UnsupportedEncodingException Catched !!! >>>> \n" + e.getMessage());
+				logger.error("UnsupportedEncodingException Catched !!! >>>> \n" + e.getMessage());
 				writer.key("success").value(false);
 				logger.debug("error >>> {}", e);
 			}
@@ -426,7 +426,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			writer.endObject();
 			writer.key("success").value(false);
 			logger.debug("exception >>> {}", ignore);
-			System.out.println("Exception Catched !!! >>>> \n" + ignore.getMessage());
+			logger.error("Exception Catched !!! >>>> \n" + ignore.getMessage());
 		} finally {
 			writer.endObject();
 			writer.key("success").value(true);
@@ -715,11 +715,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							}
 						}
 					} else if (ANALYZE_SET_FINAL.equals(key)) {
-
-						List<String> list = wordList.get(0);
-						wordList.remove(0);
-						wordList.add(list);
-
 						for (List<String> item : wordList) {
 							if (analyzed.length() > 0) { analyzed.append(COMMA).append(" "); }
 							if (item.size() > 0) {
@@ -965,7 +960,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			jparam.put("distribute", distribute);
 		}
 
-		System.out.println("compile - dict");
 		// 원격
 		if (host != null && !"".equals(host)) {
 			RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port);
@@ -1493,7 +1487,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			try{
 				keyword = URLDecoder.decode(request.param("keyword", ""), "UTF-8");
 			} catch (UnsupportedEncodingException e){
-				System.out.println("UnsupportedEncodingException Catched !!! >>>> \n" + e.getMessage());
+				logger.error("UnsupportedEncodingException Catched !!! >>>> \n" + e.getMessage());
 				logger.debug("error >>> {}", e);
 			}
 		}
@@ -1507,7 +1501,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			writer.endArray();
 			writer.key("success").value(true);
 		} finally {
-			try { stream.close(); } catch (Exception ignore) { logger.debug("Exception >>> {}", ignore.getMessage()); System.out.println("TokenStream Close Excption!!!"); }
+			try {
+				stream.close();
+			} catch (Exception ignore) {
+				logger.debug("Exception >>> {}", ignore.getMessage());
+			}
 		}
 	}
 
