@@ -646,7 +646,7 @@ public class ProductNameParsingRule {
 			// 결합단어로도 추출됨 (AdditionalTerm)
 			// FULL_STRING 은 타입전환을 하지 않는다
 			CharVector cv = e0.makeTerm(null);
-			if (option.useForQuery() && e0.type != FULL_STRING && getType(cv.charAt(0)) == ALPHA) {
+			if (e0.type != FULL_STRING && getType(cv.charAt(0)) == ALPHA) {
 				if (getTermType(cv) == ALPHA) {
 					e0.type = ALPHA;
 				}
