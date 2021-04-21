@@ -95,7 +95,7 @@ public final class ProductNameTokenizer extends Tokenizer {
 
 	protected static final char[] AVAIL_SYMBOLS_SPLIT = new char[] {
 		// 단어사이에 구분자로 올 수 있는 기호들, 사용자단어에 들어가는 기호는 삭제해야 한다.
-		',', '|', '[', ']', '<', '>', '{', '}' };
+		',', '|', '[', ']', '<', '>', '{', '}', '^' };
 
 	private final CharTermAttribute termAtt = addAttribute(CharTermAttribute.class);
 	private final TokenInfoAttribute tokenAtt = addAttribute(TokenInfoAttribute.class);

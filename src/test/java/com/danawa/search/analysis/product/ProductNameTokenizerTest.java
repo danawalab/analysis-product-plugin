@@ -84,6 +84,7 @@ public class ProductNameTokenizerTest {
 		// str = "토크나이저    테스트";
 		// str = "abc123d4ef한글g56";
 		// str = "거너더러머버서어져쳐켜텨펴혀";
+		str = "CF^miniSDHC";
 		try {
 			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary, false);
