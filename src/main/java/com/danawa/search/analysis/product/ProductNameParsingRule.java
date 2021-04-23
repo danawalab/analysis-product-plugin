@@ -822,14 +822,37 @@ public class ProductNameParsingRule {
 				e1 = e2 = null;
 				if (qinx > 0) { e1 = queue.get(qinx - 1); }
 				if (qinx+ 1 < queue.size()) { e2 = queue.get(qinx + 1);}
-				// 단위명 앞 뒤로 기호일 경우는 일단 모델명에서 제외, 단위명 우선.
-				// 단 단위가 연결자일 경우는 모델명 우선.
-				if (e1 != null & e2 != null) {
-					if (e1.type == SYMBOL && !(e2.type == ALPHA || e2.type == NUMBER) || 
-						e2.type == SYMBOL && !(e1.type == ALPHA || e1.type == NUMBER)) {
-						// 한쪽이라도 - 연결자가 발견되면 다시 모델명으로 인식.
-						if (!(e1.buf[e1.start] == '-' ||
-							e2.buf[e2.start] == '-')) {
+				//2021.4.23 swsong
+				// e0은 현재단어, e1은 앞단어, e2는 뒷단어로 보여짐.
+				// 현재 단어와 앞단어사이에 공백이 있다면, 붙이는 것을 테스트 할 이유가 없음.
+				if (e1 != null && (e0.start != e1.start + e1.length)) {
+					// 붙이지 않는다.
+				} else if (e2 != null && (e2.start != e0.start + e0.length)) {
+					// 붙이지 않는다.
+				} else {
+					// 단위명 앞 뒤로 기호일 경우는 일단 모델명에서 제외, 단위명 우선.
+					// 단 단위가 연결자일 경우는 모델명 우선.
+					if (e1 != null && e2 != null) {
+						if (e1.type == SYMBOL && !(e2.type == ALPHA || e2.type == NUMBER) ||
+								e2.type == SYMBOL && !(e1.type == ALPHA || e1.type == NUMBER)) {
+							// 한쪽이라도 - 연결자가 발견되면 다시 모델명으로 인식.
+							if (!(e1.buf[e1.start] == '-' ||
+									e2.buf[e2.start] == '-')) {
+								e0.modifiable = false;
+								if (typeContinuous > 0) {
+									logger.trace("model name cancel 6");
+									typeContinuousMerge = typeContinuous - 1;
+									typeContinuous = 0;
+									isContinue = false;
+								} else {
+									typeContinuous = 0;
+									isContinue = true;
+								}
+							}
+						}
+					} else {
+						if (!((e1 != null && e1.buf[e1.start] == '-') ||
+								(e2 != null && e2.buf[e2.start] == '-'))) {
 							e0.modifiable = false;
 							if (typeContinuous > 0) {
 								logger.trace("model name cancel 6");
@@ -840,23 +863,9 @@ public class ProductNameParsingRule {
 								typeContinuous = 0;
 								isContinue = true;
 							}
-						}
-					}
-				} else {
-					if (!((e1 != null && e1.buf[e1.start] == '-') ||
-						(e2 != null && e2.buf[e2.start] == '-'))) {
-						e0.modifiable = false;
-						if (typeContinuous > 0) {
-							logger.trace("model name cancel 6");
-							typeContinuousMerge = typeContinuous - 1;
-							typeContinuous = 0;
-							isContinue = false;
 						} else {
-							typeContinuous = 0;
-							isContinue = true;
+							isContinue = false;
 						}
-					} else {
-						isContinue = false;
 					}
 				}
 			}

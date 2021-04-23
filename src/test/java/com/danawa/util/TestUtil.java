@@ -151,8 +151,9 @@ public final class TestUtil {
 	public static final ProductNameDictionary loadTestDictionary() {
 		ProductNameDictionary ret = null;
 		try {
-			File dictDir = getFileByRoot(TestUtil.class,
-				TagProbDictionary.class.getPackage().getName().replaceAll("[.]", "/"));
+			File dictDir = new File("src/test/resources/com/danawa/search/analysis/dict");
+//			File dictDir = getFileByRoot(TestUtil.class,
+//				TagProbDictionary.class.getPackage().getName().replaceAll("[.]", "/"));
 			logger.debug("DICTDIR:{}", getFileByRoot(TestUtil.class,"."));
 			logger.debug("DICTDIR:{}", dictDir);
 
