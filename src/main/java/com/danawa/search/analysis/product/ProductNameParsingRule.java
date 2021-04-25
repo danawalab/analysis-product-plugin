@@ -827,8 +827,12 @@ public class ProductNameParsingRule {
 				// 현재 단어와 앞단어사이에 공백이 있다면, 붙이는 것을 테스트 할 이유가 없음.
 				if (e1 != null && (e0.start != e1.start + e1.length)) {
 					// 붙이지 않는다.
+					typeContinuous = 0;
+					isContinue = false;
 				} else if (e2 != null && (e2.start != e0.start + e0.length)) {
 					// 붙이지 않는다.
+					typeContinuous = 0;
+					isContinue = false;
 				} else {
 					// 단위명 앞 뒤로 기호일 경우는 일단 모델명에서 제외, 단위명 우선.
 					// 단 단위가 연결자일 경우는 모델명 우선.

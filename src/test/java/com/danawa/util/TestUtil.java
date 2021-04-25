@@ -45,8 +45,7 @@ public final class TestUtil {
 	public static final String CLASS_SUFFIX = ".class";
 
 	public static boolean launchForBuild() {
-//		return T.equals(getSystemProperty(SYSPROP_LAUNCH_FOR_BUILD, "true"));
-		return T.equals(getSystemProperty(SYSPROP_LAUNCH_FOR_BUILD, "false"));
+		return T.equals(getSystemProperty(SYSPROP_LAUNCH_FOR_BUILD, "true"));
 	}
 
 	public static final String getSystemProperty(String key) {
@@ -151,9 +150,8 @@ public final class TestUtil {
 	public static final ProductNameDictionary loadTestDictionary() {
 		ProductNameDictionary ret = null;
 		try {
-			File dictDir = new File("src/test/resources/com/danawa/search/analysis/dict");
-//			File dictDir = getFileByRoot(TestUtil.class,
-//				TagProbDictionary.class.getPackage().getName().replaceAll("[.]", "/"));
+			File dictDir = getFileByRoot(TestUtil.class,
+				TagProbDictionary.class.getPackage().getName().replaceAll("[.]", "/"));
 			logger.debug("DICTDIR:{}", getFileByRoot(TestUtil.class,"."));
 			logger.debug("DICTDIR:{}", dictDir);
 

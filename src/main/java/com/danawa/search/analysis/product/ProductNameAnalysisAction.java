@@ -560,7 +560,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							String s = iter.next();
 							logger.trace("EXT [{}] {} / {} / {} / {}", setName, term, s, words, wordList);
 							words.add(s);
-							setAnalyzedResult(result, s, ANALYZE_SET_FINAL);
+							setAnalyzedResult(result, s, ANALYZE_SET_NORMAL, ANALYZE_SET_FINAL);
 							synonyms = synAttr.getSynonyms();
 							if (synonyms != null && synonyms.size() > 0) {
 								oneWaySynonym = isOneWaySynonym(client, index, s);
