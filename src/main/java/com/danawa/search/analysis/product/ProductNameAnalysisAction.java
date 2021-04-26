@@ -66,6 +66,7 @@ import org.json.JSONWriter;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
 
+import static java.util.regex.Matcher.quoteReplacement;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
@@ -632,7 +633,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, fullTermKeyword))
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, quoteReplacement(fullTermKeyword)))
 											.append(" ( ");
 									analyzed.append(w);
 								} else {
@@ -651,7 +652,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								String w = item.get(inx);
 								if (inx == 0) {
 									word = w;
-									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, quoteReplacement(w))).append(" : ");
 								} else {
 									if (inx > 1) { data.append(", "); }
 									data.append(w);
@@ -689,7 +690,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								String w = item.get(inx);
 								if (inx == 0) {
 									word = w;
-									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, quoteReplacement(w))).append(" : ");
 								} else {
 									if (inx > 1) { data.append(", "); }
 									data.append(w);
@@ -707,7 +708,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 							for (int inx = 0; inx < item.size(); inx++) {
 								String w = item.get(inx);
 								if (inx == 0) {
-									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, w)).append(" : ");
+									analyzed.append(TAG_STRONG.replaceAll(REGEX_TAG_TEXT, quoteReplacement(w))).append(" : ");
 								} else {
 									if (inx > 1) { analyzed.append(", "); }
 									analyzed.append(w);
