@@ -32,7 +32,7 @@ public class ProductNameAnalyzerTest {
 	}
 
 	@Test public void testAnalyzerSimple() {
-		if (TestUtil.launchForBuild()) { return; }
+//		if (TestUtil.launchForBuild()) { return; }
 
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		if (dictionary == null) {
@@ -50,7 +50,8 @@ public class ProductNameAnalyzerTest {
 		str = "JBW Mens Luxury Jet Setter 2.34 Carat Diamond Wrist Watch with Stainless Steel Link Bracelet Black/G";
 		str = "CF^miniSDHC";
 		str = "PC케이스(ATX)|미들타워|파워미포함|Extended-ATX|표준-ATX|Micro-ATX|Mini-ITX|수직 PCI슬롯$기본형|쿨링팬$총4개|LED팬$3개|측면$강화유리| 후면$140mm x1|전면$120mm LED x3|너비(W)$251mm|깊이(D)$545mm|높이(H)$552mm|파워 장착$240mm|파워 위치$하단후면|GPU 장착$420mm|CPU 장착$180mm|LED 색상$RGB";
-		str= "G1 OC D6 12GB 11ml";
+		str = "G1 OC D6 12GB 11ml";
+		str = "p1500배터리팩";
 
 		Reader reader = null;
 		TokenStream stream = null;
