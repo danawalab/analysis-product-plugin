@@ -217,8 +217,14 @@ public final class ProductNameTokenizer extends Tokenizer {
 						} else if (typePrev != WHITESPACE && typeCurrent == WHITESPACE) {
 							// 일반문자 뒤 공백. 끊어줌.
 							pass = 0;
-						} else if (typePrev == NUMBER && chrCurrent > 128) {
-							// 숫자직후 유니코드. 단위명일 확률이 높으므로 연결하여 출력
+
+							/*
+							} else if (typePrev == NUMBER && chrCurrent > 128) {
+							// 2021.04.26 swsong
+							// 숫자+단위명 조합은 parsingRule에서 다시한번 확인하므로 여기서는 떨어져있어도 무방.
+							// 오히려 v12배터리팩 같은 경우, 한글이 분리가 안되는 부작용이 발생하여 떨어지도록 수정.
+						 	*/
+
 						} else if (typePrev != SYMBOL && typeCurrent == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, chrCurrent) || chrCurrent > 128)) {
 							pass = 0;
 						} else if ((chrPrev < 128 && chrCurrent > 128) || (chrCurrent < 128 && chrPrev > 128)) {

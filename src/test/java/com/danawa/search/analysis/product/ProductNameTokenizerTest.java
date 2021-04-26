@@ -65,7 +65,7 @@ public class ProductNameTokenizerTest {
 
 	@Test
 	public void testTokenizer() throws Exception {
-		if (TestUtil.launchForBuild()) { return; }
+//		if (TestUtil.launchForBuild()) { return; }
 
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
 		if (dictionary == null) {
@@ -86,7 +86,7 @@ public class ProductNameTokenizerTest {
 		// str = "거너더러머버서어져쳐켜텨펴혀";
 		str = "CF^miniSDHC";
 		str = "PC케이스(ATX)|미들타워|파워미포함|Extended-ATX|표준-ATX|Micro-ATX|Mini-ITX|수직 PCI슬롯$기본형|쿨링팬$총4개|LED팬$3개|측면$강화유리| 후면$140mm x1|전면$120mm LED x3|너비(W)$251mm|깊이(D)$545mm|높이(H)$552mm|파워 장착$240mm|파워 위치$하단후면|GPU 장착$420mm|CPU 장착$180mm|LED 색상$RGB";
-
+		str = "p12배터리팩";
 		try {
 			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary, false);
