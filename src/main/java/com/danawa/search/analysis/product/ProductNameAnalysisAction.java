@@ -760,12 +760,11 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		List<CharSequence> synonyms;
 
 		Map<String, Object> hash = new LinkedHashMap<>();
+		Map<String, Object> fullTermHash = null;
 		Map<String, Object> extSynonymHash = null;
 
 		int[] offset = {0, 0};
 		int[] offsetPrev = {0, 0};
-
-		List<Object> fullTermSynonym = new ArrayList<>();
 
 		try {
 			stream.reset();
@@ -775,100 +774,110 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				termWords = new ArrayList<>();
 				String type = typeAttr.type();
 				offset = new int[]{offAttr.startOffset(), offAttr.endOffset()};
+
 				logger.trace("TERM:{} / {}", term, type);
 
-				//풀텀일 경우는 분석 하지 않는다 SKIP
-				if (type.equals("FULL_STRING")) {
+				//풀텀일 경우는 펄텀유사어 따로 처리
+				if (type.equals(ProductNameTokenizer.FULL_STRING)) {
+
 					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+
+						fullTermHash = new HashMap<>();
+						termWords = new ArrayList<>();
+						termWords.add(term);
+						logger.trace("FULLTERM SYNONYM {} / {} ", term, synonyms);
+
 						for (CharSequence synonym : synonyms) {
 							String s = String.valueOf(synonym);
 
 							String[] synonymList = s.split(" ");
 
-							if (synonymList.length > 1) {
+							if(synonymList.length > 1){
 								termWords.add(synonymList);
-							} else {
+							}else{
 								termWords.add(s);
 							}
 						}
-						//2021-04-26 swsong 풀텀 동의어 존재시.
-						fullTermSynonym.addAll(termWords);
+						fullTermHash.put(term, termWords);
+
 					}
-					continue;
-				}
-
-				if (offset[0] < offsetPrev[1]) {
-					// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
-					termWords.add(term);
-					offset = new int[]{offsetPrev[0], offsetPrev[1]};
-				}
-
-				if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
-					termWords.add(term);
-					logger.trace("SYNONYM {} / {} ", term, synonyms);
-					for (CharSequence synonym : synonyms) {
-						String s = String.valueOf(synonym);
-
-						String[] synonymList = s.split(" ");
-
-						if(synonymList.length > 1){
-							termWords.add(synonymList);
-						}else{
-							termWords.add(s);
-						}
+				}else{
+					if (offset[0] < offsetPrev[1]) {
+						// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
+						termWords.add(term);
+						offset = new int[]{offsetPrev[0], offsetPrev[1]};
 					}
-				}
 
-				Iterator<String> iter = extAttr.iterator();
-				if (iter != null && iter.hasNext()) {
+					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
+						//termWords.add(term);
+						logger.trace("SYNONYM {} / {} ", term, synonyms);
+						for (CharSequence synonym : synonyms) {
+							String s = String.valueOf(synonym);
 
-					termWords = new ArrayList<>();
-					//확장어 원본 입력
-					termWords.add(term);
-					List<Object> extAnalyeTerm = new ArrayList<>();
-					while (iter.hasNext()) {
-						String s = iter.next();
-						logger.trace("EXT {} / {} / {}", term, s, termWords);
-						extAnalyeTerm.add(s);
-						synonyms = synAttr.getSynonyms();
-						if (synonyms != null && synonyms.size() > 0) {
-							extSynonymHash = new HashMap<>();
-							List<String> extSynonymList = new ArrayList<>();
-							//확장어의 동의어가 있을 경우 원본 확장어 리스트에서 삭제 (이후 확장어 동의어 리스트 적재)
-							extAnalyeTerm.remove(s);
+							String[] synonymList = s.split(" ");
 
-							logger.trace("EXT-SYN {} / {} / {}", term, s, synonyms);
-
-							//확장어 동의어가 하나 혹은 여러개일 떄 별도?
-
-							for (CharSequence synonym : synonyms) {
-								logger.trace("synonym : {}" , synonym);
-								extSynonymList.add(String.valueOf(synonym));
-							}
-							logger.trace("synonymList : {} - {}", s, extSynonymList);
-							extSynonymHash.put(s,extSynonymList);
-							if(extSynonymHash.size() > 0) {
-								extAnalyeTerm.add(extSynonymHash);
+							if(synonymList.length > 1){
+								termWords.add(synonymList);
+							}else{
+								termWords.add(s);
 							}
 						}
 					}
-					termWords.add(extAnalyeTerm);
+
+					Iterator<String> iter = extAttr.iterator();
+					if (iter != null && iter.hasNext()) {
+
+						termWords = new ArrayList<>();
+						//확장어 원본 입력
+						termWords.add(term);
+						List<Object> extAnalyeTerm = new ArrayList<>();
+						while (iter.hasNext()) {
+							String s = iter.next();
+							logger.trace("EXT {} / {} / {}", term, s, termWords);
+							extAnalyeTerm.add(s);
+							synonyms = synAttr.getSynonyms();
+							if (synonyms != null && synonyms.size() > 0) {
+								extSynonymHash = new HashMap<>();
+								List<String> extSynonymList = new ArrayList<>();
+								//확장어의 동의어가 있을 경우 원본 확장어 리스트에서 삭제 (이후 확장어 동의어 리스트 적재)
+								extAnalyeTerm.remove(s);
+
+								logger.trace("EXT-SYN {} / {} / {}", term, s, synonyms);
+
+								//확장어 동의어가 하나 혹은 여러개일 떄 별도?
+
+								for (CharSequence synonym : synonyms) {
+									logger.trace("synonym : {}" , synonym);
+									extSynonymList.add(String.valueOf(synonym));
+								}
+								logger.trace("synonymList : {} - {}", s, extSynonymList);
+								extSynonymHash.put(s,extSynonymList);
+								if(extSynonymHash.size() > 0) {
+									extAnalyeTerm.add(extSynonymHash);
+								}
+							}
+						}
+						termWords.add(extAnalyeTerm);
+					}
 				}
 
 				logger.trace("term : {} - {}", term, termWords);
 
-				//동의어 없을 경우는 해당 term
-				if (termWords.size() == 0) {
-					hash.put(term, new Object[]{term});
-				}else{
-					hash.put(term, termWords.toArray());
+				
+				//풀텀이 아닐 경우만. 풀텀(유사어)는 이미 fullTermHash에 적재됨
+				if (!type.equals(ProductNameTokenizer.FULL_STRING)) {
+					if (termWords.size() == 0) {
+						hash.put(term, new Object[]{term});
+					}else{
+						hash.put(term, termWords.toArray());
+					}
 				}
 			}
 
 			writer.object()
 					.key("query").value(text)
 					.key("result").value(hash)
-					.key("synonym").value(fullTermSynonym)
+					.key("synonym").value(fullTermHash)
 					.endObject();
 		} catch (Exception e) {
 			logger.error("", e);
@@ -1366,7 +1375,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 		TokenStream stream = null;
 		try {
-			stream = ProductNameAnalyzerProvider.getAnalyzer(text, true, synonym, stopWord, false, false);
+			stream = ProductNameAnalyzerProvider.getAnalyzer(text, true, synonym, stopWord, true, false);
 			expansionKeyword(client, text, stream, index, writer);
 		} finally {
 			try { stream.close(); } catch (Exception ignore) { }
