@@ -59,9 +59,15 @@ public final class TestUtil {
 	}
 
 	public static final File getFileByProperty(String key) {
+		return getFileByProperty(key, null);
+	}
+	public static final File getFileByProperty(String key, String def) {
 		File ret = null;
 		String path = getSystemProperty(key);
 		if (path != null) { ret = new File(path); }
+		else if (def != null) {
+			ret = new File(def);
+		}
 		return ret;
 	}
 
@@ -152,6 +158,7 @@ public final class TestUtil {
 		try {
 			File dictDir = getFileByRoot(TestUtil.class,
 				TagProbDictionary.class.getPackage().getName().replaceAll("[.]", "/"));
+			dictDir = new File("src/test/resources/com/danawa/search/analysis/dict");
 			logger.debug("DICTDIR:{}", getFileByRoot(TestUtil.class,"."));
 			logger.debug("DICTDIR:{}", dictDir);
 
@@ -202,7 +209,7 @@ public final class TestUtil {
 
 	public static final ProductNameDictionary loadDictionary() {
 		ProductNameDictionary ret = null;
-		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING");
+		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING", "src/test/resources/product-name-dictionary.yml");
 		try {
 			JSONObject prop = TestUtil.readYmlConfig(propFile);
 			ret = ProductNameDictionary.loadDictionary(propFile.getParentFile(), prop);
