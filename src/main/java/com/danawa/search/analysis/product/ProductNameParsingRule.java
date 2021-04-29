@@ -139,8 +139,8 @@ public class ProductNameParsingRule {
 		String type = null;
 		String typePrev = null;
 		logger.trace("queue:{}", queue);
-		RuleEntry e0, e1, e2, e3, et;
-		e0 = e1 = e2 = e3 = et = null;
+		RuleEntry e0, e1, e2, e3, e5, et;
+		e0 = e1 = e2 = e3 = e5 = et = null;
 		CharVector eTerm;
 		
 		if (queue.size() == 1 && queue.get(0).type == null) {
@@ -444,6 +444,9 @@ public class ProductNameParsingRule {
 			}
 			if (qinx + 1 < queue.size()) {
 				e1 = queue.get(qinx + 1);
+				if (qinx + 2 < queue.size()){
+					e5 = queue.get(qinx + 2);
+				}
 				if (e1.start == e0.start + e0.length 
 					&& (e0.type == NUMBER || e0.type == NUMBER_TRANS)) {
 					boolean foundUnit = false;
@@ -512,78 +515,7 @@ public class ProductNameParsingRule {
 								!(getType(tempch1) == ALPHA && unitType == ALPHA)) {
 								// 동의어 처리
 								// 단위명의 동의어가 있다면 처리한다.
-								RuleEntry backup = e0.clone();
-								if (fullExtract) {
-									e0.subEntry = new ArrayList<>();
-									e0.subEntry.add(backup);
-								}
-								CharSequence[] synonyms = null;
-								CharSequence[] units = null;
-								if (fullExtract && unitSynonymDictionary != null) {
-									units = unitSynonymDictionary.get(unitCandidate);
-									if (units != null && !(units.length == 1 && unitCandidate.equals(units[0]))) {
-										synonyms = new CharVector[units.length];
-										for (int inx = 0; inx < units.length; inx++) {
-											char[] ubuf = new char[e0.length + units[inx].length()];
-											CharVector unitInx = CharVector.valueOf(units[inx]);
-											System.arraycopy(e0.buf, e0.start, ubuf, 0, e0.length);
-											System.arraycopy(unitInx.array(), unitInx.offset(), ubuf,
-												e0.length, units[inx].length());
-											synonyms[inx] = new CharVector(ubuf);
-										}
-									}
-								}
-								
-								// 변형숫자가 있다면, 일반숫자로 바꾸어 다시한 번 단위명을 산출한다.
-								if (e0.type == NUMBER_TRANS) {
-									CharVector number = e0.makeTerm(null);
-									number = new CharVector(number.toString().replaceAll(",", ""));
-									// 변형숫자를 일반숫자로 변경했는데 변경사항이 없다면 동의어를 만들지 않음.
-									if (backup.length != number.length()) {
-										if (units == null) {
-											units = new CharVector[0];
-										}
-										String unitStr = number.toString() + unitCandidate.toString();
-										e1 = new RuleEntry(unitStr.toCharArray(), 0, unitStr.length(),
-											e0.startOffset, e0.endOffset + unitCandidate.length(), UNIT);
-										e0.subEntry.add(0, e1);
-										logger.trace("E0:{}/E1:{}", e0, e1);
-										// 동의어를 사용할 경우에만.
-										if (option.useSynonym()) {
-											CharVector[] usynonyms = new CharVector[units.length];
-											for (int inx = 0; inx < units.length; inx++) {
-												char[] ubuf = null;
-												CharVector synonymStr = CharVector.valueOf(units[inx]);
-												// 버퍼를 마련하고 숫자를 복사.
-												ubuf = Arrays.copyOf(number.array(),
-													number.length() + unitStr.length());
-												// 단위명을 복사.
-												System.arraycopy(synonymStr.array(),
-													synonymStr.offset(), ubuf, number.length(),
-													synonymStr.length());
-												usynonyms[inx] = new CharVector(ubuf);
-											}
-											e1.synonym = usynonyms;
-										}
-									}
-								}
-								
-								if (fullExtract) {
-									if (e0.subEntry == null) {
-										e0.subEntry = new ArrayList<>();
-									}
-									if (synonyms != null && synonyms.length > 0) {
-										e0.synonym = synonyms;
-									}
-								}
-								
-								e0.length += unitCandidate.length();
-								e0.endOffset += unitCandidate.length();
-								if (unitType == ALPHA) {
-									e0.type = UNIT_ALPHA;
-								} else {
-									e0.type = UNIT;
-								}
+								e1 = modifyRuleEntry(fullExtract, e0, e1, unitCandidate, unitType);
 								logger.trace("E0:{} / SYN:{}", e0, e0.synonym);
 								queue.remove(qinx + 1);
 							}
@@ -591,24 +523,30 @@ public class ProductNameParsingRule {
 							char tempch2 = e1.buf[e1.start + unitCandidate.length()];
 							// 단위명이 영문이며, 단위명 자투리도 영문인 경우 모델명으로 인식 예:1024mmcc
 							// ※ 2017년 6월 변경사항 : 단위명 사이의 x 에 대한 예외규칙 추가
-							if ((getType(tempch1) == ALPHA || getType(tempch2) == ALPHA)
-								&& Character.toLowerCase(tempch2) != 'x' && unitType == ALPHA) {
+							//2021-04-29 swsong: x뒤에 숫자가 나와야 단위명으로 인정.
+							char xNextChar = 0; //e1의 뒷단어
+							// 뒷단어가 바로 붙어있어야 인정.  공백이 있다면 불가.
+							if(e5 != null && (e5.start == e1.start + e1.length)) {
+								xNextChar = e5.buf[0];
+							}
+							if (
+									(
+										(getType(tempch1) == ALPHA || getType(tempch2) == ALPHA)
+										&& Character.toLowerCase(tempch2) != 'x' && unitType == ALPHA
+									)
+											//뒤에가 반드시 숫자여야 x 와 연결된다.
+									|| getType(xNextChar) != NUMBER
+							) {
 								// 모델명 우선
 								e0.modifiable = true;
 								e1.modifiable = true;
 							} else {
-								if (fullExtract) {
-									e0.subEntry = new ArrayList<>();
-									e0.subEntry.add(e0.clone());
-								}
-								
-								e0.length += unitCandidate.length();
-								e0.endOffset += unitCandidate.length();
-								if (unitType == ALPHA) {
-									e0.type = UNIT_ALPHA;
-								} else {
-									e0.type = UNIT;
-								}
+								/*
+								 2021-04-29 swsong
+								 x를 인식하고 단위명으로 뽑는다.
+								 다만 x 뒤에 반드시 숫자가 와야한다.
+								 */
+								e1 = modifyRuleEntry(fullExtract, e0, e1, unitCandidate, unitType);
 								e1.start += unitCandidate.length();
 								e1.length -= unitCandidate.length();
 								e1.startOffset += unitCandidate.length();
@@ -1099,7 +1037,89 @@ public class ProductNameParsingRule {
 		logger.trace("5th process complete / queue:{}", queue);
 		return true;
 	}
-	
+
+	/*
+	* 1. 단위명 동의어 처리
+	* 2. 변형
+	* 3. 서브엔트리
+	* */
+	private RuleEntry modifyRuleEntry(boolean fullExtract, RuleEntry e0, RuleEntry e1, CharVector unitCandidate, String unitType) {
+		RuleEntry backup = e0.clone();
+		if (fullExtract) {
+			e0.subEntry = new ArrayList<>();
+			e0.subEntry.add(backup);
+		}
+
+		CharSequence[] synonyms = null;
+		CharSequence[] units = null;
+		if (fullExtract && unitSynonymDictionary != null) {
+			units = unitSynonymDictionary.get(unitCandidate);
+			if (units != null && !(units.length == 1 && unitCandidate.equals(units[0]))) {
+				synonyms = new CharVector[units.length];
+				for (int inx = 0; inx < units.length; inx++) {
+					char[] ubuf = new char[e0.length + units[inx].length()];
+					CharVector unitInx = CharVector.valueOf(units[inx]);
+					System.arraycopy(e0.buf, e0.start, ubuf, 0, e0.length);
+					System.arraycopy(unitInx.array(), unitInx.offset(), ubuf,
+							e0.length, units[inx].length());
+					synonyms[inx] = new CharVector(ubuf);
+				}
+			}
+		}
+
+		// 변형숫자가 있다면, 일반숫자로 바꾸어 다시한 번 단위명을 산출한다.
+		if (e0.type == NUMBER_TRANS) {
+			CharVector number = e0.makeTerm(null);
+			number = new CharVector(number.toString().replaceAll(",", ""));
+			// 변형숫자를 일반숫자로 변경했는데 변경사항이 없다면 동의어를 만들지 않음.
+			if (backup.length != number.length()) {
+				if (units == null) {
+					units = new CharVector[0];
+				}
+				String unitStr = number.toString() + unitCandidate.toString();
+				e1 = new RuleEntry(unitStr.toCharArray(), 0, unitStr.length(),
+						e0.startOffset, e0.endOffset + unitCandidate.length(), UNIT);
+				e0.subEntry.add(0, e1);
+				logger.trace("E0:{}/E1:{}", e0, e1);
+				// 동의어를 사용할 경우에만.
+				if (option.useSynonym()) {
+					CharVector[] usynonyms = new CharVector[units.length];
+					for (int inx = 0; inx < units.length; inx++) {
+						char[] ubuf = null;
+						CharVector synonymStr = CharVector.valueOf(units[inx]);
+						// 버퍼를 마련하고 숫자를 복사.
+						ubuf = Arrays.copyOf(number.array(),
+								number.length() + unitStr.length());
+						// 단위명을 복사.
+						System.arraycopy(synonymStr.array(),
+								synonymStr.offset(), ubuf, number.length(),
+								synonymStr.length());
+						usynonyms[inx] = new CharVector(ubuf);
+					}
+					e1.synonym = usynonyms;
+				}
+			}
+		}
+
+		if (fullExtract) {
+			if (e0.subEntry == null) {
+				e0.subEntry = new ArrayList<>();
+			}
+			if (synonyms != null && synonyms.length > 0) {
+				e0.synonym = synonyms;
+			}
+		}
+
+		e0.length += unitCandidate.length();
+		e0.endOffset += unitCandidate.length();
+		if (unitType == ALPHA) {
+			e0.type = UNIT_ALPHA;
+		} else {
+			e0.type = UNIT;
+		}
+		return e1;
+	}
+
 	private int split(RuleEntry entry, List<RuleEntry> queue, int baseInx) {
 		logger.trace("split entry ({}) : {}~{}", entry, entry.start, entry.length);
 		String ptype = null;
