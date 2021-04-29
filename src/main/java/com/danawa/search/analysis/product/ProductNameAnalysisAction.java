@@ -802,14 +802,16 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 					}
 				}else{
+					//logger.info("{} - {}", offset, offsetPrev);
 					if (offset[0] < offsetPrev[1]) {
-						// 모델명 / 단위명 등 뒤에 나온 부속단어 (색인시)
 						termWords.add(term);
 						offset = new int[]{offsetPrev[0], offsetPrev[1]};
+					}else{
+						termWords.add(term);
 					}
 
 					if ((synonyms = synAttr.getSynonyms()) != null && synonyms.size() > 0) {
-						//termWords.add(term);
+
 						logger.trace("SYNONYM {} / {} ", term, synonyms);
 						for (CharSequence synonym : synonyms) {
 							String s = String.valueOf(synonym);
