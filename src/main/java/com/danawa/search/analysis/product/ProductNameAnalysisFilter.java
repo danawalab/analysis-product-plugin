@@ -51,7 +51,10 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 	private ProductNameParsingRule parsingRule;
 	private CharVector token;
 	private List<RuleEntry> termList;
-	
+
+	// 이전 텀과 상대적인 거리. 1이면 한단어거리. 0이면 유사어등 같은 위치를 나타냄.
+	private int positionIncrement = 0;
+
 	public ProductNameAnalysisFilter(TokenStream input) {
 		super(input);
 	}
@@ -168,6 +171,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						}
 					}
 					ret = true;
+					//positionIncrement증가.
+					positionIncrement = 1;
 					break;
 				} else {
 					// 색인용
@@ -203,6 +208,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							}
 						}
 						ret = true;
+						//positionIncrement증가.
+						positionIncrement = 1;
 						break;
 					} else if (subEntryList.size() > 0) {
 						RuleEntry subEntry = subEntryList.get(0);
@@ -217,6 +224,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 							}
 						}
 						ret = true;
+						//positionIncrement 변화없음.
+						positionIncrement = 0;
 						break;
 					} else if (subEntryList.size() == 0) {
 						termList.remove(0);
@@ -225,7 +234,9 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			}
 		} // LOOP
 
-		posIncrAtt.setPositionIncrement(offsetAttribute.startOffset() - prevStartOffset);
+//		logger.debug(">>> POS: {} - {} = {}",offsetAttribute.startOffset(), prevStartOffset, offsetAttribute.startOffset() - prevStartOffset);
+//		posIncrAtt.setPositionIncrement(offsetAttribute.startOffset() - prevStartOffset);
+		posIncrAtt.setPositionIncrement(positionIncrement);
 
 		if (logger.isTraceEnabled()) {
 			if (ret) {
