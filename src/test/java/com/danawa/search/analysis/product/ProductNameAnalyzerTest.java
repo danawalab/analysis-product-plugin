@@ -8,11 +8,7 @@ import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.util.TestUtil;
 
 import org.apache.logging.log4j.Logger;
-import org.apache.lucene.analysis.tokenattributes.ExtraTermAttribute;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
-import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
-import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
+import org.apache.lucene.analysis.tokenattributes.*;
 import org.apache.lucene.analysis.TokenStream;
 import org.elasticsearch.common.logging.Loggers;
 import org.junit.Before;
@@ -56,11 +52,14 @@ public class ProductNameAnalyzerTest {
 		str = "802.11ax";
 		str = "2mx5m";
 		str = "6cm,2mmx1km  ";
+		str = "1개 / 원형 / 재질:PET / 내열,내냉온도:-20~70℃ / 구성:1,100mlx3개 + 700mlx3개 + 500mlx3개";
+		str = "집업 2m 실리콘";
 
 		Reader reader = null;
 		TokenStream stream = null;
 		try {
-			analyzer = new ProductNameAnalyzer(dictionary);
+			AnalyzerOption option = new AnalyzerOption(true, true, true, true, true);
+			analyzer = new ProductNameAnalyzer(dictionary, option);
 			reader = new StringReader(str);
 			stream = analyzer.tokenStream("", reader);
 			TokenInfoAttribute tokenAttribute = stream.addAttribute(TokenInfoAttribute.class);
@@ -68,10 +67,13 @@ public class ProductNameAnalyzerTest {
 			OffsetAttribute offsetAttribute = stream.addAttribute(OffsetAttribute.class);
 			TypeAttribute typeAttribute = stream.addAttribute(TypeAttribute.class);
 			ExtraTermAttribute addAttribute = stream.addAttribute(ExtraTermAttribute.class);
+			SynonymAttribute synonymAttributeAttribute = stream.addAttribute(SynonymAttribute.class);
+			PositionIncrementAttribute positionIncrementAttribute = stream.addAttribute(PositionIncrementAttribute.class);
 			stream.reset();
 			for (; stream.incrementToken();) {
-				logger.debug("TOKEN:{} / {}~{} / {} / {} // {}", termAttribute, offsetAttribute.startOffset(),
-					offsetAttribute.endOffset(), tokenAttribute.ref().length(), typeAttribute.type());
+				logger.debug("TOKEN:{} / {}~{} / {} / {} // {} / POS_INC[{}]", termAttribute, offsetAttribute.startOffset(),
+					offsetAttribute.endOffset(), tokenAttribute.ref().length(), typeAttribute.type(), synonymAttributeAttribute.getSynonyms(),
+						positionIncrementAttribute.getPositionIncrement());
 				Iterator<String> iter = addAttribute.iterator();
 				while (iter != null && iter.hasNext()) {
 					String next = iter.next();
