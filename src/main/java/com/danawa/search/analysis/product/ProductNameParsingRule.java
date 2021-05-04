@@ -547,12 +547,14 @@ public class ProductNameParsingRule {
 								 다만 x 뒤에 반드시 숫자가 와야한다.
 								 */
 								e1 = modifyRuleEntry(fullExtract, e0, e1, unitCandidate, unitType);
-								e1.start += unitCandidate.length();
-								e1.length -= unitCandidate.length();
-								e1.startOffset += unitCandidate.length();
+								//2021.5.4 swsong: 문자가 이상하게 잘린다. start에 단위명 길이를 더해주는것은 의미를 알수 없다.
+								//그러므로 아래 세줄 삭제!
+//								e1.start += unitCandidate.length();
+//								e1.length -= unitCandidate.length();
+//								e1.startOffset += unitCandidate.length();
 								
 								// 단위텀으로서 합친 텀들을 모조리 없에도록 한다.
-								if (findInx > 1) {
+								if (findInx >= 1) {
 									for (; findInx >= 1; findInx--) {
 										queue.remove(qinx + findInx);
 									}
