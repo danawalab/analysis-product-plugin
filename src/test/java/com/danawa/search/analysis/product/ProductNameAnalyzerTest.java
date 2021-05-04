@@ -52,8 +52,10 @@ public class ProductNameAnalyzerTest {
 		str = "802.11ax";
 		str = "2mx5m";
 		str = "6cm,2mmx1km  ";
-		str = "1개 / 원형 / 재질:PET / 내열,내냉온도:-20~70℃ / 구성:1,100mlx3개 + 700mlx3개 + 500mlx3개";
 		str = "집업 2m 실리콘";
+		str = "1,000mlx2,000ml";
+		str = "2.0mx3.4m";
+		str = "1개 / 원형 / 재질:PET / 내열,내냉온도:-20~70℃ / 구성:1,100mlx3개 + 700mlx3개 + 500mlx3개";
 
 		Reader reader = null;
 		TokenStream stream = null;
