@@ -182,6 +182,7 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						logger.trace("SYN:{}{}", "", entry.synonym);
 						testEntry(entry, null);
 						token = applyEntry(entry);
+						subEntryList = entry.subEntry;
 						if (synonyms != null) {
 							// 동의어 -> 일반텀으로 변경
 							if (subEntryList == null) {
@@ -303,6 +304,14 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 						subEntryList.add(1, new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(),
 							entry.startOffset, entry.endOffset, entry.type));
 					}
+				} else {
+					List<RuleEntry> subEntryList = entry.subEntry;
+					if (subEntryList == null) {
+						subEntryList = new ArrayList<>();
+						entry.subEntry = subEntryList;
+					}
+					subEntryList.add(new RuleEntry(entryStr.array(), entryStr.offset(), entryStr.length(),
+						entry.startOffset, entry.endOffset, entry.type));
 				}
 			}
 		} else if (entry.type == null) {

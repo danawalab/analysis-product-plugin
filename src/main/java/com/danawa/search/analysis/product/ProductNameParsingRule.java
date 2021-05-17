@@ -1007,7 +1007,8 @@ public class ProductNameParsingRule {
 			}
 
 			CharVector token = e0.makeTerm(null);
-			if (compoundDictionary != null && compoundDictionary.containsKey(token)) {
+			if (!option.useForQuery() &&
+				compoundDictionary != null && compoundDictionary.containsKey(token)) {
 				CharSequence[] compounds = compoundDictionary.get(token);
 				for (CharSequence word : compounds) {
 					CharVector cv = CharVector.valueOf(word);
@@ -1054,7 +1055,8 @@ public class ProductNameParsingRule {
 
 		CharSequence[] synonyms = null;
 		CharSequence[] units = null;
-		if (fullExtract && unitSynonymDictionary != null) {
+		// 색인시 단위명 동의어는 추출하지 않는다
+		if (fullExtract && unitSynonymDictionary != null && option.useForQuery()) {
 			units = unitSynonymDictionary.get(unitCandidate);
 			if (units != null && !(units.length == 1 && unitCandidate.equals(units[0]))) {
 				synonyms = new CharVector[units.length];
@@ -1769,7 +1771,8 @@ public class ProductNameParsingRule {
 		 * 2020. 12. 7. 요청사항 형태소 분석시 제조사/브랜드/카테고리 사전 사용하지 않음
 		 */
 		if (extractor.dictionary().find(cv) != null ||
-			userDictionary.contains(cv)) {
+			userDictionary.contains(cv) ||
+			(option.useForQuery() && compoundDictionary.containsKey(cv))) {
 			return true;
 		}
 		return false;
