@@ -757,6 +757,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		OffsetAttribute offAttr = stream.addAttribute(OffsetAttribute.class);
 
 		List<Object> termWords;
+		List<Object> extraTermWords;
+
 		List<CharSequence> synonyms;
 
 		Map<String, Object> hash = new LinkedHashMap<>();
@@ -772,6 +774,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				offsetPrev = new int[]{offset[0], offset[1]};
 				String term = String.valueOf(termAttr);
 				termWords = new ArrayList<>();
+				extraTermWords = new ArrayList<>();
 				String type = typeAttr.type();
 				offset = new int[]{offAttr.startOffset(), offAttr.endOffset()};
 
@@ -785,6 +788,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						fullTermHash = new HashMap<>();
 						termWords = new ArrayList<>();
 						termWords.add(term);
+
 						logger.trace("FULLTERM SYNONYM {} / {} ", term, synonyms);
 
 						for (CharSequence synonym : synonyms) {
@@ -829,25 +833,24 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 					Iterator<String> iter = extAttr.iterator();
 					if (iter != null && iter.hasNext()) {
 
-						termWords = new ArrayList<>();
+						//termWords = new ArrayList<>();
 						//확장어 원본 입력
-						termWords.add(term);
+						//extraTermWords.add(term);
 						List<Object> extAnalyeTerm = new ArrayList<>();
 						while (iter.hasNext()) {
 							String s = iter.next();
 							logger.trace("EXT {} / {} / {}", term, s, termWords);
-							extAnalyeTerm.add(s);
+							extraTermWords.add(s);
 							synonyms = synAttr.getSynonyms();
 							if (synonyms != null && synonyms.size() > 0) {
 								extSynonymHash = new HashMap<>();
 								List<String> extSynonymList = new ArrayList<>();
 								//확장어의 동의어가 있을 경우 원본 확장어 리스트에서 삭제 (이후 확장어 동의어 리스트 적재)
-								extAnalyeTerm.remove(s);
+								extraTermWords.remove(s);
 
 								logger.trace("EXT-SYN {} / {} / {}", term, s, synonyms);
 
 								//확장어 동의어가 하나 혹은 여러개일 떄 별도?
-
 								for (CharSequence synonym : synonyms) {
 									logger.trace("synonym : {}" , synonym);
 									extSynonymList.add(String.valueOf(synonym));
@@ -855,11 +858,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 								logger.trace("synonymList : {} - {}", s, extSynonymList);
 								extSynonymHash.put(s,extSynonymList);
 								if(extSynonymHash.size() > 0) {
-									extAnalyeTerm.add(extSynonymHash);
+									extraTermWords.add(extSynonymHash);
 								}
 							}
 						}
-						termWords.add(extAnalyeTerm);
+						//extraTermWords.add(extAnalyeTerm);
+					}
+					if (extraTermWords.size() > 0) {
+						termWords.add(extraTermWords);
 					}
 				}
 
