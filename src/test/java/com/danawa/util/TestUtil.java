@@ -153,6 +153,40 @@ public final class TestUtil {
 		}
 	}
 
+	/**
+	 * 컴파일사전에 단어를 직접 추가할수 없으므로, 텍스트 파일을 추가로딩하는 기능제공.
+	 * */
+	public static final ProductNameDictionary loadExtraDictionary(ProductNameDictionary dictionary) {
+		File dictDir = new File("src/test/resources/dict_extra");
+		logger.debug("Extra dict dir:{}", dictDir);
+		/*사용자 사전*/
+		SetDictionary userDict = new SetDictionary(true);
+		userDict.loadSource(new File(dictDir, "user.txt"));
+		dictionary.addDictionary(ProductNameDictionary.DICT_USER, userDict);
+		dictionary.appendAdditionalNounEntry(userDict.set(), HIGH);
+		/*유사어 사전*/
+		SynonymDictionary synonymDict = new SynonymDictionary(true);
+		synonymDict.loadSource(new File(dictDir, "synonym.txt"));
+		dictionary.addDictionary(ProductNameDictionary.DICT_SYNONYM, synonymDict);
+		dictionary.appendAdditionalNounEntry(synonymDict.getWordSet(), HIGH);
+		/*단위명 사전*/
+		SetDictionary unitDict = new SetDictionary(true);
+		unitDict.loadSource(new File(dictDir, "unit.txt"));
+		dictionary.addDictionary(ProductNameDictionary.DICT_UNIT, unitDict);
+		/*단위명유사어 사전*/
+		SynonymDictionary unitSynDict = new SynonymDictionary(true);
+		unitSynDict.loadSource(new File(dictDir, "unit_synonym.txt"));
+		dictionary.addDictionary(ProductNameDictionary.DICT_UNIT_SYNONYM, unitSynDict);
+		/*분리어 사전*/
+		SpaceDictionary spaceDict = new SpaceDictionary(true);
+		spaceDict.loadSource(new File(dictDir, "space.txt"));
+		dictionary.addDictionary(ProductNameDictionary.DICT_SPACE, spaceDict);
+		/*복합명사 사전*/
+		CompoundDictionary compDict = new CompoundDictionary(true);
+		compDict.loadSource(new File(dictDir, "compound.txt"));
+		dictionary.addDictionary(ProductNameDictionary.DICT_COMPOUND, compDict);
+		return dictionary;
+	}
 	public static final ProductNameDictionary loadTestDictionary() {
 		ProductNameDictionary ret = null;
 		try {
