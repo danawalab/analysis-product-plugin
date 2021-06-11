@@ -47,7 +47,7 @@ public class ProductNameAnalysisActionTest {
 	}
 
 	@Test
-	public void queryBuildTest() {
+	public void queryBuildTest() throws Exception {
 		if (TestUtil.launchForBuild()) {
 			return;
 		}
@@ -79,7 +79,7 @@ public class ProductNameAnalysisActionTest {
 	}
 
 	@Test
-	public void queryJSONBuildTest() {
+	public void queryJSONBuildTest() throws Exception {
 		if (TestUtil.launchForBuild()) {
 			return;
 		}
@@ -185,7 +185,7 @@ public class ProductNameAnalysisActionTest {
 		logger.debug("HIGHLIGHT:{}", highlight);
 	}
 
-	@Test public void testAnalyzeDetail() {
+	@Test public void testAnalyzeDetail() throws Exception {
 		if (TestUtil.launchForBuild()) { return; }
 		String index = "";
 		ProductNameDictionary dictionary = null;
@@ -222,7 +222,7 @@ public class ProductNameAnalysisActionTest {
 		indexer.migrateFastcat();
 	}
 
-	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str, boolean useForQuery, boolean useSynonym, boolean useStopword, boolean useFullString) {
+	public static TokenStream getAnalyzer(ProductNameDictionary dictionary, String str, boolean useForQuery, boolean useSynonym, boolean useStopword, boolean useFullString) throws Exception {
 		TokenStream tstream = null;
 		Reader reader = null;
 		Tokenizer tokenizer = null;

@@ -1,5 +1,6 @@
 package com.danawa.search.analysis.dict;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -205,6 +206,9 @@ public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequ
 
 		DataInput input = null;
 		try {
+			if (!(in instanceof BufferedInputStream)) {
+				try { in = new BufferedInputStream(in); } catch (Exception ignore) { }
+			}
 			input = new InputStreamDataInput(in);
 			probMap = new HashMap<CharSequence, List<TagProb>>();
 			

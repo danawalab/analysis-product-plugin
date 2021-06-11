@@ -1,5 +1,7 @@
 package com.danawa.search.analysis.dict;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -84,6 +86,9 @@ public class CustomDictionary extends SourceDictionary<Object> {
 	@Override
 	@SuppressWarnings("resource")
 	public void writeTo(OutputStream out) throws IOException {
+		if (!(out instanceof BufferedOutputStream)) {
+			try { out = new BufferedOutputStream(out); } catch (Exception ignore) { }
+		}
 		DataOutput output = new OutputStreamDataOutput(out);
 		Iterator<CharSequence> keySet = map.keySet().iterator();
 		// write size of map
@@ -120,11 +125,15 @@ public class CustomDictionary extends SourceDictionary<Object> {
 			CharVector value = CharVector.valueOf(iterator.next());
 			output.writeUString(value.array(), value.offset(), value.length());
 		}
+		try { out.flush(); } catch (Exception ignore) { }
 	}
 
 	@Override
 	@SuppressWarnings("resource")
 	public void readFrom(InputStream in) throws IOException {
+		if (!(in instanceof BufferedInputStream)) {
+			try { in = new BufferedInputStream(in); } catch (Exception ignore) { }
+		}
 		DataInput input = new InputStreamDataInput(in);
 		map = new HashMap<CharSequence, Object[]>();
 		int size = input.readVInt();

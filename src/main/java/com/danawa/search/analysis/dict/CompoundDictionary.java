@@ -1,5 +1,7 @@
 package com.danawa.search.analysis.dict;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
@@ -115,6 +117,9 @@ public class CompoundDictionary extends MapDictionary {
 	@Override
 	@SuppressWarnings("resource")
 	public void writeTo(OutputStream out) throws IOException {
+		if (!(out instanceof BufferedOutputStream)) {
+			try { out = new BufferedOutputStream(out); } catch (Exception ignore) { }
+		}
 		super.writeTo(out);
 		DataOutput output = new OutputStreamDataOutput(out);
 		// write size of synonyms
@@ -133,11 +138,15 @@ public class CompoundDictionary extends MapDictionary {
 			CharVector value = CharVector.valueOf(wordIter.next());
 			output.writeUString(value.array(), value.offset(), value.length());
 		}
+		try { out.flush(); } catch (Exception ignore) { }
 	}
 
 	@Override
 	@SuppressWarnings("resource")
 	public void readFrom(InputStream in) throws IOException {
+		if (!(in instanceof BufferedInputStream)) {
+			try { in = new BufferedInputStream(in); } catch (Exception ignore) { }
+		}
 		super.readFrom(in);
 		DataInput input = new InputStreamDataInput(in);
 		mainWordSet = new HashSet<>();

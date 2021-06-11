@@ -1,5 +1,7 @@
 package com.danawa.search.analysis.dict;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -90,6 +92,9 @@ public class SetDictionary extends SourceDictionary<Object> {
 	@Override
 	@SuppressWarnings("resource")
 	public void writeTo(OutputStream out) throws IOException {
+		if (!(out instanceof BufferedOutputStream)) {
+			try { out = new BufferedOutputStream(out); } catch (Exception ignore) { }
+		}
 		DataOutput output = new OutputStreamDataOutput(out);
 		Iterator<CharSequence> valueIter = set.iterator();
 		// write size of set
@@ -99,11 +104,15 @@ public class SetDictionary extends SourceDictionary<Object> {
 			CharSequence value = valueIter.next();
 			output.writeString(value.toString());
 		}
+		try { out.flush(); } catch (Exception ignore) { }
 	}
 
 	@Override
 	@SuppressWarnings("resource")
 	public void readFrom(InputStream in) throws IOException {
+		if (!(in instanceof BufferedInputStream)) {
+			try { in = new BufferedInputStream(in); } catch (Exception ignore) { }
+		}
 		DataInput input = new InputStreamDataInput(in);
 		set = new HashSet<>();
 		int size = input.readInt();
