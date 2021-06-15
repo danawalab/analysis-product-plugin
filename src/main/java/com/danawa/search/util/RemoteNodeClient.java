@@ -1,53 +1,32 @@
 package com.danawa.search.util;
 
-import com.fasterxml.jackson.core.JsonParser;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionFuture;
-import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.search.*;
 import org.elasticsearch.action.support.PlainActionFuture;
-import org.elasticsearch.action.support.TransportAction;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.inject.Key;
-import org.elasticsearch.common.inject.ModulesBuilder;
-import org.elasticsearch.common.io.stream.ByteBufferStreamInput;
-import org.elasticsearch.common.io.stream.InputStreamStreamInput;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.common.xcontent.json.JsonXContentParser;
 import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.RemoteClusterService;
-import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Supplier;
 
 public class RemoteNodeClient extends NodeClient {
     private static Logger logger = Loggers.getLogger(RemoteNodeClient.class, "");
-    private Client nodeClient;
     private String index;
     private String host;
     private int port;
 
     private String url;
-
 
     public RemoteNodeClient(Settings settings, ThreadPool threadPool, String index, String host, int port) {
         super(settings, threadPool);
@@ -105,7 +84,6 @@ public class RemoteNodeClient extends NodeClient {
         HttpURLConnection co = null;
         BufferedReader reader = null;
         try {
-//            logger.info("{}", request.scrollId());
             logger.info("dictionary Remote Search . {}", url);
             co = (HttpURLConnection) new URL(String.format("%s/_search/scroll/%s", url, request.scrollId())).openConnection();
             co.setRequestMethod("POST");

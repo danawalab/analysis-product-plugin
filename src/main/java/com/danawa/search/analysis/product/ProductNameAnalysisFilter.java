@@ -79,12 +79,8 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 		boolean ret = false;
 		// FIXME : 큐 마지막에 ASCII 텀이 남아 있다면 모델명규칙 등을 위해 남겨 두어야 함.
 		// INFO : 텀 오프셋 불일치를 막기 위해 절대값을 사용 (버퍼 상대값은 되도록 사용하지 않음)
-		int prevStartOffset = 0;
 		if (parsingRule == null) {
 			parsingRule = new ProductNameParsingRule(extractor, dictionary, option);
-			prevStartOffset = -1;
-		} else {
-			prevStartOffset = offsetAttribute.startOffset();
 		}
 		synonymAttribute.setSynonyms(null);
 		extraTermAttribute.init(this);
@@ -235,8 +231,6 @@ public class ProductNameAnalysisFilter extends TokenFilter {
 			}
 		} // LOOP
 
-//		logger.debug(">>> POS: {} - {} = {}",offsetAttribute.startOffset(), prevStartOffset, offsetAttribute.startOffset() - prevStartOffset);
-//		posIncrAtt.setPositionIncrement(offsetAttribute.startOffset() - prevStartOffset);
 		posIncrAtt.setPositionIncrement(positionIncrement);
 
 		if (logger.isTraceEnabled()) {

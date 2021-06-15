@@ -40,7 +40,6 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.http.HttpInfo;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -56,8 +55,6 @@ import org.elasticsearch.rest.*;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder.Field;
 import org.elasticsearch.search.sort.SortBuilder;
-import org.elasticsearch.transport.RemoteClusterAwareRequest;
-import org.elasticsearch.transport.RemoteClusterService;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.json.JSONWriter;
@@ -836,7 +833,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						//termWords = new ArrayList<>();
 						//확장어 원본 입력
 						//extraTermWords.add(term);
-						List<Object> extAnalyeTerm = new ArrayList<>();
 						while (iter.hasNext()) {
 							String s = iter.next();
 							logger.trace("EXT {} / {} / {}", term, s, termWords);
@@ -868,9 +864,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 						termWords.add(extraTermWords);
 					}
 				}
-
 				logger.trace("term : {} - {}", term, termWords);
-
 				
 				//풀텀이 아닐 경우만. 풀텀(유사어)는 이미 fullTermHash에 적재됨
 				if (!type.equals(ProductNameTokenizer.FULL_STRING)) {
