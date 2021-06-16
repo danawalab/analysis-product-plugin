@@ -264,8 +264,8 @@ public class ProductNameParsingRule {
 							} else {
 								queue.add(qinx, e0);
 							}
+							break;
 						}
-						break;
 					}
 				}
 			}
