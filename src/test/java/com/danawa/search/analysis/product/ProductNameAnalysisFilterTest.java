@@ -60,7 +60,7 @@ public class ProductNameAnalysisFilterTest {
 	}
 
 	@Test public void testFilter() {
-//		if (TestUtil.launchForBuild()) { return; }
+		if (TestUtil.launchForBuild()) { return; }
 
 		Reader reader = null;
 		Tokenizer tokenizer = null;
@@ -206,7 +206,7 @@ public class ProductNameAnalysisFilterTest {
 	}
 
 	@Test public void testRuleForIndex() throws Exception {
-//		if (TestUtil.launchForBuild()) { return; }
+		if (TestUtil.launchForBuild()) { return; }
 
 		TestUtil.setLogLevel(TestUtil.LOG_LEVEL_DEBUG, 
 			KoreanWordExtractor.class, 
@@ -220,7 +220,7 @@ public class ProductNameAnalysisFilterTest {
 	}
 
 	@Test public void testRuleForQuery() throws Exception {
-//		if (TestUtil.launchForBuild()) { return; }
+		if (TestUtil.launchForBuild()) { return; }
 
 		TestUtil.setLogLevel(TestUtil.LOG_LEVEL_DEBUG, 
 			KoreanWordExtractor.class, 
