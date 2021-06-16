@@ -7,3 +7,4 @@
 bin
 build
 /tester/*.class
+src/test/resources/dict

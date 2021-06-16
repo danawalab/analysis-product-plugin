@@ -1,5 +1,7 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileReader;
 import java.io.Reader;
 import java.io.StringReader;
 import java.lang.reflect.Constructor;
@@ -8,12 +10,12 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 public class Tester {
 
@@ -23,14 +25,15 @@ public class Tester {
 	private static final String DICT_FASTCATSEARCH = "DICT_FASTCATSEARCH";
 	private static final String DICT_DANAWASEARCH = "DICT_DANAWASEARCH";
 
-	public void test(String cmd, String pluginPath, String content) throws Exception {
-		if ("input".equals(cmd)) {
-			this.testBySingleText(pluginPath, content);
-		} else if ("".equals(cmd)) {
-		}
-	}
+	public static final int TRACE = 1;
+	public static final int DEBUG = 2;
+	public static final int INFO = 3;
+	public static final int WARNING = 4;
+	public static final int ERROR = 5;
 
-	public void testBySingleText(String pluginPath, String str) throws Exception {
+	private static int CURRENT_LOG_LEVEL = DEBUG; 
+
+	public void test(String cmd, String pluginPath, String content) throws Exception {
 		File dir = new File(pluginPath);
 		Map<String, Object> context = new HashMap<>();
 		ReflectHelper r1 = new ReflectHelper(st("fastcatsearch"));
@@ -75,35 +78,45 @@ public class Tester {
 		JSONWriter.init(r2.loader());
 		initDanawasearch(r2, context, dir);
 		initFastcatsearch(r1, context, dir);
-		Comparator<Object> comp = new Comparator<>() {
-			@Override public int compare(Object o1, Object o2) {
-				if (o1 instanceof Comparable && o2 instanceof Comparable) {
-					@SuppressWarnings("unchecked")
-					Comparable<Object> c1 = (Comparable<Object>) o1;
-					@SuppressWarnings("unchecked")
-					Comparable<Object> c2 = (Comparable<Object>) o2;
-					return c1.compareTo(c2);
-				}
-				return 0;
-			}
-		};
+
+		if ("input".equals(cmd)) {
+			this.testByInputText(r1, r2, context, content);
+		} else if ("files".equals(cmd)) {
+			this.testByFile(r1, r2, context, content);
+		}
+	}
+
+	public void testByInputText(ReflectHelper r1, ReflectHelper r2,
+		Map<String, Object> context, String str) throws Exception {
 		for (int inx = 0; inx < 2; inx++) {
 			List<Object> list1 = launchDanawasearch(r2, context, str, inx == 0);
-			// log("--------------------------------------------------------------------------------");
 			List<Object> list2 = launchFastcatsearch(r1, context, str, inx == 0);
-			Collections.sort(list1, comp);
-			Collections.sort(list2, comp);
-			log("TERMS1:{}", list1);
-			log("TERMS2:{}", list2);
-			// log("================================================================================");
+			log(DEBUG, "TERMS1:{}", JSON.obj2JSON(list1));
+			log(DEBUG, "TERMS2:{}", JSON.obj2JSON(list2));
 		}
+	}
+
+	public void testByFile(ReflectHelper r1, ReflectHelper r2, 
+		Map<String, Object> context, String path) throws Exception {
+		File f = new File(path);
+		if (!f.exists()) { return; }
+		FilesReader reader = new FilesReader(f);
+		while(reader.isAvail()) {
+			String str = reader.readLine();
+			if (str == null || "".equals((str = str.trim())) || str.startsWith("#")) {
+				continue;
+			}
+			this.testByInputText(r1, r2, context, str);
+		}
+		reader.close();
 	}
 
 	public static Class<?>[] ty(Class<?> ... types) { return types; }
 	public static Object[] ar(Object ... args) { return args; }
 	public static String[] st(String ... args) { return args; }
 
-	public static void log(Object ... args) throws Exception {
+	public static void log(int type, Object ... args) throws Exception {
+		if (CURRENT_LOG_LEVEL > type) { return; }
 		if (args != null && args.length > 0) {
 			if (args[0] instanceof String) {
 				List<CharSequence> p = new ArrayList<>();
@@ -220,38 +233,57 @@ public class Tester {
 			Iterator<?> extr = (Iterator<?>) rh.run(extrAtr, "iterator");
 			if (FULL_STRING.equals(type)) { continue; }
 
+			Map<String, Object> termInfo = new HashMap<>();
+			List<Object> current = new ArrayList<>();
 			if (!useForQuery) { synm = null; }
-			termList.add(String.valueOf(termAtr));
-			// log("TERM:{} / {} [{}: {}~{}] / {} / {}", termAtr, type, posc, offst, offed, synm, extr != null);
+			// termList.add(String.valueOf(termAtr));
+			termInfo.putAll(Map.of(
+				"term", String.valueOf(termAtr),
+				"type", String.valueOf(type)
+			));
+			log(TRACE, "TERM:{} / {} [{}: {}~{}] / {} / {}", termAtr, type, posc, offst, offed, synm, extr != null);
 			for (int inx = 0; synm != null && inx < synm.size(); inx++) {
 				Object syn = synm.get(inx);
-				if (syn instanceof List) {
-					for (Object item : (List<?>) syn) { termList.add(String.valueOf(item)); }
-				} else {
-					termList.add(String.valueOf(syn));
-				}
-				// log("SYN:{}", syn);
+				termInfo.put("syn", syn);
+				// if (syn instanceof List) {
+				// 	for (Object item : (List<?>) syn) {
+				// 		// termList.add(String.valueOf(item));
+				// 	}
+				// } else {
+				// 	// termList.add(String.valueOf(syn));
+				// }
+				log(TRACE, "SYN:{}", syn);
 			}
+			current.add(termInfo);
 			while (extr != null && extr.hasNext()) {
 				Object eterm = extr.next();
 				type = rh.run(typeAtr, "type");
 				offst = rh.run(offsAtr, "startOffset");
 				offed = rh.run(offsAtr, "endOffset");
 				synm = (List<?>) rh.run(synmAtr, "getSynonyms");
+				termInfo = new HashMap<>();
+				termInfo.putAll(Map.of(
+					"term", String.valueOf(eterm),
+					"type", String.valueOf(type)
+				));
 				if (!useForQuery) { synm = null; }
-				termList.add(String.valueOf(eterm));
-				// log("EXT:{} / {} [{}: {}~{}] / {}", eterm, type, posc, offst, offed, synm);
+				// termList.add(String.valueOf(eterm));
+				log(TRACE, "EXT:{} / {} [{}: {}~{}] / {}", eterm, type, posc, offst, offed, synm);
 				for (int inx = 0; synm != null && inx < synm.size(); inx++) {
 					Object syn = synm.get(inx);
-					if (syn instanceof List) {
-						for (Object item : (List<?>) syn) { termList.add(String.valueOf(item)); }
-					} else {
-						termList.add(String.valueOf(syn));
-					}
-					// log("SYN:{}", syn);
+					termInfo.put("syn", syn);
+					// if (syn instanceof List) {
+					// 	for (Object item : (List<?>) syn) {
+					// 		// termList.add(String.valueOf(item));
+					// 	}
+					// } else {
+					// 	// termList.add(String.valueOf(syn));
+					// }
+					log(TRACE, "SYN:{}", syn);
 				}
+				current.add(termInfo);
 			}
-
+			termList.add(current);
 		}
 		rh.run(tstream, "close");
 		rh.run(tokenizer, "close");
@@ -285,41 +317,74 @@ public class Tester {
 			Object offed = rh.run(offsAtr, "endOffset");
 			List<?> synm = (List<?>) rh.run(synmAtr, "getSynonyms");
 			Iterator<?> extr = (Iterator<?>) rh.run(extrAtr, "iterateAdditionalTerms");
+
+			Map<String, Object> termInfo = new HashMap<>();
+			List<Object> current = new ArrayList<>();
 			if (!useForQuery) { synm = null; }
-			termList.add(String.valueOf(termAtr));
-			// log("TERM:{} / {} [{}: {}~{}] / {} / {}", termAtr, type, posc, offst, offed, synm, extr != null);
+			// termList.add(String.valueOf(termAtr));
+			termInfo.putAll(Map.of(
+				"term", String.valueOf(termAtr),
+				"type", String.valueOf(type)
+			));
+			log(TRACE, "TERM:{} / {} [{}: {}~{}] / {} / {}", termAtr, type, posc, offst, offed, synm, extr != null);
 			for (int inx = 0; synm != null && inx < synm.size(); inx++) {
 				Object syn = synm.get(inx);
-				if (syn instanceof List) {
-					for (Object item : (List<?>) syn) { termList.add(String.valueOf(item)); }
-				} else {
-					termList.add(String.valueOf(syn));
-				}
-				// log("SYN:{}", syn);
+				termInfo.put("syn", syn);
+				// if (syn instanceof List) {
+				// 	for (Object item : (List<?>) syn) {
+				// 		// termList.add(String.valueOf(item));
+				// 	}
+				// } else {
+				// 	// termList.add(String.valueOf(syn));
+				// }
+				log(TRACE, "SYN:{}", syn);
 			}
+			current.add(termInfo);
 			while (extr != null && extr.hasNext()) {
 				Object eterm = extr.next();
 				type = rh.run(typeAtr, "type");
 				offst = rh.run(offsAtr, "startOffset");
 				offed = rh.run(offsAtr, "endOffset");
 				synm = (List<?>) rh.run(synmAtr, "getSynonyms");
+				termInfo = new HashMap<>();
+				termInfo.putAll(Map.of(
+					"term", String.valueOf(eterm),
+					"type", String.valueOf(type)
+				));
 				if (!useForQuery) { synm = null; }
-				termList.add(String.valueOf(eterm));
-				// log("EXT:{} / {} [{}: {}~{}] / {}", eterm, type, posc, offst, offed, synm);
+				// termList.add(String.valueOf(eterm));
+				log(TRACE, "EXT:{} / {} [{}: {}~{}] / {}", eterm, type, posc, offst, offed, synm);
 				for (int inx = 0; synm != null && inx < synm.size(); inx++) {
 					Object syn = synm.get(inx);
-					if (syn instanceof List) {
-						for (Object item : (List<?>) syn) { termList.add(String.valueOf(item)); }
-					} else {
-						termList.add(String.valueOf(syn));
-					}
-					// log("SYN:{}", syn);
+					termInfo.put("syn", syn);
+					// if (syn instanceof List) {
+					// 	for (Object item : (List<?>) syn) { termList.add(String.valueOf(item)); }
+					// } else {
+					// 	termList.add(String.valueOf(syn));
+					// }
+					log(TRACE, "SYN:{}", syn);
 				}
+				current.add(termInfo);
 			}
+			termList.add(current);
 		}
 		rh.run(analyzer, "close");
 		return termList;
 	}
+
+	public static class ObjectComparator implements Comparator<Object> {
+		@Override
+		@SuppressWarnings("unchecked")
+		public int compare(Object o1, Object o2) {
+			try {
+				if (o1 instanceof Comparable && o2 instanceof Comparable) {
+					Comparable<Object> c1 = (Comparable<Object>) o1;
+					return c1.compareTo(o2);
+				}
+			} catch (Exception ignore) { }
+			return 0;
+		}
+	};
 
 	public static class ReflectHelper {
 		private ClassLoader loader;
@@ -598,7 +663,7 @@ public class Tester {
 				@SuppressWarnings("unchecked")
 				Map<String, Object> map = (Map<String, Object>) obj;
 				ret = JSON.map();
-				for (String key : map.keySet()) {
+				for (String key : new TreeSet<>(map.keySet())) {
 					Object item = map.get(key);
 					if (item instanceof Map || item instanceof List) {
 						item = JSON.obj2JSON(item);
@@ -669,10 +734,62 @@ public class Tester {
 		@Override public String toString() { return String.valueOf(writer); }
 	}
 
+	public static class FilesReader implements FileFilter {
+		private List<String> files;
+		private BufferedReader reader;
+		public FilesReader(File f) throws Exception {
+			this.files = new ArrayList<>();
+			if (f.isDirectory()) {
+				f.listFiles(this);
+			} else {
+				this.files.add(f.getAbsolutePath());
+			}
+		}
+		public boolean isAvail() throws Exception {
+			if (this.reader != null || this.files.size() > 0) {
+				return true;
+			}
+			return false;
+		}
+		public String readLine() throws Exception {
+			String ret = null;
+			if (this.reader != null) {
+				ret = this.reader.readLine();
+			}
+			if (ret == null) {
+				try { this.reader.close(); } catch (Exception ignore) { }
+				if (this.files.size() > 0) {
+					this.reader = new BufferedReader(
+						new FileReader(new File(this.files.remove(0)))
+					);
+					ret = this.reader.readLine();
+				} else {
+					this.reader = null;
+				}
+			}
+			return ret;
+		}
+
+		public void close() throws Exception {
+			try { this.reader.close(); } catch (Exception ignore) { }
+		}
+
+		@Override
+		public boolean accept(File f) {
+			if (f.isDirectory()) {
+				f.listFiles(this);
+			} else {
+				this.files.add(f.getAbsolutePath());
+			}
+			return false;
+		}
+	}
+
 	public static void main(String[] arg) throws Exception {
 		if (arg.length < 2) {
 			System.out.println("USAGE: Tester {{CMD}} {{ES_PLUGIN_PATH}} {{CONTENT}}");
 			System.out.println("EX: Tester input C:/ES/plugins/analysis-product  분석기테스트");
+			System.out.println("    Tester files C:/ES/plugins/analysis-product  C:/test/test.txt");
 			System.exit(0);
 		}
 		Tester inst = new Tester();

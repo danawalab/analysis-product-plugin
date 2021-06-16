@@ -1,8 +1,9 @@
 package com.danawa.search.analysis.product;
 
-import java.io.Reader;
-import java.io.StringReader;
+import java.io.*;
+import java.nio.charset.Charset;
 import java.util.Iterator;
+import java.util.Scanner;
 
 import com.danawa.search.analysis.dict.ProductNameDictionary;
 import com.danawa.util.TestUtil;
@@ -27,11 +28,71 @@ public class ProductNameAnalyzerTest {
 			ProductNameAnalysisFilter.class);
 	}
 
+	public static void main(String[] args) throws IOException {
+		System.out.println("한글이 깨진다면 IDE 실행시 인코딩 설정을 해주세요. -Dfile.encoding=UTF-8");
+		ProductNameAnalyzerTest test = new ProductNameAnalyzerTest();
+		ProductNameDictionary dictionary = test.loadDictionary();
+		String text = null;
+		Scanner sc = new Scanner(System.in, "utf-8");
+		System.out.println("분석할 단어를 입력해주세요:");
+		while((text = sc.nextLine()) != null) {
+			logger.info("\"{}\"의 분석결과.", text);
+			test.analyzeSimple(text, dictionary);
+			logger.info("-------------------------------------------------");
+			logger.info("분석할 단어를 입력해주세요:");
+		}
+	}
+
+
+	private ProductNameDictionary loadDictionary() {
+		ProductNameDictionary dictionary = TestUtil.loadDictionary();
+		if (dictionary != null) {
+			dictionary = TestUtil.loadExtraDictionary(dictionary);
+		} else {
+			dictionary = TestUtil.loadTestDictionary();
+		}
+		return dictionary;
+	}
+	private void analyzeSimple(String text, ProductNameDictionary dictionary) {
+		ProductNameAnalyzer analyzer = null;
+		Reader reader = null;
+		try {
+			AnalyzerOption option = new AnalyzerOption(true, true, true, true, true);
+			analyzer = new ProductNameAnalyzer(dictionary, option);
+			reader = new StringReader(text);
+			TokenStream stream = analyzer.tokenStream("", reader);
+			TokenInfoAttribute tokenAttribute = stream.addAttribute(TokenInfoAttribute.class);
+			CharTermAttribute termAttribute = stream.addAttribute(CharTermAttribute.class);
+			OffsetAttribute offsetAttribute = stream.addAttribute(OffsetAttribute.class);
+			TypeAttribute typeAttribute = stream.addAttribute(TypeAttribute.class);
+			ExtraTermAttribute addAttribute = stream.addAttribute(ExtraTermAttribute.class);
+			SynonymAttribute synonymAttributeAttribute = stream.addAttribute(SynonymAttribute.class);
+			PositionIncrementAttribute positionIncrementAttribute = stream.addAttribute(PositionIncrementAttribute.class);
+			stream.reset();
+			for (; stream.incrementToken();) {
+				logger.info("TOKEN:{} / {}~{} / {} / {} // {} / POS_INC[{}]", termAttribute, offsetAttribute.startOffset(),
+						offsetAttribute.endOffset(), tokenAttribute.ref().length(), typeAttribute.type(), synonymAttributeAttribute.getSynonyms(),
+						positionIncrementAttribute.getPositionIncrement());
+				Iterator<String> iter = addAttribute.iterator();
+				while (iter != null && iter.hasNext()) {
+					String next = iter.next();
+					logger.info(" - ADD:{} / {}", next, typeAttribute.type());
+				}
+			}
+		} catch (Exception e) {
+			logger.error("", e);
+		}  finally {
+			try { analyzer.close(); } catch (Exception ignore) { }
+			try { reader.close(); } catch (Exception ignore) { }
+		}
+	}
 	@Test public void testAnalyzerSimple() {
 //		if (TestUtil.launchForBuild()) { return; }
 
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary == null) {
+		if (dictionary != null) {
+			dictionary = TestUtil.loadExtraDictionary(dictionary);
+		} else {
 			dictionary = TestUtil.loadTestDictionary();
 		}
 
