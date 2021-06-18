@@ -1,7 +1,5 @@
 package com.danawa.search.analysis.product;
 
-import static org.junit.Assert.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -52,7 +50,7 @@ public class ProductNameAnalysisFilterTest {
 	private static Logger logger = Loggers.getLogger(ProductNameAnalysisFilterTest.class, "");
 
 	@Before public void init() {
-		TestUtil.setLogLevel(System.getProperty("LOG_LEVEL"), 
+		TestUtil.setLogLevel(System.getProperty(TestUtil.LOG_LEVEL), 
 			KoreanWordExtractor.class, 
 			ProductNameTokenizer.class, 
 			ProductNameParsingRule.class,
@@ -66,9 +64,6 @@ public class ProductNameAnalysisFilterTest {
 		Tokenizer tokenizer = null;
 		TokenStream tstream = null;
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary == null) {
-			dictionary = TestUtil.loadTestDictionary();
-		}
 		SpaceDictionary spDict = dictionary.getDictionary(ProductNameDictionary.DICT_SPACE, SpaceDictionary.class);
 		spDict.addEntry("", new CharVector[] { new CharVector("bacas tv") });
 		AnalyzerOption option = null;
@@ -147,13 +142,10 @@ public class ProductNameAnalysisFilterTest {
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
 
-		File textFile = TestUtil.getFileByProperty("SYSPROP_SAMPLE_TEXT_PATH");
+		File textFile = TestUtil.getFileByProperty(TestUtil.SYSPROP_SAMPLE_TEXT_PATH);
 		if (!textFile.exists()) { return; }
 
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary == null) {
-			dictionary = TestUtil.loadTestDictionary();
-		}
 		BufferedReader reader = null;
 		Tokenizer tokenizer = null;
 		AnalyzerOption option = null;
@@ -213,7 +205,7 @@ public class ProductNameAnalysisFilterTest {
 			ProductNameTokenizer.class, 
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
-
+		System.setProperty(TestUtil.SYSPROP_TEST_DICTIONARY_SETTING, TestUtil.INTERNAL);
 		String testFile = "./model_name_sample.txt";
 		testRule(testFile, false);
 		assertTrue(true);
@@ -228,6 +220,7 @@ public class ProductNameAnalysisFilterTest {
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
 
+		System.setProperty(TestUtil.SYSPROP_TEST_DICTIONARY_SETTING, TestUtil.INTERNAL);
 		String testFile = "./model_name_sample_for_query.txt";
 		testRule(testFile, true);
 		assertTrue(true);
@@ -241,9 +234,6 @@ public class ProductNameAnalysisFilterTest {
 		Matcher mat = null;
 		try {
 			ProductNameDictionary dictionary = TestUtil.loadDictionary();
-			if (dictionary == null) {
-				dictionary = TestUtil.loadTestDictionary();
-			}
 			stream = getClass().getResourceAsStream(testFile);
 			reader = new BufferedReader(new InputStreamReader(stream, "utf-8"));
 			for (String rline = ""; (rline = reader.readLine()) != null;) {
@@ -362,9 +352,6 @@ public class ProductNameAnalysisFilterTest {
 		Tokenizer tokenizer = null;
 		TokenStream tstream = null;
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary == null) {
-			dictionary = TestUtil.loadTestDictionary();
-		}
 		AnalyzerOption option = null;
 		String str = "Sandisk Extream Z80 USB 16gb bacastv";;
 		try {

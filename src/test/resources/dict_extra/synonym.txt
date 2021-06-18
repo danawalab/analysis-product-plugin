@@ -1,1 +1,16 @@
 동의어,@유사어,시노님
+실리콘,실케,케이스
+@삼성,samsung,SAMSUNG
+다나와,@danawa,DANAWA
+auction,옥션,@이베이
+멕케이,mckay
+폴로,polo
+집업,짚업,집엎,zip up
+집,zip
+업,up
+10x10,텐바이텐
+LG,엘지,엘쥐
+NOTEBOOK,노트북
+,동숲,동물의 숲
+가성비노트북,노트북
+,노트북,노트북용,notebook

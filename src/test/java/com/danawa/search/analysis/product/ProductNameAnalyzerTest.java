@@ -1,7 +1,6 @@
 package com.danawa.search.analysis.product;
 
 import java.io.*;
-import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.Scanner;
 
@@ -31,28 +30,23 @@ public class ProductNameAnalyzerTest {
 	public static void main(String[] args) throws IOException {
 		System.out.println("한글이 깨진다면 IDE 실행시 인코딩 설정을 해주세요. -Dfile.encoding=UTF-8");
 		ProductNameAnalyzerTest test = new ProductNameAnalyzerTest();
-		ProductNameDictionary dictionary = test.loadDictionary();
-		String text = null;
-		Scanner sc = new Scanner(System.in, "utf-8");
-		System.out.println("분석할 단어를 입력해주세요:");
-		while((text = sc.nextLine()) != null) {
-			logger.info("\"{}\"의 분석결과.", text);
-			test.analyzeSimple(text, dictionary);
-			logger.info("-------------------------------------------------");
-			logger.info("분석할 단어를 입력해주세요:");
-		}
-	}
-
-
-	private ProductNameDictionary loadDictionary() {
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary != null) {
-			dictionary = TestUtil.loadExtraDictionary(dictionary);
-		} else {
-			dictionary = TestUtil.loadTestDictionary();
+		String text = null;
+		Scanner sc = null;
+		try {
+			sc = new Scanner(System.in, "utf-8");
+			System.out.println("분석할 단어를 입력해주세요:");
+			while((text = sc.nextLine()) != null) {
+				logger.info("\"{}\"의 분석결과.", text);
+				test.analyzeSimple(text, dictionary);
+				logger.info("-------------------------------------------------");
+				logger.info("분석할 단어를 입력해주세요:");
+			}
+		} finally {
+			try { sc.close(); } catch (Exception ignore) { }
 		}
-		return dictionary;
 	}
+
 	private void analyzeSimple(String text, ProductNameDictionary dictionary) {
 		ProductNameAnalyzer analyzer = null;
 		Reader reader = null;
@@ -86,16 +80,10 @@ public class ProductNameAnalyzerTest {
 			try { reader.close(); } catch (Exception ignore) { }
 		}
 	}
+
 	@Test public void testAnalyzerSimple() {
-//		if (TestUtil.launchForBuild()) { return; }
-
+		if (TestUtil.launchForBuild()) { return; }
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary != null) {
-			dictionary = TestUtil.loadExtraDictionary(dictionary);
-		} else {
-			dictionary = TestUtil.loadTestDictionary();
-		}
-
 		ProductNameAnalyzer analyzer = null;
 		String str = "한글분석기테스트중입니다";
 		str = "가보시 통굽 태슬 애나멜 여자로퍼 단화 UH-Ulbeuseu";

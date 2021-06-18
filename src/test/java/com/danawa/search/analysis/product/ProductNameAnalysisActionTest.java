@@ -59,9 +59,6 @@ public class ProductNameAnalysisActionTest {
 		text = "RF85R901301 판매";
 
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary == null) {
-			dictionary = TestUtil.loadTestDictionary();
-		}
 		TokenStream stream = null;
 		JSONObject analysis = new JSONObject();
 
@@ -91,9 +88,6 @@ public class ProductNameAnalysisActionTest {
 		text = "RF85R901301 판매";
 
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary == null) {
-			dictionary = TestUtil.loadTestDictionary();
-		}
 		TokenStream stream = null;
 
 		String[] fields = "MODELWEIGHT^10000,MAKERKEYWORD^20000,BRANDKEYWORD^300000,CATEGORYWEIGHT^100".split("[,]");
@@ -190,9 +184,6 @@ public class ProductNameAnalysisActionTest {
 		String index = "";
 		ProductNameDictionary dictionary = null;
 		dictionary = TestUtil.loadDictionary();
-		if (dictionary == null) {
-			dictionary = TestUtil.loadTestDictionary();
-		}
 		contextStore.put(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, dictionary);
 		String str = "";
 		str = "Sandisk Extream Z80 USB 16gb 스위스알파인클럽";

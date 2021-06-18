@@ -33,10 +33,16 @@ public final class TestUtil {
 
 	public static final String SYSPROP_LAUNCH_FOR_BUILD = "SYSPROP_LAUNCH_FOR_BUILD";
 	public static final String SYSPROP_TEST_DICTIONARY_SETTING = "SYSPROP_TEST_DICTIONARY_SETTING";
+	public static final String SYSPROP_TEST_DICTIONARY_LOAD_EXTRA = "SYSPROP_TEST_DICTIONARY_LOAD_EXTRA";
+	public static final String SYSPROP_SAMPLE_TEXT_PATH = "SYSPROP_SAMPLE_TEXT_PATH";
+	public static final String LOG_LEVEL = "LOG_LEVEL";
 	public static final String LOG_LEVEL_INFO = Level.INFO.name();
 	public static final String LOG_LEVEL_DEBUG = Level.DEBUG.name();
 	public static final String LOG_LEVEL_TRACE = Level.TRACE.name();
 	public static final String HIGH = "HIGH";
+	public static final String NONE = "NONE";
+	public static final String INTERNAL = "INTERNAL";
+	public static final File RESOURCE_ROOT = new File("src/test/resources");
 
 	public static final String T = "true";
 	public static final String F = "false";
@@ -61,9 +67,19 @@ public final class TestUtil {
 	public static final File getFileByProperty(String key) {
 		return getFileByProperty(key, null);
 	}
+
 	public static final File getFileByProperty(String key, String def) {
 		File ret = null;
 		String path = getSystemProperty(key);
+		if (path != null) { ret = new File(path); }
+		else if (def != null) {
+			ret = new File(def);
+		}
+		return ret;
+	}
+
+	public static final File getFileByPath(String path, String def) {
+		File ret = null;
 		if (path != null) { ret = new File(path); }
 		else if (def != null) {
 			ret = new File(def);
@@ -157,8 +173,9 @@ public final class TestUtil {
 	 * 컴파일사전에 단어를 직접 추가할수 없으므로, 텍스트 파일을 추가로딩하는 기능제공.
 	 * */
 	public static final ProductNameDictionary loadExtraDictionary(ProductNameDictionary dictionary) {
-		File dictDir = new File("src/test/resources/dict_extra");
+		File dictDir = new File(RESOURCE_ROOT, "dict_extra");
 		logger.debug("Extra dict dir:{}", dictDir);
+
 		/*사용자 사전*/
 		SetDictionary userDict = new SetDictionary(true);
 		userDict.loadSource(new File(dictDir, "user.txt"));
@@ -187,54 +204,19 @@ public final class TestUtil {
 		dictionary.addDictionary(ProductNameDictionary.DICT_COMPOUND, compDict);
 		return dictionary;
 	}
-	public static final ProductNameDictionary loadTestDictionary() {
+
+	public static final ProductNameDictionary loadInternalDictionary() {
 		ProductNameDictionary ret = null;
 		try {
-			File dictDir = getFileByRoot(TestUtil.class,
-				TagProbDictionary.class.getPackage().getName().replaceAll("[.]", "/"));
-			dictDir = new File("src/test/resources/com/danawa/search/analysis/dict");
-			logger.debug("DICTDIR:{}", getFileByRoot(TestUtil.class,"."));
-			logger.debug("DICTDIR:{}", dictDir);
-
+			File dictDir = new File(RESOURCE_ROOT, com.danawa.search.analysis.dict.TagProbDictionary
+				.class.getPackage().getName().replaceAll("[.]", "/"));
 			TagProbDictionary baseDict = new TagProbDictionary(true);
 			loadTagProbSource(baseDict, new File(dictDir, "0.lnpr_morp.txt"));
 			loadTagProbSource(baseDict, new File(dictDir, "words-prob.txt"));
 			loadTagProbByFileName(baseDict, new File(dictDir, "01.N.P11.txt"));
 			loadTagProbByFileName(baseDict, new File(dictDir, "02.N.MIN.txt"));
 			loadTagProbByFileName(baseDict, new File(dictDir, "03.N.LOW.txt"));
-
-			SetDictionary userDict = new SetDictionary(true);
-			userDict.loadSource(new File(dictDir, "09.User.txt"));
-
-			CompoundDictionary compDict = new CompoundDictionary(true);
-			compDict.loadSource(new File(dictDir, "compound.txt"));
-			compDict.addEntry("테니스화", new Object[] { "테니스,신발" });
-
-			SynonymDictionary synonymDict = new SynonymDictionary(true);
-			synonymDict.loadSource(new File(dictDir, "10.Synonym.txt"));
-
-			SetDictionary unitDict = new SetDictionary(true);
-			unitDict.loadSource(new File(dictDir, "99.Unit.txt"));
-
-			SpaceDictionary spaceDict = new SpaceDictionary(true);
-			spaceDict.loadSource(new File(dictDir, "99.Space.txt"));
-
-			SynonymDictionary unitSynDict = new SynonymDictionary(true);
-			unitSynDict.loadSource(new File(dictDir, "99.Unit-Synonym.txt"));
-
-
-			logger.debug("SPACE:{}", spaceDict.map());
-
 			ret = new ProductNameDictionary(baseDict);
-			ret.appendAdditionalNounEntry(userDict.set(), HIGH);
-			ret.appendAdditionalNounEntry(synonymDict.getWordSet(), HIGH);
-			ret.addDictionary(ProductNameDictionary.DICT_USER, userDict);
-			ret.addDictionary(ProductNameDictionary.DICT_SYNONYM, synonymDict);
-			ret.addDictionary(ProductNameDictionary.DICT_SPACE, spaceDict);
-			ret.addDictionary(ProductNameDictionary.DICT_UNIT, unitDict);
-			ret.addDictionary(ProductNameDictionary.DICT_UNIT_SYNONYM, unitSynDict);
-			ret.addDictionary(ProductNameDictionary.DICT_COMPOUND, compDict);
-
 		} catch (final Exception e) {
 			logger.debug("ERROR LOADING BASE DICTIONARY : {}", e.getMessage());
 		}
@@ -242,14 +224,70 @@ public final class TestUtil {
 	}
 
 	public static final ProductNameDictionary loadDictionary() {
-		ProductNameDictionary ret = null;
-		File propFile = TestUtil.getFileByProperty("SYSPROP_TEST_DICTIONARY_SETTING", "src/test/resources/product-name-dictionary.yml");
+		ProductNameDictionary dictionary = null;
+		String path = getSystemProperty(SYSPROP_TEST_DICTIONARY_SETTING);
+		File propFile = null;
+		int loadType = 0;
+		/** 
+		 * 테스트 실행시 사전 읽어오기
+		 *   InteliJ 에서 실행시 :
+		 *     Modify Run Configuration -> VM options 에 다음과 같이 추가한다
+		 *     -DSYSPROP_TEST_DICTIONARY_SETTING=C:/{{플러그인경로}}/product-name-dictionary.yml
+		 * 
+		 *   Eclipse 에서 실행시 :
+		 *     Run -> Run Configurations -> Arguments -> VM arguments 에 다음과 같이 추가한다.
+		 *     -DSYSPROP_TEST_DICTIONARY_SETTING=C:/{{플러그인경로}}/product-name-dictionary.yml
+		 *     
+		 *   VSCode 에서 실행시 :
+		 *     .vscode/settings.json 파일 에서 다음과 같이 추가한다.
+		 *     {
+		 *       "java.test.config": {
+		 *         "vmargs": [
+		 *           -DSYSPROP_TEST_DICTIONARY_SETTING=C:/{{플러그인경로}}/product-name-dictionary.yml
+		 *         ]
+		 *       }
+		 *     }
+		 * 
+		 * 1. 지정하지 않은경우 : 내부적으로 컴파일된 사전(src/test/resources/product-name-dictionary.yml) 읽어옴
+		 *   -DSYSPROP_TEST_DICTIONARY_SETTING
+		 * 
+		 * 2. 직접지정한 경우 : 외부 사전 읽어옴
+		 *   -DSYSPROP_TEST_DICTIONARY_SETTING=C:/Temp/analysis-product/product-name-dictionary.yml
+		 * 
+		 * 3. INTERNAL 로 지정한 경우 : 텍스트베이스로 작성된 사전 읽어옴
+		 *   -DSYSPROP_TEST_DICTIONARY_SETTING=INTERNAL
+		 * 
+		 **/
+		if (INTERNAL.equals(path)) {
+			/* 3. INTERNAL TEXT BASED DICTIONARY */
+			loadType = 1;
+		} else if (path != null && !"".equals(path)) {
+			/* 2. EXTERNAL DICTIONARY */
+			propFile = TestUtil.getFileByPath(path, null);
+			loadType = 0;
+		} else {
+			/* 1. INTERNAL COMPILED BINARY */
+			path = new File(RESOURCE_ROOT, "product-name-dictionary.yml").getAbsolutePath();
+			propFile = TestUtil.getFileByPath(path, null);
+			loadType = 0;
+		}
 		try {
-			JSONObject prop = TestUtil.readYmlConfig(propFile);
-			ret = ProductNameDictionary.loadDictionary(propFile.getParentFile(), prop);
+			if (loadType == 0) {
+				JSONObject prop = TestUtil.readYmlConfig(propFile);
+				dictionary = ProductNameDictionary.loadDictionary(propFile.getParentFile(), prop);
+			} else {
+				dictionary = loadInternalDictionary();
+			}
 		} catch (Exception e) {
 			logger.debug("ERROR LOADING DICTIONARY : {}", e.getMessage());
 		}
-		return ret;
+		/**
+		 * 테스트 사전에서 추가적인 단어 적재가 필요 없을경우 다음과 같이 지정
+		 * -DSYSPROP_TEST_DICTIONARY_LOAD_EXTRA=NONE
+		 **/
+		if (!NONE.equals(getSystemProperty(SYSPROP_TEST_DICTIONARY_LOAD_EXTRA))) {
+			TestUtil.loadExtraDictionary(dictionary);
+		}
+		return dictionary;
 	}
 }

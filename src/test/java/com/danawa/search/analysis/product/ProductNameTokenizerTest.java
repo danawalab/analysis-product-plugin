@@ -65,12 +65,9 @@ public class ProductNameTokenizerTest {
 
 	@Test
 	public void testTokenizer() throws Exception {
-//		if (TestUtil.launchForBuild()) { return; }
+		if (TestUtil.launchForBuild()) { return; }
 
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		if (dictionary == null) {
-			dictionary = TestUtil.loadTestDictionary();
-		}
 		Reader reader = null;
 		Tokenizer tokenizer = null;
 		String str = TEXT_STR;
