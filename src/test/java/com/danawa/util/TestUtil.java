@@ -51,7 +51,7 @@ public final class TestUtil {
 	public static final String CLASS_SUFFIX = ".class";
 
 	public static boolean launchForBuild() {
-		return T.equals(getSystemProperty(SYSPROP_LAUNCH_FOR_BUILD, "true"));
+		return T.equals(getSystemProperty(SYSPROP_LAUNCH_FOR_BUILD, "false"));
 	}
 
 	public static final String getSystemProperty(String key) {
@@ -60,7 +60,7 @@ public final class TestUtil {
 
 	public static final String getSystemProperty(String key, String def) {
 		String ret = System.getProperty(key);
-		if (ret == null) { ret = def; }
+		if (ret == null || "".equals(ret)) { ret = def; }
 		return ret;
 	}
 

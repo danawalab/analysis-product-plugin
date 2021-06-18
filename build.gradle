@@ -14,7 +14,12 @@ version = "1.0.0"
 
 sourceCompatibility = JavaVersion.VERSION_14
 targetCompatibility = JavaVersion.VERSION_14
-compileJava.options.encoding = "UTF-8"
+compileJava {
+	options.encoding = "UTF-8"
+	options.incremental = true
+	options.fork = true
+	options.failOnError = false
+}
 compileTestJava.options.encoding = "UTF-8"
 
 repositories {
@@ -40,15 +45,9 @@ sourceSets {
 	}
 }
 
-compileJava {
-	options.incremental = true
-	options.fork = true
-	options.failOnError = false
-}
-
 dependencies {
 	testImplementation (
-		[group: 'junit', name: 'junit', version: '4.1+', transitive: true]
+		[group: "junit", name: "junit", version: "4.1+", transitive: true]
 	)
 	implementation (
 		[group: "commons-io", name: "commons-io", version: "1.3.2"],
@@ -83,6 +82,38 @@ task copyJars(type: Copy) {
 	into "${buildDir}/jars"
 }
 
-test { }
+build {   
+	System.out.println("BUILDING..")
+}
+
+/**
+ * gradle 커맨드에서 다음과 같이 테스트 실행 가능
+ * ./gradlew --no-daemon test --tests -DLOG_LEVEL=TRACE -DSYSPROP_LAUNCH_FOR_BUILD=false ProductNameAnalysisFilterTest.testFilter
+ **/
+test {
+	String launchForBuild = System.getProperty("SYSPROP_LAUNCH_FOR_BUILD")
+	String dictSetting = System.getProperty("SYSPROP_TEST_DICTIONARY_SETTING")
+	String logLevel = System.getProperty("LOG_LEVEL")
+	if ("false".equals(launchForBuild)) {
+		systemProperty "SYSPROP_LAUNCH_FOR_BUILD", "false"
+		testLogging.showStandardStreams = true
+	} else {
+		systemProperty "SYSPROP_LAUNCH_FOR_BUILD", "true"
+	}
+	if (dictSetting == null || "".equals(dictSetting)) {
+		systemProperty "SYSPROP_TEST_DICTIONARY_SETTING", "INTERNAL"
+	} else {
+		systemProperty "SYSPROP_TEST_DICTIONARY_SETTING", dictSetting
+	}
+	if (logLevel == null || "".equals(logLevel)) {
+		systemProperty "LOG_LEVEL", System.getProperty("DEBUG")
+	} else {
+		systemProperty "LOG_LEVEL", logLevel
+	}
+	systemProperty "SYSPROP_TEST_DICTIONARY_LOAD_EXTRA", System.getProperty("SYSPROP_TEST_DICTIONARY_LOAD_EXTRA")
+	systemProperty "SYSPROP_SAMPLE_TEXT_PATH", System.getProperty("SYSPROP_SAMPLE_TEXT_PATH")
+	systemProperty "log4j.configurationFile", System.getProperty("log4j.configurationFile")
+    dependsOn cleanTest
+}
 
 build.dependsOn(copyToDependencies, copyJars)

@@ -202,7 +202,7 @@ public class ProductNameParsingRule {
 					if (queue.size() > qinx + linx) {
 						e1 = queue.get(qinx + linx);
 						if (e1.buf == tmpBuf && e1.length > 0 && e1.type != FULL_STRING) {
-							tmpEd = e1.start + e1.length;
+							tmpEd = e1.start + e1.length - 1;
 							char tmpStCh = (tmpSt > 0) ? tmpBuf[tmpSt - 1] : 0;
 							char tmpEdCh = (tmpEd < lastPosition) ? tmpBuf[tmpEd] : 0;
 							if ((tmpSt == 0 || (tmpStCh != 0 && (tmpStCh == ' ' || getType(tmpStCh) != type))) &&
@@ -549,9 +549,9 @@ public class ProductNameParsingRule {
 								e1 = modifyRuleEntry(fullExtract, e0, e1, unitCandidate, unitType);
 								//2021.5.4 swsong: 문자가 이상하게 잘린다. start에 단위명 길이를 더해주는것은 의미를 알수 없다.
 								//그러므로 아래 세줄 삭제!
-//								e1.start += unitCandidate.length();
-//								e1.length -= unitCandidate.length();
-//								e1.startOffset += unitCandidate.length();
+								// e1.start += unitCandidate.length();
+								// e1.length -= unitCandidate.length();
+								// e1.startOffset += unitCandidate.length();
 								
 								// 단위텀으로서 합친 텀들을 모조리 없에도록 한다.
 								if (findInx >= 1) {

@@ -97,7 +97,6 @@ public class ProductNameAnalysisFilterTest {
 			reader = new StringReader(str);
 			tokenizer = new ProductNameTokenizer(dictionary, true);
 			tokenizer.setReader(reader);
-			// tstream = tokenizer;
 			tstream = new ProductNameAnalysisFilter(tokenizer, dictionary, option);
 			tstream.reset();
 			CharTermAttribute termAttr = tstream.addAttribute(CharTermAttribute.class);
@@ -205,7 +204,6 @@ public class ProductNameAnalysisFilterTest {
 			ProductNameTokenizer.class, 
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
-		System.setProperty(TestUtil.SYSPROP_TEST_DICTIONARY_SETTING, TestUtil.INTERNAL);
 		String testFile = "./model_name_sample.txt";
 		testRule(testFile, false);
 		assertTrue(true);
@@ -219,8 +217,6 @@ public class ProductNameAnalysisFilterTest {
 			ProductNameTokenizer.class, 
 			ProductNameParsingRule.class,
 			ProductNameAnalysisFilter.class);
-
-		System.setProperty(TestUtil.SYSPROP_TEST_DICTIONARY_SETTING, TestUtil.INTERNAL);
 		String testFile = "./model_name_sample_for_query.txt";
 		testRule(testFile, true);
 		assertTrue(true);
@@ -233,7 +229,9 @@ public class ProductNameAnalysisFilterTest {
 		Pattern ptnAttr = Pattern.compile("<([A-Z_]+)([:]([0-9]+)[~]([0-9]+)){0,1}>");
 		Matcher mat = null;
 		try {
-			ProductNameDictionary dictionary = TestUtil.loadDictionary();
+			ProductNameDictionary dictionary = TestUtil.loadInternalDictionary();
+			TestUtil.loadExtraDictionary(dictionary);
+
 			stream = getClass().getResourceAsStream(testFile);
 			reader = new BufferedReader(new InputStreamReader(stream, "utf-8"));
 			for (String rline = ""; (rline = reader.readLine()) != null;) {
