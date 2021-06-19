@@ -113,6 +113,7 @@ test {
 	systemProperty "SYSPROP_TEST_DICTIONARY_LOAD_EXTRA", System.getProperty("SYSPROP_TEST_DICTIONARY_LOAD_EXTRA")
 	systemProperty "SYSPROP_SAMPLE_TEXT_PATH", System.getProperty("SYSPROP_SAMPLE_TEXT_PATH")
 	systemProperty "log4j.configurationFile", System.getProperty("log4j.configurationFile")
+	systemProperty "file.encoding", "UTF-8"
     dependsOn cleanTest
 }
 

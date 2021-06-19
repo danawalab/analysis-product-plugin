@@ -190,6 +190,7 @@ public class ProductNameParsingRule {
 				// extractor 는 타입이 다른 엔트리 에 대해서 체크하지 못하므로
 				// 엔트리들을 합쳐서 복합어/사용자 사전에 체크해 본다
 				// 최대 4개 엔트리까지 체크
+				String ctype = getType(e0.buf[e0.start + e0.length - 1]);
 				for (int linx = 4; linx >= 1; linx--) {
 					int passFlag = 0;
 					char[] tmpBuf = e0.buf;
@@ -202,11 +203,13 @@ public class ProductNameParsingRule {
 					if (queue.size() > qinx + linx) {
 						e1 = queue.get(qinx + linx);
 						if (e1.buf == tmpBuf && e1.length > 0 && e1.type != FULL_STRING) {
-							tmpEd = e1.start + e1.length - 1;
+							tmpEd = e1.start + e1.length;
 							char tmpStCh = (tmpSt > 0) ? tmpBuf[tmpSt - 1] : 0;
 							char tmpEdCh = (tmpEd < lastPosition) ? tmpBuf[tmpEd] : 0;
-							if ((tmpSt == 0 || (tmpStCh != 0 && (tmpStCh == ' ' || getType(tmpStCh) != type))) &&
-								(tmpEd == lastPosition || (tmpEdCh != 0 && (tmpEdCh == ' ' || getType(tmpEdCh) != type)))) {
+							String tmpStCType = getType(tmpStCh);
+							String tmpEdCType = getType(tmpEdCh);
+							if ((tmpSt == 0 || (tmpStCh != 0 && (tmpStCh == ' ' || tmpStCType != ctype))) &&
+								(tmpEd == lastPosition || (tmpEdCh != 0 && (tmpEdCh == ' ' || tmpEdCType != ctype)))) {
 								passFlag = 1;
 								e1 = e0;
 								for (int tinx = 0; tinx < linx; tinx++) {
@@ -218,6 +221,7 @@ public class ProductNameParsingRule {
 									e1 = e2;
 								}
 							}
+							ctype = tmpEdCType;
 						}
 					}
 					
