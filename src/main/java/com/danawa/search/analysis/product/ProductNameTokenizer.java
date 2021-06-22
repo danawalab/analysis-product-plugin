@@ -218,13 +218,11 @@ public final class ProductNameTokenizer extends Tokenizer {
 							// 일반문자 뒤 공백. 끊어줌.
 							pass = 0;
 
-							/*
-							} else if (typePrev == NUMBER && chrCurrent > 128) {
+						} else if (typePrev == NUMBER && typeCurrent != NUMBER) {
 							// 2021.04.26 swsong
 							// 숫자+단위명 조합은 parsingRule에서 다시한번 확인하므로 여기서는 떨어져있어도 무방.
 							// 오히려 v12배터리팩 같은 경우, 한글이 분리가 안되는 부작용이 발생하여 떨어지도록 수정.
-						 	*/
-
+							pass = 0;
 						} else if (typePrev != SYMBOL && typeCurrent == SYMBOL && (containsChar(AVAIL_SYMBOLS_SPLIT, chrCurrent) || chrCurrent > 128)) {
 							pass = 0;
 						} else if ((chrPrev < 128 && chrCurrent > 128) || (chrCurrent < 128 && chrPrev > 128)) {
