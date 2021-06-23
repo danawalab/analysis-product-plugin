@@ -189,9 +189,9 @@ public class ProductNameParsingRule {
 			if (fullExtract) {
 				// extractor 는 타입이 다른 엔트리 에 대해서 체크하지 못하므로
 				// 엔트리들을 합쳐서 복합어/사용자 사전에 체크해 본다
-				// 최대 8개 엔트리까지 체크
+				// 최대 10개 엔트리까지 체크
 				String ctype = getType(e0.buf[e0.start + e0.length - 1]);
-				for (int linx = 8; linx >= 1; linx--) {
+				for (int linx = 10; linx >= 1; linx--) {
 					int passFlag = 0;
 					char[] tmpBuf = e0.buf;
 					int tmpSt = e0.start;
