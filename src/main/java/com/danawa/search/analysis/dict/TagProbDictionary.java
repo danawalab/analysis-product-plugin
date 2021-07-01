@@ -1,10 +1,6 @@
 package com.danawa.search.analysis.dict;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,7 +10,9 @@ import java.util.Map;
 import java.util.Set;
 
 import com.danawa.io.DataInput;
+import com.danawa.io.DataOutput;
 import com.danawa.io.InputStreamDataInput;
+import com.danawa.io.OutputStreamDataOutput;
 import com.danawa.search.analysis.korean.PosTagProbEntry.PosTag;
 import com.danawa.search.analysis.korean.PosTagProbEntry.TagProb;
 import com.danawa.search.analysis.korean.PreResult;
@@ -23,7 +21,7 @@ import com.danawa.util.CharVector;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
 
-public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequence>>, ReadableDictionary {
+public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequence>>, ReadableDictionary, WritableDictionary {
     private static Logger logger = Loggers.getLogger(TagProbDictionary.class, "");
 
 	private boolean ignoreCase;
@@ -230,6 +228,35 @@ public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequ
 		} finally {
 			if(input!=null) try {
 				input.close();
+			} catch (IOException ignore) { }
+		}
+	}
+
+	@Override
+	public void writeTo(OutputStream out) throws IOException {
+		DataOutput output = null;
+		try {
+			output = new OutputStreamDataOutput(out);
+			//write size of map
+			output.writeInt(probMap.size());
+			Iterator<Map.Entry<CharSequence, List<TagProb>>> entrySet = probMap.entrySet().iterator();
+			//write key and value map
+			while(entrySet.hasNext()) {
+				//write key
+				Map.Entry<CharSequence, List<TagProb>> entry = entrySet.next();
+				output.writeString(entry.getKey().toString());
+
+				//write values
+				List<TagProb> tagProbs = entry.getValue();
+				output.writeInt(tagProbs.size());
+				for(TagProb tagProb : tagProbs) {
+					output.writeString(tagProb.posTag().toString());
+					output.writeDouble(tagProb.prob());
+				}
+			}
+		} finally {
+			if(output!=null) try {
+				output.close();
 			} catch (IOException ignore) { }
 		}
 	}
