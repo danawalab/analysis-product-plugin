@@ -85,10 +85,19 @@ public class RemoteNodeClient extends NodeClient {
         BufferedReader reader = null;
         try {
             logger.info("dictionary Remote Search . {}", url);
-            co = (HttpURLConnection) new URL(String.format("%s/_search/scroll/%s", url, request.scrollId())).openConnection();
+            String param = String.format("{ \"scroll_id\":\"%s\", \"scroll\":\"%s\"}", request.scrollId(), request.scroll().keepAlive().toString());
+
+            byte[] paramData = param.getBytes("UTF-8");
+
+            co = (HttpURLConnection) new URL(String.format("%s/_search/scroll", url)).openConnection();
             co.setRequestMethod("POST");
             co.setRequestProperty("Content-Type", "application/json");
+
             co.setDoInput(true);
+            co.setDoOutput(true);
+
+            co.getOutputStream().write(paramData);
+
             reader = new BufferedReader(new InputStreamReader(co.getInputStream()));
             StringBuilder sb = new StringBuilder();
             for (String rl; (rl = reader.readLine()) != null;) {
