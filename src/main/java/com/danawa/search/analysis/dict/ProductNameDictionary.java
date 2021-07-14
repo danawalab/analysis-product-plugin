@@ -324,7 +324,7 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 				CompoundDictionary newDictionary = newCommonDictionary.getDictionary(dictionaryId, CompoundDictionary.class);
 				compoundDictionary.setMap(newDictionary.map());
 			}
-			logger.info("Dictionary {} is updated!", dictionaryId);
+			logger.info("Dictionary [{}] is reloaded!", dictionaryId);
 		}
 		newCommonDictionary = null;
 	}
@@ -482,12 +482,12 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 			logger.error("DICTIONARY NOT LOADED!");
 			return null;
 		}
-
+		//2021.7.14 swsong: inputTypes 이 null 이라는 것은 모든 사전을 다 적용하겠다는 뜻이다. 하지만 관리도구를 통해서는 null로 들어오는 경우는 없고 사전이름이 명시된다.
 		Set<String> types = new HashSet<>();
 		if(inputTypes != null){
 			String[] split = inputTypes.trim().split(",");
 			for(String item : split){
-				System.out.println("types:" + item.toLowerCase());
+				logger.info("Compile Dict types: {}", item.toLowerCase());
 				types.add(item.toLowerCase());
 			}
 		}
@@ -506,7 +506,7 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 				if(inputTypes != null && !types.contains(dictionaryId)){
 					continue;
 				}
-				System.out.println("dictionaryId:" + dictionaryId);
+				logger.info("Compile Dict dictionaryId: {}", dictionaryId);
 
 				Type type = getType(row);
 				String tokenType = getTokenType(row);
