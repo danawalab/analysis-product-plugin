@@ -271,20 +271,16 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 		});
 	}
 
+	/**
+	 * 시스템 사전과 그외 사전들을 처음부터 다시 읽어들여서 머징한뒤,
+	 * 현재사용중인 context 에 있는 사전에 적용한다.
+	 * */
 	public static void reloadDictionary() {
 		if (baseFile == null || configFile == null) {
 			logger.error("DICTIONARY NOT LOADED!");
 			return;
 		}
 		ProductNameDictionary newCommonDictionary = loadDictionary(baseFile, ResourceResolver.readYmlConfig(configFile));
-		reloadDictionary(newCommonDictionary);
-	}
-
-	public static void reloadDictionary(ProductNameDictionary newCommonDictionary) {
-		if (baseFile == null || configFile == null) {
-			logger.error("DICTIONARY NOT LOADED!");
-			return;
-		}
 		ProductNameDictionary commonDictionary = contextStore.getAs(PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 		// 1. commonDictionary에 systemdictinary셋팅.
 		commonDictionary.reset(newCommonDictionary);
@@ -329,302 +325,302 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 		newCommonDictionary = null;
 	}
 
-	public static ProductNameDictionary compileDictionary(DictionaryRepository repo) {
-		return compileDictionary(repo, false);
+	public static void compileDictionary(DictionaryRepository repo) {
+		compileDictionary(repo, null, false);
 	}
 
-	public static ProductNameDictionary compileDictionary(final DictionaryRepository repo, final boolean exportFile) {
+	/**
+	 * filter 는 "stop,synonym,user" 와 같이 컴마로 구분된 문자열이다.
+	 * filter 가 null 이면 모든 사전을 컴파일하고 적용한다.
+	 * */
+	public static void compileDictionary(final DictionaryRepository repo,
+														  String filter, final boolean exportFile) {
 		if (baseFile == null || configFile == null) {
 			logger.error("DICTIONARY NOT LOADED!");
-			return null;
 		}
-		SpecialPermission.check();
-		return AccessController.doPrivileged((PrivilegedAction<ProductNameDictionary>) () -> {
-			Dictionary<TagProb, PreResult<CharSequence>> dictionary = null;
-			ProductNameDictionary commonDictionary = null;
-			JSONObject dictProp = ResourceResolver.readYmlConfig(configFile);
-			JSONArray dictList = dictProp.optJSONArray(ATTR_DICTIONARY_LIST);
-			String basePath = dictProp.optString(ATTR_DICTIONARY_BASE_PATH);
 
-			// 시스템사전은 편집불가
-			for (int inx = 0; inx < dictList.length(); inx++) {
-				JSONObject row = dictList.optJSONObject(inx);
-				if (getType(row) == Type.SYSTEM) {
-					dictionary = loadSystemDictionary(baseFile, row, basePath);
-					commonDictionary = new ProductNameDictionary(dictionary);
-					break;
-				}
-			}
-
-			for (int inx = 0; inx < dictList.length(); inx++) {
-				JSONObject row = dictList.optJSONObject(inx);
-				String dictionaryId = row.optString(ATTR_DICTIONARY_NAME);
-				Type type = getType(row);
-				String tokenType = getTokenType(row);
-				boolean ignoreCase = row.optBoolean(ATTR_DICTIONARY_IGNORECASE, true);
-
-				File dictFile = getDictionaryFile(baseFile, row, basePath);
-				Iterator<CharSequence[]> source = repo.getSource(dictionaryId);
-
-				SourceDictionary<?> sourceDictionary = null;
-				if (type == Type.SET) {
-					sourceDictionary = new SetDictionary(ignoreCase);
-				} else if (type == Type.MAP) {
-					sourceDictionary = new MapDictionary(ignoreCase);
-				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-					sourceDictionary = new SynonymDictionary(ignoreCase);
-				} else if (type == Type.SPACE) {
-					sourceDictionary = new SpaceDictionary(ignoreCase);
-				} else if (type == Type.CUSTOM) {
-					sourceDictionary = new CustomDictionary(ignoreCase);
-				} else if (type == Type.INVERT_MAP) {
-					sourceDictionary = new InvertMapDictionary(ignoreCase);
-				} else if (type == Type.COMPOUND) {
-					sourceDictionary = new CompoundDictionary(ignoreCase);
-				}
-				if (sourceDictionary != null) {
-					int cnt = 0;
-					for (; source.hasNext(); cnt++) {
-						CharSequence[] data = source.next();
-						String id = "";
-						String keyword = "";
-						String value = "";
-						String line = "";
-						if (data[0] != null) {
-							id = String.valueOf(data[0]).trim();
-						}
-						if (data[1] != null) {
-							keyword = String.valueOf(data[1]).trim();
-						}
-						if (data[2] != null) {
-							value = String.valueOf(data[2]).trim();
-						}
-						if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-							if (keyword.length() > 0) {
-								line = keyword + "\t" + value;
-							} else {
-								line = value;
-							}
-						} else if (type == Type.CUSTOM) {
-							if (id.length() > 0) {
-								line = keyword + "\t" + id;
-							} else {
-								line = keyword;
-							}
-						} else {
-							if (value.length() > 0) {
-								line = keyword + "\t" + value;
-							} else {
-								line = keyword;
-							}
-						}
-						sourceDictionary.addSourceLineEntry(line);
-					}
-					commonDictionary.addDictionary(dictionaryId, sourceDictionary);
-					logger.debug("LOAD DICTIONARY [{}] / {} / {} / {} / {}", cnt, dictionaryId, type, tokenType, dictFile.getAbsolutePath());
-					if (exportFile) {
-						OutputStream ostream = null;
-						try {
-							ostream = new FileOutputStream(dictFile);
-							sourceDictionary.writeTo(ostream);
-						} catch (Exception ignore) {
-						} finally {
-							try { ostream.close(); } catch (Exception ignore) { }
-						}
-					}
-				}
-
-				if (type == Type.SET) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((SetDictionary) sourceDictionary).set(), tokenType);
-					}
-				} else if (type == Type.MAP) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((MapDictionary) sourceDictionary).map().keySet(), tokenType);
-					}
-				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((SynonymDictionary) sourceDictionary).getWordSet(), tokenType);
-					}
-				} else if (type == Type.SPACE) {
-					if (tokenType != null) {
-						SpaceDictionary spaceDictionary = ((SpaceDictionary) sourceDictionary);
-						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
-						Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
-						for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
-							PreResult<CharSequence> preResult = new PreResult<>();
-							preResult.setResult(e.getValue());
-							map.put(e.getKey(), preResult);
-						}
-						// commonDictionary.setPreDictionary(map);
-					}
-				} else if (type == Type.CUSTOM) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((CustomDictionary) sourceDictionary).getWordSet(), tokenType);
-					}
-				} else if (type == Type.INVERT_MAP) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((InvertMapDictionary) sourceDictionary).map().keySet(), tokenType);
-					}
-				} else if (type == Type.COMPOUND) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((CompoundDictionary) sourceDictionary).map().keySet(), tokenType);
-					}
-				}
-			}
-			logger.debug("DICTIONARY LOAD COMPLETE!");
-			return commonDictionary;
-		});
-	}
-
-	public static ProductNameDictionary compileDictionaryOne(final DictionaryRepository repo, final boolean exportFile, ProductNameDictionary currentDictionary, String inputTypes) {
-		if (baseFile == null || configFile == null) {
-			logger.error("DICTIONARY NOT LOADED!");
-			return null;
-		}
-		//2021.7.14 swsong: inputTypes 이 null 이라는 것은 모든 사전을 다 적용하겠다는 뜻이다. 하지만 관리도구를 통해서는 null로 들어오는 경우는 없고 사전이름이 명시된다.
-		Set<String> types = new HashSet<>();
-		if(inputTypes != null){
-			String[] split = inputTypes.trim().split(",");
+		Set<String> filters = new HashSet<>();
+		if(filter != null){
+			String[] split = filter.trim().split(",");
 			for(String item : split){
-				logger.info("Compile Dict types: {}", item.toLowerCase());
-				types.add(item.toLowerCase());
+				filters.add(item.toLowerCase());
 			}
 		}
+		logger.info("Compile Dict types: {}", filters);
 
 		SpecialPermission.check();
-		return AccessController.doPrivileged((PrivilegedAction<ProductNameDictionary>) () -> {
-			ProductNameDictionary commonDictionary = currentDictionary;
-			JSONObject dictProp = ResourceResolver.readYmlConfig(configFile);
+		AccessController.doPrivileged((PrivilegedAction<?>) () -> {
+
+			JSONObject dictProp =  ResourceResolver.readYmlConfig(configFile);
 			JSONArray dictList = dictProp.optJSONArray(ATTR_DICTIONARY_LIST);
 			String basePath = dictProp.optString(ATTR_DICTIONARY_BASE_PATH);
 
-			/* compile Dict */
 			for (int inx = 0; inx < dictList.length(); inx++) {
 				JSONObject row = dictList.optJSONObject(inx);
 				String dictionaryId = row.optString(ATTR_DICTIONARY_NAME);
-				if(inputTypes != null && !types.contains(dictionaryId)){
+
+				// 필터가 존재하면서 dictionaryId가 없다면 스킵!
+				if (filters.size() > 0 && !filters.contains(dictionaryId)) {
 					continue;
 				}
-				logger.info("Compile Dict dictionaryId: {}", dictionaryId);
 
-				Type type = getType(row);
-				String tokenType = getTokenType(row);
-				boolean ignoreCase = row.optBoolean(ATTR_DICTIONARY_IGNORECASE, true);
-
-				File dictFile = getDictionaryFile(baseFile, row, basePath);
-				Iterator<CharSequence[]> source = repo.getSource(dictionaryId);
-
-				SourceDictionary<?> sourceDictionary = null;
-				if (type == Type.SET) {
-					sourceDictionary = new SetDictionary(ignoreCase);
-				} else if (type == Type.MAP) {
-					sourceDictionary = new MapDictionary(ignoreCase);
-				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-					sourceDictionary = new SynonymDictionary(ignoreCase);
-				} else if (type == Type.SPACE) {
-					sourceDictionary = new SpaceDictionary(ignoreCase);
-				} else if (type == Type.CUSTOM) {
-					sourceDictionary = new CustomDictionary(ignoreCase);
-				} else if (type == Type.INVERT_MAP) {
-					sourceDictionary = new InvertMapDictionary(ignoreCase);
-				} else if (type == Type.COMPOUND) {
-					sourceDictionary = new CompoundDictionary(ignoreCase);
-				}
+				//사전 한개를 로딩한다.
+				SourceDictionary<?> sourceDictionary = compileDictionaryOne(repo, dictList, dictionaryId);
 				if (sourceDictionary != null) {
-					int cnt = 0;
-					for (; source.hasNext(); cnt++) {
-						CharSequence[] data = source.next();
-						String id = "";
-						String keyword = "";
-						String value = "";
-						String line = "";
-						if (data[0] != null) {
-							id = String.valueOf(data[0]).trim();
-						}
-						if (data[1] != null) {
-							keyword = String.valueOf(data[1]).trim();
-						}
-						if (data[2] != null) {
-							value = String.valueOf(data[2]).trim();
-						}
-						if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-							if (keyword.length() > 0) {
-								line = keyword + "\t" + value;
-							} else {
-								line = value;
-							}
-						} else if (type == Type.CUSTOM) {
-							if (id.length() > 0) {
-								line = keyword + "\t" + id;
-							} else {
-								line = keyword;
-							}
-						} else {
-							if (value.length() > 0) {
-								line = keyword + "\t" + value;
-							} else {
-								line = keyword;
-							}
-						}
-						sourceDictionary.addSourceLineEntry(line);
-					}
-					commonDictionary.addDictionary(dictionaryId, sourceDictionary);
-					logger.debug("LOAD DICTIONARY [{}] / {} / {} / {} / {}", cnt, dictionaryId, type, tokenType, dictFile.getAbsolutePath());
+					//파일로 기록. 컴파일.
 					if (exportFile) {
+						File dictFile = getDictionaryFile(baseFile, row, basePath);
 						OutputStream ostream = null;
 						try {
 							ostream = new FileOutputStream(dictFile);
 							sourceDictionary.writeTo(ostream);
+							logger.info("DICTIONARY FILE SAVED! {} / {}", dictionaryId, dictFile.getAbsolutePath());
 						} catch (Exception ignore) {
 						} finally {
-							try { ostream.close(); } catch (Exception ignore) { }
+							try {
+								ostream.close();
+							} catch (Exception ignore) {
+							}
 						}
-					}
-				}
-
-				if (type == Type.SET) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((SetDictionary) sourceDictionary).set(), tokenType);
-					}
-				} else if (type == Type.MAP) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((MapDictionary) sourceDictionary).map().keySet(), tokenType);
-					}
-				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((SynonymDictionary) sourceDictionary).getWordSet(), tokenType);
-					}
-				} else if (type == Type.SPACE) {
-					if (tokenType != null) {
-						SpaceDictionary spaceDictionary = ((SpaceDictionary) sourceDictionary);
-						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
-						Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
-						for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
-							PreResult<CharSequence> preResult = new PreResult<>();
-							preResult.setResult(e.getValue());
-							map.put(e.getKey(), preResult);
-						}
-						// commonDictionary.setPreDictionary(map);
-					}
-				} else if (type == Type.CUSTOM) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((CustomDictionary) sourceDictionary).getWordSet(), tokenType);
-					}
-				} else if (type == Type.INVERT_MAP) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((InvertMapDictionary) sourceDictionary).map().keySet(), tokenType);
-					}
-				} else if (type == Type.COMPOUND) {
-					if (tokenType != null) {
-						commonDictionary.appendAdditionalNounEntry(((CompoundDictionary) sourceDictionary).map().keySet(), tokenType);
 					}
 				}
 			}
-			logger.debug("DICTIONARY LOAD COMPLETE!");
-			return commonDictionary;
+			logger.debug("DICTIONARY LOAD COMPLETE! [{}]", filter == null ? "ALL" : filter);
+			return null;
 		});
 	}
+
+
+	public static SourceDictionary<?> compileDictionaryOne(final DictionaryRepository repo,
+														   JSONArray dictList, String dictionaryId) {
+		// dictList 설정을 스캔하면서 dictionaryId를 찾는다.
+		for (int inx = 0; inx < dictList.length(); inx++) {
+			JSONObject row = dictList.optJSONObject(inx);
+			String dictId = row.optString(ATTR_DICTIONARY_NAME);
+			if (!dictionaryId.equals(dictId)) {
+				continue;
+			}
+			Type type = getType(row);
+			String tokenType = getTokenType(row);
+			boolean ignoreCase = row.optBoolean(ATTR_DICTIONARY_IGNORECASE, true);
+
+			Iterator<CharSequence[]> source = repo.getSource(dictionaryId);
+
+			//사전 타입으로 객체생성.
+			SourceDictionary<?> sourceDictionary = null;
+			if (type == Type.SET) {
+				sourceDictionary = new SetDictionary(ignoreCase);
+			} else if (type == Type.MAP) {
+				sourceDictionary = new MapDictionary(ignoreCase);
+			} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+				sourceDictionary = new SynonymDictionary(ignoreCase);
+			} else if (type == Type.SPACE) {
+				sourceDictionary = new SpaceDictionary(ignoreCase);
+			} else if (type == Type.CUSTOM) {
+				sourceDictionary = new CustomDictionary(ignoreCase);
+			} else if (type == Type.INVERT_MAP) {
+				sourceDictionary = new InvertMapDictionary(ignoreCase);
+			} else if (type == Type.COMPOUND) {
+				sourceDictionary = new CompoundDictionary(ignoreCase);
+			}
+			//사전객체에 데이터 입력.
+			if (sourceDictionary != null) {
+				int cnt = 0;
+				for (; source.hasNext(); cnt++) {
+					CharSequence[] data = source.next();
+					String id = "";
+					String keyword = "";
+					String value = "";
+					String line = "";
+					if (data[0] != null) {
+						id = String.valueOf(data[0]).trim();
+					}
+					if (data[1] != null) {
+						keyword = String.valueOf(data[1]).trim();
+					}
+					if (data[2] != null) {
+						value = String.valueOf(data[2]).trim();
+					}
+					if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+						if (keyword.length() > 0) {
+							line = keyword + "\t" + value;
+						} else {
+							line = value;
+						}
+					} else if (type == Type.CUSTOM) {
+						if (id.length() > 0) {
+							line = keyword + "\t" + id;
+						} else {
+							line = keyword;
+						}
+					} else {
+						if (value.length() > 0) {
+							line = keyword + "\t" + value;
+						} else {
+							line = keyword;
+						}
+					}
+					sourceDictionary.addSourceLineEntry(line);
+				}
+				logger.info("DICTIONARY LOADED! [{}] / {} / {} / {}", cnt, dictionaryId, type, tokenType);
+			}
+			return sourceDictionary;
+		}
+		return null;
+	}
+
+
+
+	public static ProductNameDictionary compileDictionaryOne(final DictionaryRepository repo, final boolean exportFile, ProductNameDictionary currentDictionary, String inputTypes) {
+		return null;
+	}
+//		if (baseFile == null || configFile == null) {
+//			logger.error("DICTIONARY NOT LOADED!");
+//			return null;
+//		}
+//		//2021.7.14 swsong: inputTypes 이 null 이라는 것은 모든 사전을 다 적용하겠다는 뜻이다. 하지만 관리도구를 통해서는 null로 들어오는 경우는 없고 사전이름이 명시된다.
+//		Set<String> types = new HashSet<>();
+//		if(inputTypes != null){
+//			String[] split = inputTypes.trim().split(",");
+//			for(String item : split){
+//				logger.info("Compile Dict types: {}", item.toLowerCase());
+//				types.add(item.toLowerCase());
+//			}
+//		}
+//
+//		SpecialPermission.check();
+//		return AccessController.doPrivileged((PrivilegedAction<ProductNameDictionary>) () -> {
+//			ProductNameDictionary commonDictionary = currentDictionary;
+//			JSONObject dictProp = ResourceResolver.readYmlConfig(configFile);
+//			JSONArray dictList = dictProp.optJSONArray(ATTR_DICTIONARY_LIST);
+//			String basePath = dictProp.optString(ATTR_DICTIONARY_BASE_PATH);
+//
+//			/* compile Dict */
+//			for (int inx = 0; inx < dictList.length(); inx++) {
+//				JSONObject row = dictList.optJSONObject(inx);
+//				String dictionaryId = row.optString(ATTR_DICTIONARY_NAME);
+//				if(inputTypes != null && !types.contains(dictionaryId)){
+//					continue;
+//				}
+//				logger.info("Compile Dict dictionaryId: {}", dictionaryId);
+//
+//				Type type = getType(row);
+//				String tokenType = getTokenType(row);
+//				boolean ignoreCase = row.optBoolean(ATTR_DICTIONARY_IGNORECASE, true);
+//
+//				File dictFile = getDictionaryFile(baseFile, row, basePath);
+//				Iterator<CharSequence[]> source = repo.getSource(dictionaryId);
+//
+//				SourceDictionary<?> sourceDictionary = null;
+//				if (type == Type.SET) {
+//					sourceDictionary = new SetDictionary(ignoreCase);
+//				} else if (type == Type.MAP) {
+//					sourceDictionary = new MapDictionary(ignoreCase);
+//				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+//					sourceDictionary = new SynonymDictionary(ignoreCase);
+//				} else if (type == Type.SPACE) {
+//					sourceDictionary = new SpaceDictionary(ignoreCase);
+//				} else if (type == Type.CUSTOM) {
+//					sourceDictionary = new CustomDictionary(ignoreCase);
+//				} else if (type == Type.INVERT_MAP) {
+//					sourceDictionary = new InvertMapDictionary(ignoreCase);
+//				} else if (type == Type.COMPOUND) {
+//					sourceDictionary = new CompoundDictionary(ignoreCase);
+//				}
+//				if (sourceDictionary != null) {
+//					int cnt = 0;
+//					for (; source.hasNext(); cnt++) {
+//						CharSequence[] data = source.next();
+//						String id = "";
+//						String keyword = "";
+//						String value = "";
+//						String line = "";
+//						if (data[0] != null) {
+//							id = String.valueOf(data[0]).trim();
+//						}
+//						if (data[1] != null) {
+//							keyword = String.valueOf(data[1]).trim();
+//						}
+//						if (data[2] != null) {
+//							value = String.valueOf(data[2]).trim();
+//						}
+//						if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+//							if (keyword.length() > 0) {
+//								line = keyword + "\t" + value;
+//							} else {
+//								line = value;
+//							}
+//						} else if (type == Type.CUSTOM) {
+//							if (id.length() > 0) {
+//								line = keyword + "\t" + id;
+//							} else {
+//								line = keyword;
+//							}
+//						} else {
+//							if (value.length() > 0) {
+//								line = keyword + "\t" + value;
+//							} else {
+//								line = keyword;
+//							}
+//						}
+//						sourceDictionary.addSourceLineEntry(line);
+//					}
+//					commonDictionary.addDictionary(dictionaryId, sourceDictionary);
+//					logger.debug("LOAD DICTIONARY [{}] / {} / {} / {} / {}", cnt, dictionaryId, type, tokenType, dictFile.getAbsolutePath());
+//					if (exportFile) {
+//						OutputStream ostream = null;
+//						try {
+//							ostream = new FileOutputStream(dictFile);
+//							sourceDictionary.writeTo(ostream);
+//						} catch (Exception ignore) {
+//						} finally {
+//							try { ostream.close(); } catch (Exception ignore) { }
+//						}
+//					}
+//				}
+//
+//				if (type == Type.SET) {
+//					if (tokenType != null) {
+//						commonDictionary.appendAdditionalNounEntry(((SetDictionary) sourceDictionary).set(), tokenType);
+//					}
+//				} else if (type == Type.MAP) {
+//					if (tokenType != null) {
+//						commonDictionary.appendAdditionalNounEntry(((MapDictionary) sourceDictionary).map().keySet(), tokenType);
+//					}
+//				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
+//					if (tokenType != null) {
+//						commonDictionary.appendAdditionalNounEntry(((SynonymDictionary) sourceDictionary).getWordSet(), tokenType);
+//					}
+//				} else if (type == Type.SPACE) {
+//					if (tokenType != null) {
+//						SpaceDictionary spaceDictionary = ((SpaceDictionary) sourceDictionary);
+//						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
+//						Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
+//						for (Entry<CharSequence, CharSequence[]> e : spaceDictionary.map().entrySet()) {
+//							PreResult<CharSequence> preResult = new PreResult<>();
+//							preResult.setResult(e.getValue());
+//							map.put(e.getKey(), preResult);
+//						}
+//						// commonDictionary.setPreDictionary(map);
+//					}
+//				} else if (type == Type.CUSTOM) {
+//					if (tokenType != null) {
+//						commonDictionary.appendAdditionalNounEntry(((CustomDictionary) sourceDictionary).getWordSet(), tokenType);
+//					}
+//				} else if (type == Type.INVERT_MAP) {
+//					if (tokenType != null) {
+//						commonDictionary.appendAdditionalNounEntry(((InvertMapDictionary) sourceDictionary).map().keySet(), tokenType);
+//					}
+//				} else if (type == Type.COMPOUND) {
+//					if (tokenType != null) {
+//						commonDictionary.appendAdditionalNounEntry(((CompoundDictionary) sourceDictionary).map().keySet(), tokenType);
+//					}
+//				}
+//			}
+//			logger.debug("DICTIONARY LOAD COMPLETE!");
+//			return commonDictionary;
+//		});
+//	}
 
 	public static int[] getDictionaryInfo(SourceDictionary<?> sourceDictionary) {
 		int[] ret = {0, 0};

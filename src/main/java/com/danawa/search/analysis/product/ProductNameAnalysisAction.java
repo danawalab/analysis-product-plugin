@@ -132,11 +132,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	/**
-	 * 상품명사전
-	 */
-	private static ProductNameDictionary dictionary;
-
-	/**
 	 * 전체색인 스레드
 	 */
 	private DanawaBulkTextIndexer indexingThread;
@@ -250,7 +245,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	/**
 	 * 각 노드에 신호 전파
 	 */
-	private void distribute(RestRequest request, NodeClient client, String action, JSONObject body, boolean selfDist) {
+	private void distribute(NodeClient client, String action, JSONObject body, boolean selfDist) {
 		String localNodeId = client.getLocalNodeId();
 		NodesInfoRequest infoRequest = new NodesInfoRequest();
 		infoRequest.clear()
@@ -361,7 +356,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		}
 
 		if (test) {
-			distribute(request, client, ACTION_TEST, jparam, true);
+			distribute(client, ACTION_TEST, jparam, true);
 		}
 	}
 
@@ -935,7 +930,9 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	}
 
 	/**
-	 * 상품명사전을 컴파일 한다. (ES 색인 사용) - 변경된 부분
+	 * 요청받은 상품명사전을 엘라스틱서치에서 읽어서 메모리로 로딩한뒤 파일로 저장한다.
+	 * (ES 색인 사용) - 변경된 부분
+	 * 그후 전체 사전을 재로딩한다.
 	 */
 	private void compileDictionary(RestRequest request, NodeClient client) {
 		JSONObject jparam = new JSONObject();
@@ -963,19 +960,24 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			jparam.put("distribute", distribute);
 		}
 
-		// 원격
+		// 사전소스가 다른 클러스터의 것을 참조하고 있다면..
+		DictionarySource repo = null;
 		if (host != null && !"".equals(host)) {
 			RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port);
-			DictionarySource repo = new DictionarySource(remoteNodeClient, index);
-			ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionaryOne(repo, exportFile, getDictionary(), type));
+			repo = new DictionarySource(remoteNodeClient, index);
 		} else {
-			DictionarySource repo = new DictionarySource(client, index);
-			ProductNameDictionary.reloadDictionary(ProductNameDictionary.compileDictionaryOne(repo, exportFile, getDictionary(), type));
+			repo = new DictionarySource(client, index);
 		}
 
+		//type으로 요청이 들어온 사전만 컴파일 한다.
+		ProductNameDictionary.compileDictionary(repo, type, exportFile);
+		//모든 사전을 다시 로딩한다.
+		ProductNameDictionary.reloadDictionary();
+
 		if (distribute) {
+			//받는 노드에서 재전파 요청을 하면 안되므로, distribute 를 false 로 보낸다.
 			jparam.put("distribute", false);
-			distribute(request, client, ACTION_COMPILE_DICT, jparam, false);
+			distribute(client, ACTION_COMPILE_DICT, jparam, false);
 		}
 
 	}
@@ -1388,10 +1390,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	 * 상품명사전
 	 */
 	private static ProductNameDictionary getDictionary() {
-		if (dictionary == null && contextStore.containsKey(ProductNameDictionary.PRODUCT_NAME_DICTIONARY)) {
-			dictionary = contextStore.getAs(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
-		}
-		return dictionary;
+		return contextStore.getAs(ProductNameDictionary.PRODUCT_NAME_DICTIONARY, ProductNameDictionary.class);
 	}
 
 	/**
