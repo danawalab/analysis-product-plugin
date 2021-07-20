@@ -35,15 +35,15 @@ public class SynonymDictionary extends MapDictionary {
 		}
 	}
 
-	public SynonymDictionary(File file, boolean ignoreCase) {
-		super(file, ignoreCase);
+	public SynonymDictionary(File file, boolean ignoreCase, String label, int seq) {
+		super(file, ignoreCase, label, seq);
 		if (wordSet == null) {
 			wordSet = new HashSet<>();
 		}
 	}
 
-	public SynonymDictionary(InputStream is, boolean ignoreCase) {
-		super(is, ignoreCase);
+	public SynonymDictionary(InputStream is, boolean ignoreCase, String label, int seq) {
+		super(is, ignoreCase, label, seq);
 		if (wordSet == null) {
 			wordSet = new HashSet<>();
 		}

@@ -13,7 +13,8 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.Loggers;
 
 public abstract class SourceDictionary<E> implements ReloadableDictionary, WritableDictionary, ReadableDictionary {
-
+	protected String label;
+	protected int seq;
 	protected static Logger logger = Loggers.getLogger(SourceDictionary.class, "");
 
 	protected boolean ignoreCase;
@@ -21,13 +22,21 @@ public abstract class SourceDictionary<E> implements ReloadableDictionary, Writa
 	public boolean ignoreCase() {
 		return ignoreCase;
 	}
+	public String label() {
+		return label;
+	}
+	public int seq() {
+		return seq;
+	}
 
 	public void ignoreCase(boolean ignoreCase) {
 		this.ignoreCase = ignoreCase;
 	}
 
-	public SourceDictionary(boolean ignoreCase) {
+	public SourceDictionary(boolean ignoreCase, String label, int seq) {
 		this.ignoreCase = ignoreCase;
+		this.label = label;
+		this.seq = seq;
 	}
 
 	public void loadSource(File file) {

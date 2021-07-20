@@ -69,6 +69,8 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 	private static final String ATTR_DICTIONARY_TOKEN_TYPE = "tokenType";
 	private static final String ATTR_DICTIONARY_IGNORECASE = "ignoreCase";
 	private static final String ATTR_DICTIONARY_FILE_PATH = "filePath";
+	private static final String ATTR_DICTIONARY_SEQ = "seq";
+	private static final String ATTR_DICTIONARY_LABEL = "label";
 
 	public static final String TAB = "\t";
 
@@ -134,6 +136,17 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 			}
 		}
 		return ret;
+	}
+	private static String getLabel(JSONObject prop) {
+		return prop.optString(ATTR_DICTIONARY_LABEL, "").trim();
+	}
+	private static int getSeq(JSONObject prop) {
+		String attribute = prop.optString(ATTR_DICTIONARY_SEQ, "").trim();
+		if (!"".equals(attribute)) {
+			return Integer.parseInt(attribute);
+		} else {
+			return 0;
+		}
 	}
 
 	public static ProductNameDictionary loadDictionary(final Environment env) {
@@ -206,29 +219,31 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 				String dictionaryId = row.optString(ATTR_DICTIONARY_NAME);
 				Type type = getType(row);
 				String tokenType = getTokenType(row);
+				String label = getLabel(row);
+				int seq = getSeq(row);
 				File dictFile = getDictionaryFile(baseFile, row, basePath);
 				boolean ignoreCase = getIgnoreCase(row);
 				SourceDictionary<?> sourceDictionary = null;
 				if (type == Type.SET) {
-					SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase);
+					SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase, label, seq);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(setDictionary.set(), tokenType);
 					}
 					sourceDictionary = setDictionary;
 				} else if (type == Type.MAP) {
-					MapDictionary mapDictionary = new MapDictionary(dictFile, ignoreCase);
+					MapDictionary mapDictionary = new MapDictionary(dictFile, ignoreCase, label, seq);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(mapDictionary.map().keySet(), tokenType);
 					}
 					sourceDictionary = mapDictionary;
 				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-					SynonymDictionary synonymDictionary = new SynonymDictionary(dictFile, ignoreCase);
+					SynonymDictionary synonymDictionary = new SynonymDictionary(dictFile, ignoreCase, label, seq);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(synonymDictionary.getWordSet(), tokenType);
 					}
 					sourceDictionary = synonymDictionary;
 				} else if (type == Type.SPACE) {
-					SpaceDictionary spaceDictionary = new SpaceDictionary(dictFile, ignoreCase);
+					SpaceDictionary spaceDictionary = new SpaceDictionary(dictFile, ignoreCase, label, seq);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
 						Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
@@ -241,19 +256,19 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 					}
 					sourceDictionary = spaceDictionary;
 				} else if (type == Type.CUSTOM) {
-					CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase);
+					CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase, label, seq);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(customDictionary.getWordSet(), tokenType);
 					}
 					sourceDictionary = customDictionary;
 				} else if (type == Type.INVERT_MAP) {
-					InvertMapDictionary invertMapDictionary = new InvertMapDictionary(dictFile, ignoreCase);
+					InvertMapDictionary invertMapDictionary = new InvertMapDictionary(dictFile, ignoreCase, label, seq);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(invertMapDictionary.map().keySet(), tokenType);
 					}
 					sourceDictionary = invertMapDictionary;
 				} else if (type == Type.COMPOUND) {
-					CompoundDictionary compoundDictionary = new CompoundDictionary(dictFile, ignoreCase);
+					CompoundDictionary compoundDictionary = new CompoundDictionary(dictFile, ignoreCase, label, seq);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(compoundDictionary.map().keySet(), tokenType);
 					}
@@ -402,6 +417,8 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 			}
 			Type type = getType(row);
 			String tokenType = getTokenType(row);
+			String label = getLabel(row);
+			int seq = getSeq(row);
 			boolean ignoreCase = row.optBoolean(ATTR_DICTIONARY_IGNORECASE, true);
 
 			Iterator<CharSequence[]> source = repo.getSource(dictionaryId);
@@ -869,6 +886,8 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 		TagProbDictionary tagProbDictionary = new TagProbDictionary(systemDictFile, ignoreCase);
 		logger.debug("Product Dictionary Load {}ms >> {}", (System.nanoTime() - st) / 1000000,
 			systemDictFile.getName());
+		tagProbDictionary.setLabel(prop.get("label") == null ? "" : prop.get("label").toString());
+		tagProbDictionary.setSeq(prop.get("seq") == null ? 0 : Integer.parseInt(prop.get("seq").toString()));
 		return tagProbDictionary;
 	}
 

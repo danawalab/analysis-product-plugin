@@ -32,17 +32,17 @@ public class MapDictionary extends SourceDictionary<Object> {
 	}
 
 	public MapDictionary(boolean ignoreCase) {
-		super(ignoreCase);
+		super(ignoreCase, null, 0);
 		map = new HashMap<>();
 	}
 
-	public MapDictionary(Map<CharSequence, CharSequence[]> map, boolean ignoreCase) {
-		super(ignoreCase);
+	public MapDictionary(Map<CharSequence, CharSequence[]> map, boolean ignoreCase, String label, int seq) {
+		super(ignoreCase, label, seq);
 		this.map = map;
 	}
 
-	public MapDictionary(File file, boolean ignoreCase) {
-		super(ignoreCase);
+	public MapDictionary(File file, boolean ignoreCase, String label, int seq) {
+		super(ignoreCase, label, seq);
 		if (!file.exists()) {
 			map = new HashMap<>();
 			logger.error("사전파일이 존재하지 않습니다. file={}", file.getAbsolutePath());
@@ -59,8 +59,8 @@ public class MapDictionary extends SourceDictionary<Object> {
 		}
 	}
 
-	public MapDictionary(InputStream is, boolean ignoreCase) {
-		super(ignoreCase);
+	public MapDictionary(InputStream is, boolean ignoreCase, String label, int seq) {
+		super(ignoreCase, label, seq);
 		try {
 			readFrom(is);
 		} catch (IOException e) {

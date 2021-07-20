@@ -1022,6 +1022,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				.key(ES_DICT_FIELD_TYPE).value(type)
 				.key("class").value(sourceDictionary.getClass().getSimpleName())
 				.key("count").value(info[0])
+				.key("label").value(sourceDictionary.label())
+				.key("seq").value(sourceDictionary.seq())
 				.key("indexCount").value(indexCount);
 			if (info[1] != 0) {
 				builder.key("words").value(info[1]);
