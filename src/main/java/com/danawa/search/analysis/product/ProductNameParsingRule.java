@@ -515,8 +515,14 @@ public class ProductNameParsingRule {
 						if (e1.length == unitCandidate.length()) {
 							// 숫자 이전글자가 영문이며, 단위명 자투리도 영문인 경우 모델명 우선으로 인식 예:a1024mm
 							// 단. 단위직후 바로 다시 단위가 나오는 현상에 대해서는 단위로 취급.
-							if ((unitType == ALPHA && (typePrev == UNIT || typePrev == UNIT_ALPHA)) ||
-								!(getType(tempch1) == ALPHA && unitType == ALPHA)) {
+							// 2021.7.20 swsong "A2000UA-4DBI USB" 에서 4DBI가 단위명으로 인식되는 버그를 찾다가 코멘트 담.
+							// 단위명 숫자앞에 +/- 부호가 나올수 있으므로 -가 있다고 모두 모델명으로 취급하면 안된다.
+							// 단순히 typeContinuous를 증가시키는 것으로 앞단어와 붙여주도록 유도한다. 776줄 참고.
+							if (
+									(unitType == ALPHA && (typePrev == UNIT || typePrev == UNIT_ALPHA))
+											||
+									!(getType(tempch1) == ALPHA && unitType == ALPHA)
+							) {
 								// 동의어 처리
 								// 단위명의 동의어가 있다면 처리한다.
 								e1 = modifyRuleEntry(fullExtract, e0, e1, unitCandidate, unitType);
@@ -773,10 +779,11 @@ public class ProductNameParsingRule {
 					// 붙이지 않는다.
 					typeContinuous = 0;
 					isContinue = false;
-				} else if (e2 != null && (e2.start != e0.start + e0.length)) {
-					// 붙이지 않는다.
-					typeContinuous = 0;
-					isContinue = false;
+					// 중요! 2021.7.20 swsong 뒷단어(e2)와 떨어져있다고 불연속이라고 설정하면 안됨.. 연속여부는 앞단어와의 관계만 확인.
+//				} else if (e2 != null && (e2.start != e0.start + e0.length)) {
+//					// 붙이지 않는다.
+//					typeContinuous = 0;
+//					isContinue = false;
 				} else if(e1 != null && e2 != null && (
 					e1.type == SYMBOL && !(e2.type == ALPHA || e2.type == NUMBER) || 
 					e2.type == SYMBOL && !(e1.type == ALPHA || e1.type == NUMBER))) {
