@@ -780,10 +780,6 @@ public class ProductNameParsingRule {
 					typeContinuous = 0;
 					isContinue = false;
 					// 중요! 2021.7.20 swsong 뒷단어(e2)와 떨어져있다고 불연속이라고 설정하면 안됨.. 연속여부는 앞단어와의 관계만 확인.
-//				} else if (e2 != null && (e2.start != e0.start + e0.length)) {
-//					// 붙이지 않는다.
-//					typeContinuous = 0;
-//					isContinue = false;
 				} else if(e1 != null && e2 != null && (
 					e1.type == SYMBOL && !(e2.type == ALPHA || e2.type == NUMBER) || 
 					e2.type == SYMBOL && !(e1.type == ALPHA || e1.type == NUMBER))) {
