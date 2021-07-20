@@ -105,11 +105,14 @@ public class ProductNameAnalyzerTest {
 		str = "1,000mlx2,000ml";
 		str = "2.0mx3.4m";
 		str = "1개 / 원형 / 재질:PET / 내열,내냉온도:-20~70℃ / 구성:1,100mlx3개 + 700mlx3개 + 500mlx3개";
-
+		str = "12345 34dBi USB";
+		str = "A2000UA-4dBi";
+		str = "A2000UA-4dBi USB";
 		Reader reader = null;
 		TokenStream stream = null;
 		try {
-			AnalyzerOption option = new AnalyzerOption(true, true, true, true, true);
+			boolean forQuery = true;
+			AnalyzerOption option = new AnalyzerOption(forQuery, true, true, true, true);
 			analyzer = new ProductNameAnalyzer(dictionary, option);
 			reader = new StringReader(str);
 			stream = analyzer.tokenStream("", reader);
