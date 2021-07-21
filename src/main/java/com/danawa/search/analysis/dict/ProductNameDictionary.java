@@ -234,6 +234,8 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 				File dictFile = getDictionaryFile(baseFile, row, basePath);
 				boolean ignoreCase = getIgnoreCase(row);
 				SourceDictionary<?> sourceDictionary = null;
+				logger.info("Dictionary Setting Name: {}", label);
+
 				if (type == Type.SET) {
 					SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase, label, seq, tokenType);
 					if (tokenType != null) {
