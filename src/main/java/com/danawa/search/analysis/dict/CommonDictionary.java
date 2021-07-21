@@ -44,7 +44,15 @@ public class CommonDictionary<T, P> {
 	public int size() {
 		return systemDictionary.size();
 	}
-
+	public String label() {
+		return systemDictionary.label();
+	}
+	public int seq() {
+		return systemDictionary.seq();
+	}
+	public boolean ignoreCase() {
+		return ((TagProbDictionary) systemDictionary).ignoreCase();
+	}
 	public <D extends SourceDictionary<?>> D  getDictionary(String dictionaryId, Class<D> cls) {
 		try {
 			@SuppressWarnings("unchecked")

@@ -17,8 +17,8 @@ public class InvertMapDictionary extends MapDictionary {
 		super(ignoreCase);
 	}
 
-	public InvertMapDictionary(File file, boolean ignoreCase, String label, int seq) {
-		super(file, ignoreCase, label, seq);
+	public InvertMapDictionary(File file, boolean ignoreCase, String label, int seq, String tokenType) {
+		super(file, ignoreCase, label, seq, tokenType);
 	}
 
 	@Override
