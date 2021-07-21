@@ -1,9 +1,7 @@
 package com.danawa.search.util;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import com.danawa.search.analysis.highlight.TermHighlightingQuery;
@@ -25,10 +23,13 @@ import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.Scroll;
@@ -44,6 +45,48 @@ public class SearchUtil {
 	private static final int DEFAULT_SCROLL_SIZE = 10000;
 
 	private static Logger logger = Loggers.getLogger(SearchUtil.class, "");
+
+
+	public static Map<String, Object> searchData(NodeClient client, String index){
+		Map<String, Object> result = new HashMap<>();
+		try {
+			SearchRequest searchRequest = new SearchRequest();
+			searchRequest.indices(index).source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(10000));
+			SearchResponse response = client.search(searchRequest).actionGet();
+
+			for(SearchHit hit : response.getHits().getHits()){
+				String id = (String) hit.getSourceAsMap().get("id");
+				String updatedTime = hit.getSourceAsMap().get("updatedTime") == null ? "" : (String) hit.getSourceAsMap().get("updatedTime");
+				String appliedTime = hit.getSourceAsMap().get("appliedTime") == null ? "" : (String) hit.getSourceAsMap().get("appliedTime");
+				int count = hit.getSourceAsMap().get("count") == null ? 0 : (Integer) hit.getSourceAsMap().get("count");
+				result.put(id, count);
+				result.put(id + "_appliedTime", appliedTime);
+				result.put(id + "_updatedTime", updatedTime);
+			}
+		}catch (Exception e){
+			logger.error("{}", e);
+		}
+		return result;
+	}
+
+	public static void upsertData(NodeClient client, String index, Map<String, Object> data){
+		logger.info("{}", data);
+		int cnt = (Integer) data.get("cnt");
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+		try {
+			Map<String, Object> record = new HashMap<String, Object>();
+			record.put("id", data.get("id"));
+			record.put("appliedTime", sdf.format(new Date()));
+			record.put("count", cnt);
+			UpdateRequest updateRequest = new UpdateRequest(index, (String) data.get("id"))
+					.docAsUpsert(true).upsert(record, XContentType.JSON).doc(record, XContentType.JSON);
+			UpdateResponse response = client.update(updateRequest).actionGet();
+		}catch (Exception e){
+			logger.error("{}", e);
+		}
+	}
+
 
 	public static void deleteAllData(NodeClient client, String index) {
 		BulkRequestBuilder builder = null;
