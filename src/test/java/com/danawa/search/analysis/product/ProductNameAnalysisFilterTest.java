@@ -320,7 +320,11 @@ public class ProductNameAnalysisFilterTest {
 							try {
 								// logger.debug("additional term:{}", term);
 								assertTrue(inx + 1 < testdata.length);
-								logger.debug("a-term:{}:{} / type:{}:{}", term, data.length > 2 + inx2 ? data[2 + inx2] : null, type, data.length > 3 + inx ? data[3 + inx2] : null);
+								try {
+									logger.debug("a-term:{}:{} / type:{}:{}", term, data.length > 2 + inx2 ? data[2 + inx2] : null, type, data.length > 3 + inx ? data[3 + inx2] : null);
+								} catch (Exception e) {
+									logger.error(e);
+								}
 								assertTrue(term.equals(data[2 + inx2]));
 								assertTrue(type.equals(data[3 + inx2]));
 							} catch (Exception ex) {
