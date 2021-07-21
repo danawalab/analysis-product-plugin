@@ -138,13 +138,21 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 		return ret;
 	}
 	private static String getLabel(JSONObject prop) {
-		return prop.optString(ATTR_DICTIONARY_LABEL, "").trim();
+		try {
+			return prop.optString(ATTR_DICTIONARY_LABEL, "").trim();
+		} catch (Exception e) {
+			return null;
+		}
 	}
 	private static int getSeq(JSONObject prop) {
-		String attribute = prop.optString(ATTR_DICTIONARY_SEQ, "").trim();
-		if (!"".equals(attribute)) {
-			return Integer.parseInt(attribute);
-		} else {
+		try {
+			String attribute = prop.optString(ATTR_DICTIONARY_SEQ, "").trim();
+			if (!"".equals(attribute)) {
+				return Integer.parseInt(attribute);
+			} else {
+				return 0;
+			}
+		} catch (Exception e) {
 			return 0;
 		}
 	}
