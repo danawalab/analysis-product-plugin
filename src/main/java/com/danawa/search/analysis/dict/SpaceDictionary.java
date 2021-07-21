@@ -36,12 +36,12 @@ public class SpaceDictionary extends MapDictionary {
 		}
 	}
 
-	public SpaceDictionary(File file, boolean ignoreCase, String label, int seq) {
-		super(file, ignoreCase, label, seq);
+	public SpaceDictionary(File file, boolean ignoreCase, String label, int seq, String tokenType) {
+		super(file, ignoreCase, label, seq, tokenType);
 	}
 
-	public SpaceDictionary(InputStream is, boolean ignoreCase, String label, int seq) {
-		super(is, ignoreCase, label, seq);
+	public SpaceDictionary(InputStream is, boolean ignoreCase, String label, int seq, String tokenType) {
+		super(is, ignoreCase, label, seq, tokenType);
 	}
 
 	public Set<CharSequence> getWordSet() {

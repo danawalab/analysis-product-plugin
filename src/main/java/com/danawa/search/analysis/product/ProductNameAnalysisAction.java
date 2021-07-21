@@ -1004,6 +1004,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				.key(ES_DICT_FIELD_TYPE).value("SYSTEM")
 				.key("class").value(TagProbDictionary.class.getSimpleName())
 				.key("count").value(productNameDictionary.size())
+				.key("label").value(productNameDictionary.label())
+				.key("seq").value(productNameDictionary.seq())
+				.key("ignoreCase").value(productNameDictionary.ignoreCase())
+				.key("tokenType").value("NONE") // system 사전은 없음.
 				.endObject();
 		Map<String, SourceDictionary<?>> dictionaryMap = productNameDictionary.getDictionaryMap();
 		Set<String> keySet = dictionaryMap.keySet();
@@ -1017,12 +1021,14 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			} else {
 				indexCount = SearchUtil.count(client, index, QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type));
 			}
-
+			String simpleName = sourceDictionary.getClass().getSimpleName();
 			builder.object()
 				.key(ES_DICT_FIELD_TYPE).value(type)
-				.key("class").value(sourceDictionary.getClass().getSimpleName())
-				.key("id").value(key)
+				.key("class").value(simpleName)
+				.key("dictType").value(simpleName.replace("Dictionary", "").toUpperCase())
 				.key("count").value(info[0])
+				.key("ignoreCase").value(sourceDictionary.ignoreCase())
+				.key("tokenType").value(sourceDictionary.tokenType() == null ? "NONE" : sourceDictionary.tokenType())
 				.key("label").value(sourceDictionary.label())
 				.key("seq").value(sourceDictionary.seq())
 				.key("indexCount").value(indexCount);

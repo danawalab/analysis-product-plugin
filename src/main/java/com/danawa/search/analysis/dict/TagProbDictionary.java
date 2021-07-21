@@ -60,7 +60,12 @@ public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequ
 	public boolean ignoreCase() {
 		return ignoreCase;
 	}
-
+	public String label() {
+		return label;
+	}
+	public int seq() {
+		return seq;
+	}
 	public void setPreMap(Map<CharSequence, PreResult<CharSequence>> preMap) {
 		this.preMap = preMap;
 	}

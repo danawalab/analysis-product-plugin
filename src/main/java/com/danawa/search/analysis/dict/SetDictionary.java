@@ -28,17 +28,17 @@ public class SetDictionary extends SourceDictionary<Object> {
 	}
 	
 	public SetDictionary(boolean ignoreCase) {
-		super(ignoreCase, null, 0);
+		super(ignoreCase, null, 0, null);
 		set = new HashSet<>();
 	}
 
-	public SetDictionary(HashSet<CharSequence> set, boolean ignoreCase, String label, int seq) {
-		super(ignoreCase, label, seq);
+	public SetDictionary(HashSet<CharSequence> set, boolean ignoreCase, String label, int seq, String tokenType) {
+		super(ignoreCase, label, seq, tokenType);
 		this.set = set;
 	}
 
-	public SetDictionary(File file, boolean ignoreCase, String label, int seq) {
-		super(ignoreCase, label, seq);
+	public SetDictionary(File file, boolean ignoreCase, String label, int seq, String tokenType) {
+		super(ignoreCase, label, seq, tokenType);
 		if (!file.exists()) {
 			set = new HashSet<>();
 			logger.error("사전파일이 존재하지 않습니다. file={}", file.getAbsolutePath());
@@ -55,8 +55,8 @@ public class SetDictionary extends SourceDictionary<Object> {
 		}
 	}
 
-	public SetDictionary(InputStream is, boolean ignoreCase,  String label, int seq) {
-		super(ignoreCase, label, seq);
+	public SetDictionary(InputStream is, boolean ignoreCase,  String label, int seq, String tokenType) {
+		super(ignoreCase, label, seq, tokenType);
 		try {
 			readFrom(is);
 		} catch (IOException e) {

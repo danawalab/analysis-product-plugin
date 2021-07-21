@@ -15,6 +15,7 @@ import org.elasticsearch.common.logging.Loggers;
 public abstract class SourceDictionary<E> implements ReloadableDictionary, WritableDictionary, ReadableDictionary {
 	protected String label;
 	protected int seq;
+	protected String tokenType;
 	protected static Logger logger = Loggers.getLogger(SourceDictionary.class, "");
 
 	protected boolean ignoreCase;
@@ -28,15 +29,18 @@ public abstract class SourceDictionary<E> implements ReloadableDictionary, Writa
 	public int seq() {
 		return seq;
 	}
-
+	public String tokenType() {
+		return tokenType;
+	}
 	public void ignoreCase(boolean ignoreCase) {
 		this.ignoreCase = ignoreCase;
 	}
 
-	public SourceDictionary(boolean ignoreCase, String label, int seq) {
+	public SourceDictionary(boolean ignoreCase, String label, int seq, String tokenType) {
 		this.ignoreCase = ignoreCase;
 		this.label = label;
 		this.seq = seq;
+		this.tokenType = tokenType;
 	}
 
 	public void loadSource(File file) {
