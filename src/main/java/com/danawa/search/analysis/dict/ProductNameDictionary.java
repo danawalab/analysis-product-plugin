@@ -894,8 +894,9 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 		TagProbDictionary tagProbDictionary = new TagProbDictionary(systemDictFile, ignoreCase);
 		logger.debug("Product Dictionary Load {}ms >> {}", (System.nanoTime() - st) / 1000000,
 			systemDictFile.getName());
-		tagProbDictionary.setLabel(prop.get("label") == null ? "" : prop.get("label").toString());
-		tagProbDictionary.setSeq(prop.get("seq") == null ? 0 : Integer.parseInt(prop.get("seq").toString()));
+
+		tagProbDictionary.setLabel(prop.has("label") ? prop.get("label").toString() : "");
+		tagProbDictionary.setSeq(prop.has("seq") ? Integer.parseInt(prop.get("seq").toString()) : 0 );
 		return tagProbDictionary;
 	}
 
