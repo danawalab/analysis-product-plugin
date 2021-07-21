@@ -23,7 +23,8 @@ import org.elasticsearch.common.logging.Loggers;
 
 public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequence>>, ReadableDictionary, WritableDictionary {
     private static Logger logger = Loggers.getLogger(TagProbDictionary.class, "");
-
+	private int seq;
+    private String label;
 	private boolean ignoreCase;
 	private Map<CharSequence, List<TagProb>> probMap;
 	private Map<CharSequence, PreResult<CharSequence>> preMap;
@@ -282,5 +283,21 @@ public class TagProbDictionary implements Dictionary<TagProb, PreResult<CharSequ
 	@Override
 	public void setPreDictionary(Map<CharSequence, PreResult<CharSequence>> map) {
 		this.preMap = map;
+	}
+
+	public int getSeq() {
+		return seq;
+	}
+
+	public void setSeq(int seq) {
+		this.seq = seq;
+	}
+
+	public String getLabel() {
+		return label;
+	}
+
+	public void setLabel(String label) {
+		this.label = label;
 	}
 }

@@ -20,7 +20,7 @@ import com.danawa.io.OutputStreamDataOutput;
 import com.danawa.util.CharVector;
 
 public class SetDictionary extends SourceDictionary<Object> {
-	
+
 	private Set<CharSequence> set;
 
 	public SetDictionary() {
@@ -28,17 +28,17 @@ public class SetDictionary extends SourceDictionary<Object> {
 	}
 	
 	public SetDictionary(boolean ignoreCase) {
-		super(ignoreCase);
+		super(ignoreCase, null, 0);
 		set = new HashSet<>();
 	}
 
-	public SetDictionary(HashSet<CharSequence> set, boolean ignoreCase) {
-		super(ignoreCase);
+	public SetDictionary(HashSet<CharSequence> set, boolean ignoreCase, String label, int seq) {
+		super(ignoreCase, label, seq);
 		this.set = set;
 	}
 
-	public SetDictionary(File file, boolean ignoreCase) {
-		super(ignoreCase);
+	public SetDictionary(File file, boolean ignoreCase, String label, int seq) {
+		super(ignoreCase, label, seq);
 		if (!file.exists()) {
 			set = new HashSet<>();
 			logger.error("사전파일이 존재하지 않습니다. file={}", file.getAbsolutePath());
@@ -55,8 +55,8 @@ public class SetDictionary extends SourceDictionary<Object> {
 		}
 	}
 
-	public SetDictionary(InputStream is, boolean ignoreCase) {
-		super(ignoreCase);
+	public SetDictionary(InputStream is, boolean ignoreCase,  String label, int seq) {
+		super(ignoreCase, label, seq);
 		try {
 			readFrom(is);
 		} catch (IOException e) {

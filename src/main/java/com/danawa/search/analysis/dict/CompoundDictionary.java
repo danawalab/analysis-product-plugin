@@ -38,8 +38,8 @@ public class CompoundDictionary extends MapDictionary {
 		}
 	}
 
-	public CompoundDictionary(File file, boolean ignoreCase) {
-		super(file, ignoreCase);
+	public CompoundDictionary(File file, boolean ignoreCase, String label, int seq) {
+		super(file, ignoreCase, label, seq);
 		if (mainWordSet == null) {
 			mainWordSet = new HashSet<>();
 		}
@@ -48,8 +48,8 @@ public class CompoundDictionary extends MapDictionary {
 		}
 	}
 
-	public CompoundDictionary(InputStream is, boolean ignoreCase) {
-		super(is, ignoreCase);
+	public CompoundDictionary(InputStream is, boolean ignoreCase, String label, int seq) {
+		super(is, ignoreCase, label, seq);
 		if (mainWordSet == null) {
 			mainWordSet = new HashSet<>();
 		}
