@@ -234,28 +234,28 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 				File dictFile = getDictionaryFile(baseFile, row, basePath);
 				boolean ignoreCase = getIgnoreCase(row);
 				SourceDictionary<?> sourceDictionary = null;
-				logger.info("Dictionary Setting Name: {}", label);
+				logger.info("Dictionary Setting Name: {}, type: {}", label, type.name());
 
 				if (type == Type.SET) {
-					SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase, label, seq, tokenType);
+					SetDictionary setDictionary = new SetDictionary(dictFile, ignoreCase, label, seq, tokenType, type);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(setDictionary.set(), tokenType);
 					}
 					sourceDictionary = setDictionary;
 				} else if (type == Type.MAP) {
-					MapDictionary mapDictionary = new MapDictionary(dictFile, ignoreCase, label, seq, tokenType);
+					MapDictionary mapDictionary = new MapDictionary(dictFile, ignoreCase, label, seq, tokenType, type);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(mapDictionary.map().keySet(), tokenType);
 					}
 					sourceDictionary = mapDictionary;
 				} else if (type == Type.SYNONYM || type == Type.SYNONYM_2WAY) {
-					SynonymDictionary synonymDictionary = new SynonymDictionary(dictFile, ignoreCase, label, seq, tokenType);
+					SynonymDictionary synonymDictionary = new SynonymDictionary(dictFile, ignoreCase, label, seq, tokenType, type);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(synonymDictionary.getWordSet(), tokenType);
 					}
 					sourceDictionary = synonymDictionary;
 				} else if (type == Type.SPACE) {
-					SpaceDictionary spaceDictionary = new SpaceDictionary(dictFile, ignoreCase, label, seq, tokenType);
+					SpaceDictionary spaceDictionary = new SpaceDictionary(dictFile, ignoreCase, label, seq, tokenType, type);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(spaceDictionary.getWordSet(), tokenType);
 						Map<CharSequence, PreResult<CharSequence>> map = new HashMap<>();
@@ -268,19 +268,19 @@ public class ProductNameDictionary extends CommonDictionary<TagProb, PreResult<C
 					}
 					sourceDictionary = spaceDictionary;
 				} else if (type == Type.CUSTOM) {
-					CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase, label, seq, tokenType);
+					CustomDictionary customDictionary = new CustomDictionary(dictFile, ignoreCase, label, seq, tokenType, type);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(customDictionary.getWordSet(), tokenType);
 					}
 					sourceDictionary = customDictionary;
 				} else if (type == Type.INVERT_MAP) {
-					InvertMapDictionary invertMapDictionary = new InvertMapDictionary(dictFile, ignoreCase, label, seq, tokenType);
+					InvertMapDictionary invertMapDictionary = new InvertMapDictionary(dictFile, ignoreCase, label, seq, tokenType, type);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(invertMapDictionary.map().keySet(), tokenType);
 					}
 					sourceDictionary = invertMapDictionary;
 				} else if (type == Type.COMPOUND) {
-					CompoundDictionary compoundDictionary = new CompoundDictionary(dictFile, ignoreCase, label, seq, tokenType);
+					CompoundDictionary compoundDictionary = new CompoundDictionary(dictFile, ignoreCase, label, seq, tokenType, type);
 					if (tokenType != null) {
 						commonDictionary.appendAdditionalNounEntry(compoundDictionary.map().keySet(), tokenType);
 					}

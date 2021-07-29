@@ -16,6 +16,7 @@ public abstract class SourceDictionary<E> implements ReloadableDictionary, Writa
 	protected String label;
 	protected int seq;
 	protected String tokenType;
+	protected ProductNameDictionary.Type type;
 	protected static Logger logger = Loggers.getLogger(SourceDictionary.class, "");
 
 	protected boolean ignoreCase;
@@ -35,12 +36,15 @@ public abstract class SourceDictionary<E> implements ReloadableDictionary, Writa
 	public void ignoreCase(boolean ignoreCase) {
 		this.ignoreCase = ignoreCase;
 	}
-
-	public SourceDictionary(boolean ignoreCase, String label, int seq, String tokenType) {
+	public ProductNameDictionary.Type type() {
+		return this.type;
+	}
+	public SourceDictionary(boolean ignoreCase, String label, int seq, String tokenType, ProductNameDictionary.Type type) {
 		this.ignoreCase = ignoreCase;
 		this.label = label;
 		this.seq = seq;
 		this.tokenType = tokenType;
+		this.type = type;
 	}
 
 	public void loadSource(File file) {

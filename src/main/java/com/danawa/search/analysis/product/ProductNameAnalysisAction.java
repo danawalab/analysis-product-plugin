@@ -1026,7 +1026,6 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			} else {
 				indexCount = SearchUtil.count(client, index, QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type));
 			}
-			String simpleName = sourceDictionary.getClass().getSimpleName();
 
 			// SearchMap에서 데이터를 가져와서 각 변수에 넣어준다.
 			String id = type.toLowerCase();
@@ -1049,8 +1048,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 
 			builder.object()
 				.key(ES_DICT_FIELD_TYPE).value(type)
-				.key("class").value(simpleName)
-				.key("dictType").value(simpleName.replace("Dictionary", "").toUpperCase())
+				.key("class").value(sourceDictionary.getClass().getSimpleName())
+				.key("dictType").value(sourceDictionary.type().name())
 //				.key("count").value(info[0])
 				.key("ignoreCase").value(sourceDictionary.ignoreCase())
 				.key("tokenType").value(sourceDictionary.tokenType() == null ? "NONE" : sourceDictionary.tokenType())

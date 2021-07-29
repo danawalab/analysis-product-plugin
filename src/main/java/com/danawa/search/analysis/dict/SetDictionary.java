@@ -28,17 +28,17 @@ public class SetDictionary extends SourceDictionary<Object> {
 	}
 	
 	public SetDictionary(boolean ignoreCase) {
-		super(ignoreCase, null, 0, null);
+		super(ignoreCase, null, 0, null, ProductNameDictionary.Type.SET);
 		set = new HashSet<>();
 	}
 
-	public SetDictionary(HashSet<CharSequence> set, boolean ignoreCase, String label, int seq, String tokenType) {
-		super(ignoreCase, label, seq, tokenType);
+	public SetDictionary(HashSet<CharSequence> set, boolean ignoreCase, String label, int seq, String tokenType, ProductNameDictionary.Type type) {
+		super(ignoreCase, label, seq, tokenType, type);
 		this.set = set;
 	}
 
-	public SetDictionary(File file, boolean ignoreCase, String label, int seq, String tokenType) {
-		super(ignoreCase, label, seq, tokenType);
+	public SetDictionary(File file, boolean ignoreCase, String label, int seq, String tokenType, ProductNameDictionary.Type type) {
+		super(ignoreCase, label, seq, tokenType, type);
 		if (!file.exists()) {
 			set = new HashSet<>();
 			logger.error("사전파일이 존재하지 않습니다. file={}", file.getAbsolutePath());
@@ -55,8 +55,8 @@ public class SetDictionary extends SourceDictionary<Object> {
 		}
 	}
 
-	public SetDictionary(InputStream is, boolean ignoreCase,  String label, int seq, String tokenType) {
-		super(ignoreCase, label, seq, tokenType);
+	public SetDictionary(InputStream is, boolean ignoreCase,  String label, int seq, String tokenType, ProductNameDictionary.Type type) {
+		super(ignoreCase, label, seq, tokenType, type);
 		try {
 			readFrom(is);
 		} catch (IOException e) {

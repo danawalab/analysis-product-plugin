@@ -34,13 +34,13 @@ public class CustomDictionary extends SourceDictionary<Object> {
 	}
 
 	public CustomDictionary(boolean ignoreCase) {
-		super(ignoreCase, null, 0, null);
+		super(ignoreCase, null, 0, null, ProductNameDictionary.Type.CUSTOM);
 		map = new HashMap<>();
 		wordSet = new HashSet<>();
 	}
 
-	public CustomDictionary(File file, boolean ignoreCase, String label, int seq, String tokenType) {
-		super(ignoreCase, label, seq, tokenType);
+	public CustomDictionary(File file, boolean ignoreCase, String label, int seq, String tokenType, ProductNameDictionary.Type type) {
+		super(ignoreCase, label, seq, tokenType, type);
 		wordSet = new HashSet<>();
 		if (!file.exists()) {
 			map = new HashMap<CharSequence, Object[]>();
@@ -58,8 +58,8 @@ public class CustomDictionary extends SourceDictionary<Object> {
 		}
 	}
 	
-	public CustomDictionary(InputStream is, boolean ignoreCase, String label, int seq, String tokenType) {
-		super(ignoreCase, label, seq, tokenType);
+	public CustomDictionary(InputStream is, boolean ignoreCase, String label, int seq, String tokenType, ProductNameDictionary.Type type) {
+		super(ignoreCase, label, seq, tokenType, type);
 		try {
 			readFrom(is);
 		} catch (IOException e) {
