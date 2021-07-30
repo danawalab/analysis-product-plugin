@@ -24,7 +24,7 @@ public class DictionaryScanTest {
         TagProbDictionary dict1 = new TagProbDictionary(file1, true);
         TagProbDictionary dict2 = new TagProbDictionary(file2, true);
 
-        BufferedWriter bw =  new BufferedWriter(new FileWriter("03.N.LOW2.txt"));
+        BufferedWriter bw =  new BufferedWriter(new FileWriter("04.N.MIN.txt"));
 
         System.out.println("dict1: " + dict1.size());
         System.out.println("dict2: " + dict2.size());

@@ -58,7 +58,7 @@ public class SystemDictionaryCompiler {
             loadTagProbByFileName(baseDict, new File(dictDir, "01.N.P11.txt"));
             loadTagProbByFileName(baseDict, new File(dictDir, "02.N.MIN.txt"));
             loadTagProbByFileName(baseDict, new File(dictDir, "03.N.LOW.txt"));
-            loadTagProbByFileName(baseDict, new File(dictDir, "03.N.LOW2.txt"));
+            loadTagProbByFileName(baseDict, new File(dictDir, "04.N.MIN.txt"));
             return baseDict;
         } catch (final Exception e) {
             System.err.println("ERROR LOADING BASE DICTIONARY : " + e.getMessage());
