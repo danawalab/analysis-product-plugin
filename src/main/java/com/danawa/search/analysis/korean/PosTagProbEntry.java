@@ -107,7 +107,7 @@ public class PosTagProbEntry implements Serializable {
 				return TagProb.MIN_PROB;
 			}
 
-			return -1;
+			return MIN_PROB;
 		}
 
 		public TagProb(PosTag posTag) {
