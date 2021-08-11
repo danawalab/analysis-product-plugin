@@ -942,6 +942,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean distribute = request.paramAsBoolean("distribute", false);
 		String host = request.param("host", null);
 		int port = request.paramAsInt("port", 9200);
+		String username = request.param("username", null);
+		String password = request.param("password", null);
 
 		if (!GET.equals(request.method())) {
 			/* POST */
@@ -952,18 +954,25 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			distribute = jparam.optBoolean("distribute", false);
 			host = jparam.optString("host", null);
 			port = jparam.optInt("port", 9200);
+			username = jparam.optString("username", null);
+			password = jparam.optString("password", null);
 		} else {
 			/* GET */
 			jparam.put("index", index);
 			jparam.put("type", type);
 			jparam.put("exportFile", exportFile);
 			jparam.put("distribute", distribute);
+			jparam.put("distribute", distribute);
+			jparam.put("host", host);
+			jparam.put("port", port);
+			jparam.put("username", username);
+			jparam.put("password", password);
 		}
 
 		// 사전소스가 다른 클러스터의 것을 참조하고 있다면..
 		DictionarySource repo = null;
 		if (host != null && !"".equals(host)) {
-			RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port);
+			RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port, username, password);
 			repo = new DictionarySource(remoteNodeClient, index);
 		} else {
 			repo = new DictionarySource(client, index);
@@ -990,17 +999,25 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
+		String host = request.param("host", null);
+		int port = request.paramAsInt("port", 9200);
+		String username = request.param("username", null);
+		String password = request.param("password", null);
+
 		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+			host = jparam.optString("host", null);
+			port = jparam.optInt("port", 9200);
+			username = jparam.optString("username", null);
+			password = jparam.optString("password", null);
 		}
 
 		// .dsearch_dict_apply 인덱스에서 데이터를 Map형태로 가져온다.
 		Map<String, Object> searchMap = SearchUtil.searchData(client, ".dsearch_dict_apply");
 
-		String host = request.param("host", null);
-		int port = request.paramAsInt("port", 9200);
-		RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port);
+
+		RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port, username, password);
 
 		ProductNameDictionary productNameDictionary = getDictionary();
 		builder
