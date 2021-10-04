@@ -9,6 +9,7 @@ import com.danawa.util.TestUtil;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TokenInfoAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
@@ -86,17 +87,19 @@ public class ProductNameTokenizerTest {
 		str = "p12배터리팩";
 		str = "ssd 4$";
 		str = "802.11ax";
+		str = "3인용압력밥솥";
 		try {
 			reader = new StringReader(str);
-			tokenizer = new ProductNameTokenizer(dictionary, false);
+			tokenizer = new ProductNameTokenizer(dictionary, true);
 			// tokenizer = new TestTokenizer(dictionary);
 			tokenizer.setReader(reader);
+			CharTermAttribute charAttribute = tokenizer.getAttribute(CharTermAttribute.class);
 			TokenInfoAttribute tokenAttribute = tokenizer.addAttribute(TokenInfoAttribute.class);
 			OffsetAttribute offsetAttribute = tokenizer.addAttribute(OffsetAttribute.class);
 			TypeAttribute typeAttribute = tokenizer.addAttribute(TypeAttribute.class);
 			tokenizer.reset();
 			for (; tokenizer.incrementToken();) {
-				logger.debug("TOKEN:{} / {}~{} / {} / {}", tokenAttribute.ref(), offsetAttribute.startOffset(),
+				logger.debug("TOKEN:{} / {} / {}~{} / {} / {}", charAttribute, tokenAttribute.ref(), offsetAttribute.startOffset(),
 					offsetAttribute.endOffset(), typeAttribute.type(), tokenAttribute.posTag());
 			}
 		} finally {

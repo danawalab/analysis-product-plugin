@@ -299,7 +299,12 @@ public final class ProductNameTokenizer extends Tokenizer {
 					tokenAtt.posTag(entry.posTag());
 					offsetAtt.setOffset(startOffset, endOffset);
 					logger.trace("TERM:{} / {}~{} / {} / {} / {}", tokenAtt.ref(), startOffset, endOffset, baseOffset, readLength, tokenAtt.posTag());
-
+					if (exportTerm) {
+						if (logger.isTraceEnabled()) {
+							logger.trace("{} / {}~{}", new String(buffer, entry.offset(), entry.column()), entry.offset(), entry.column());
+						}
+						termAtt.copyBuffer(buffer, entry.offset(), entry.column());
+					}
 					int extPosition = entry.offset() + entry.column();
 					int prevOffset = entry.offset();
 					entry = entry.next();
@@ -348,9 +353,6 @@ public final class ProductNameTokenizer extends Tokenizer {
 						logger.trace("TOKENIZER BUFFER EXHAUSTED!");
 						tokenAtt.addState(TokenInfoAttribute.STATE_INPUT_BUFFER_EXHAUSTED);
 						continue;
-					}
-					if (exportTerm && entry != null) {
-						termAtt.copyBuffer(buffer, entry.offset(), entry.column());
 					}
 					break;
 				}

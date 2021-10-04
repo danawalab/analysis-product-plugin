@@ -461,6 +461,7 @@ public class ProductNameParsingRule {
 					for (; findInx > 0; findInx--) {
 						if (qinx + findInx < queue.size()) {
 							e2 = queue.get(qinx + findInx);
+							if (e2.length == 0) { continue; }
 							// 만약 복합단위명에 한글이 포함되어야 한다면 아래 항목을 삭제
 							if (findInx > 1 && e2.type == HANGUL) {
 								continue;
@@ -536,8 +537,8 @@ public class ProductNameParsingRule {
 							//2021-04-29 swsong: x뒤에 숫자가 나와야 단위명으로 인정.
 							char xNextChar = 0; //e1의 뒷단어
 							// 뒷단어가 바로 붙어있어야 인정.  공백이 있다면 불가.
-							if(e5 != null && (e5.start == e1.start + e1.length)) {
-								xNextChar = e5.buf[0];
+							if (e5 != null && (e5.start == e1.start + e1.length)) {
+								xNextChar = e5.buf[e5.start];
 							}
 							if (
 									(
@@ -569,6 +570,11 @@ public class ProductNameParsingRule {
 										queue.remove(qinx + findInx);
 									}
 								}
+
+								e2.buf = e1.buf;
+								e2.start = e1.start + unitCandidate.length();
+								e2.length = e1.length - unitCandidate.length();
+								queue.add(qinx + 1, e2);
 							}
 						}
 					}

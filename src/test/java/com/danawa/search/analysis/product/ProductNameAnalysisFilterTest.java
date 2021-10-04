@@ -64,8 +64,6 @@ public class ProductNameAnalysisFilterTest {
 		Tokenizer tokenizer = null;
 		TokenStream tstream = null;
 		ProductNameDictionary dictionary = TestUtil.loadDictionary();
-		SpaceDictionary spDict = dictionary.getDictionary(ProductNameDictionary.DICT_SPACE, SpaceDictionary.class);
-		spDict.addEntry("", new CharVector[] { new CharVector("bacas tv") });
 		AnalyzerOption option = null;
 		String str = "";
 		str = "10.5cmx12cm";
@@ -90,6 +88,11 @@ public class ProductNameAnalysisFilterTest {
 		// str = "a3f[on]";
 		str = "Z80 RA1531A 1000m";
 		str = "적용모델: CRP-JHR0660FD/FBM, CRP-JHTS0660FS, CRP-JHTR0610FD, CRP-JHT0610FS, CRP-JHI0630FG, CRP-JHR0610FB, CRP-JHR0620FD, CRP-FHR0610FG/FD, CRP-FHTS0610FD, CRP-FHTR0610FS, CRP-BHSL0610FB 등(상세정보참고)";
+		// str = "3인용압력밥솥";
+		str = "3인용락앤아이스";
+		// str = "111ax1";
+		// str = "10cmx12cm";
+		// str = "802.11txusb카드";
 		try {
 			boolean useForQuery = false;
 			option = new AnalyzerOption(useForQuery, true, true, true, false);
