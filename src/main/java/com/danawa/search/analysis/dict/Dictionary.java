@@ -13,5 +13,9 @@ public interface Dictionary<T, P> {
 
 	public abstract int size();
 
+	public abstract int seq();
+
+	public abstract String label();
+
 	public abstract void appendAdditionalNounEntry(Set<CharSequence> set, String tokenType);
 }

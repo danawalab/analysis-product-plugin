@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.danawa.search"
-version = "1.0.0"
+version = "1.4.0"
 
 sourceCompatibility = JavaVersion.VERSION_14
 targetCompatibility = JavaVersion.VERSION_14

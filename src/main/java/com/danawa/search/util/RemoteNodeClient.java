@@ -19,12 +19,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 
 public class RemoteNodeClient extends NodeClient {
     private static Logger logger = Loggers.getLogger(RemoteNodeClient.class, "");
     private String index;
     private String host;
     private int port;
+    private String username;
+    private String password;
 
     private String url;
 
@@ -34,6 +37,13 @@ public class RemoteNodeClient extends NodeClient {
         this.port = port;
         this.url = String.format("http://%s:%d", this.host, this.port);
         this.index = index;
+    }
+
+    public RemoteNodeClient(Settings settings, ThreadPool threadPool, String index, String host, int port, String username, String password) {
+        this(settings, threadPool, index, host, port);
+        this.username = username;
+        this.password = password;
+
     }
 
     @Override
@@ -46,10 +56,14 @@ public class RemoteNodeClient extends NodeClient {
             if (request.scroll() != null) {
                 scroll = "scroll=" + request.scroll().keepAlive().toString();
             }
-            logger.info("dictionary Remote Search . {}", url);
+            logger.info("dictionary Remote Search . {}, username: {}", url, username);
             co = (HttpURLConnection) new URL(String.format("%s/%s/_search?%s", url, index, scroll)).openConnection();
             co.setRequestMethod("POST");
             co.setRequestProperty("Content-Type", "application/json");
+            if (username != null && !"".equals(username)) {
+                String token = new String(Base64.getEncoder().encode(String.format("%s:%s", username, password).getBytes(StandardCharsets.UTF_8))).replace("==", "");
+                co.setRequestProperty("Authorization", "Basic " + token);
+            }
             co.setDoOutput(true);
             co.setDoInput(true);
             co.getOutputStream().write(request.source().toString().getBytes(StandardCharsets.UTF_8));
@@ -84,7 +98,7 @@ public class RemoteNodeClient extends NodeClient {
         HttpURLConnection co = null;
         BufferedReader reader = null;
         try {
-            logger.info("dictionary Remote Search . {}", url);
+            logger.info("dictionary Remote searchScroll . {}, username: {}", url, username);
             String param = String.format("{ \"scroll_id\":\"%s\", \"scroll\":\"%s\"}", request.scrollId(), request.scroll().keepAlive().toString());
 
             byte[] paramData = param.getBytes("UTF-8");
@@ -92,7 +106,10 @@ public class RemoteNodeClient extends NodeClient {
             co = (HttpURLConnection) new URL(String.format("%s/_search/scroll", url)).openConnection();
             co.setRequestMethod("POST");
             co.setRequestProperty("Content-Type", "application/json");
-
+            if (username != null && !"".equals(username)) {
+                String token = new String(Base64.getEncoder().encode(String.format("%s:%s", username, password).getBytes(StandardCharsets.UTF_8))).replace("==", "");
+                co.setRequestProperty("Authorization", "Basic " + token);
+            }
             co.setDoInput(true);
             co.setDoOutput(true);
 
@@ -128,11 +145,16 @@ public class RemoteNodeClient extends NodeClient {
         HttpURLConnection co = null;
         BufferedReader reader = null;
         try {
+            logger.info("dictionary Remote clearScroll . {}, username: {}", url, username);
             String scrollId = request.getScrollIds().get(0);
             logger.info("clear: {}", scrollId);
             co = (HttpURLConnection) new URL(String.format("%s/_search/scroll/%s", url, scrollId)).openConnection();
             co.setRequestMethod("DELETE");
             co.setRequestProperty("Content-Type", "application/json");
+            if (username != null && !"".equals(username)) {
+                String token = new String(Base64.getEncoder().encode(String.format("%s:%s", username, password).getBytes(StandardCharsets.UTF_8))).replace("==", "");
+                co.setRequestProperty("Authorization", "Basic " + token);
+            }
             co.setDoInput(true);
             reader = new BufferedReader(new InputStreamReader(co.getInputStream()));
             StringBuilder sb = new StringBuilder();
@@ -164,10 +186,14 @@ public class RemoteNodeClient extends NodeClient {
         HttpURLConnection co = null;
         BufferedReader reader = null;
         try {
-
+            logger.info("dictionary Remote count . {}, username: {}", url, username);
             co = (HttpURLConnection) new URL(String.format("%s/%s/_count", url, index)).openConnection();
             co.setRequestMethod("POST");
             co.setRequestProperty("Content-Type", "application/json");
+            if (username != null && !"".equals(username)) {
+                String token = new String(Base64.getEncoder().encode(String.format("%s:%s", username, password).getBytes(StandardCharsets.UTF_8))).replace("==", "");
+                co.setRequestProperty("Authorization", "Basic " + token);
+            }
             co.setDoOutput(true);
             co.setDoInput(true);
             co.getOutputStream().write(matchQuery.toString().getBytes(StandardCharsets.UTF_8));

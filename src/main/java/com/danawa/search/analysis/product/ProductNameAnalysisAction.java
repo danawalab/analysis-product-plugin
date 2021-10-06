@@ -942,6 +942,8 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		boolean distribute = request.paramAsBoolean("distribute", false);
 		String host = request.param("host", null);
 		int port = request.paramAsInt("port", 9200);
+		String username = request.param("username", null);
+		String password = request.param("password", null);
 
 		if (!GET.equals(request.method())) {
 			/* POST */
@@ -952,25 +954,34 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 			distribute = jparam.optBoolean("distribute", false);
 			host = jparam.optString("host", null);
 			port = jparam.optInt("port", 9200);
+			username = jparam.optString("username", null);
+			password = jparam.optString("password", null);
 		} else {
 			/* GET */
 			jparam.put("index", index);
 			jparam.put("type", type);
 			jparam.put("exportFile", exportFile);
 			jparam.put("distribute", distribute);
+			jparam.put("distribute", distribute);
+			jparam.put("host", host);
+			jparam.put("port", port);
+			jparam.put("username", username);
+			jparam.put("password", password);
 		}
 
 		// 사전소스가 다른 클러스터의 것을 참조하고 있다면..
 		DictionarySource repo = null;
 		if (host != null && !"".equals(host)) {
-			RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port);
+			RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port, username, password);
 			repo = new DictionarySource(remoteNodeClient, index);
 		} else {
 			repo = new DictionarySource(client, index);
 		}
 
 		//type으로 요청이 들어온 사전만 컴파일 한다.
-		ProductNameDictionary.compileDictionary(repo, type, exportFile);
+//		ProductNameDictionary.compileDictionary(repo, type, exportFile);
+		ProductNameDictionary.compileDictionary(client, repo, type, exportFile);
+
 		//모든 사전을 다시 로딩한다.
 		ProductNameDictionary.reloadDictionary();
 
@@ -988,14 +999,25 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private void infoDictionary(RestRequest request, NodeClient client, JSONWriter builder) {
 		JSONObject jparam = new JSONObject();
 		String index = request.param("index", ES_DICTIONARY_INDEX);
+		String host = request.param("host", null);
+		int port = request.paramAsInt("port", 9200);
+		String username = request.param("username", null);
+		String password = request.param("password", null);
+
 		if (!GET.equals(request.method())) {
 			jparam = parseRequestBody(request);
 			index = jparam.optString("index", ES_DICTIONARY_INDEX);
+			host = jparam.optString("host", null);
+			port = jparam.optInt("port", 9200);
+			username = jparam.optString("username", null);
+			password = jparam.optString("password", null);
 		}
 
-		String host = request.param("host", null);
-		int port = request.paramAsInt("port", 9200);
-		RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port);
+		// .dsearch_dict_apply 인덱스에서 데이터를 Map형태로 가져온다.
+		Map<String, Object> searchMap = SearchUtil.searchData(client, ".dsearch_dict_apply");
+
+
+		RemoteNodeClient remoteNodeClient = new RemoteNodeClient(client.settings(), client.threadPool(), ES_DICTIONARY_INDEX, host, port, username, password);
 
 		ProductNameDictionary productNameDictionary = getDictionary();
 		builder
@@ -1004,6 +1026,10 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				.key(ES_DICT_FIELD_TYPE).value("SYSTEM")
 				.key("class").value(TagProbDictionary.class.getSimpleName())
 				.key("count").value(productNameDictionary.size())
+				.key("label").value(productNameDictionary.label())
+				.key("seq").value(productNameDictionary.seq())
+				.key("ignoreCase").value(productNameDictionary.ignoreCase())
+				.key("tokenType").value("NONE") // system 사전은 없음.
 				.endObject();
 		Map<String, SourceDictionary<?>> dictionaryMap = productNameDictionary.getDictionaryMap();
 		Set<String> keySet = dictionaryMap.keySet();
@@ -1018,11 +1044,40 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 				indexCount = SearchUtil.count(client, index, QueryBuilders.matchQuery(ES_DICT_FIELD_TYPE, type));
 			}
 
+			// SearchMap에서 데이터를 가져와서 각 변수에 넣어준다.
+			String id = type.toLowerCase();
+			int count = 0;
+			String appliedTime = "";
+			String updatedTime = "";
+
+			if(searchMap.get(id) != null){
+				// 적용된 단어 갯수
+				count = (Integer) searchMap.get(id);
+			}
+			if(searchMap.get(id + "_appliedTime") != null){
+				// 사전이 적용된 시간
+				appliedTime = (String) searchMap.get(id + "_appliedTime");
+			}
+			if(searchMap.get(id + "_updatedTime") != null){
+				// 사전 데이터가 수정된 시간
+				updatedTime = (String) searchMap.get(id + "_updatedTime");
+			}
+
 			builder.object()
 				.key(ES_DICT_FIELD_TYPE).value(type)
 				.key("class").value(sourceDictionary.getClass().getSimpleName())
-				.key("count").value(info[0])
-				.key("indexCount").value(indexCount);
+				.key("dictType").value(sourceDictionary.type().name())
+//				.key("count").value(info[0])
+				.key("ignoreCase").value(sourceDictionary.ignoreCase())
+				.key("tokenType").value(sourceDictionary.tokenType() == null ? "NONE" : sourceDictionary.tokenType())
+				.key("label").value(sourceDictionary.label())
+				.key("seq").value(sourceDictionary.seq())
+				.key("id").value(key)
+				.key("updatedTime").value(updatedTime) // 사전에 데이터가 추가/삭제/변경 된 시간
+				.key("appliedTime").value(appliedTime) // 적용된 시간
+				.key("count").value(count) // 적용 단어 갯수
+				.key("indexCount").value(indexCount); // 작업 단어 갯수
+
 			if (info[1] != 0) {
 				builder.key("words").value(info[1]);
 			}
