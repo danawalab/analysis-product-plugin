@@ -570,10 +570,11 @@ public class ProductNameParsingRule {
 										queue.remove(qinx + findInx);
 									}
 								}
-
-								e2.buf = e1.buf;
-								e2.start = e1.start + unitCandidate.length();
-								e2.length = e1.length - unitCandidate.length();
+								e2 = new RuleEntry(
+									e1.buf, e1.start + unitCandidate.length(),
+									e1.length - unitCandidate.length(), 
+									e1.startOffset + unitCandidate.length(),
+									e1.startOffset + unitCandidate.length() + e1.length - 1, e1.type);
 								queue.add(qinx + 1, e2);
 							}
 						}
@@ -1120,6 +1121,7 @@ public class ProductNameParsingRule {
 	}
 
 	private int split(RuleEntry entry, List<RuleEntry> queue, int baseInx) {
+		// if (entry.length < 2) { return 0; }
 		logger.trace("split entry ({}) : {}~{}", entry, entry.start, entry.length);
 		String ptype = null;
 		String ctype = null;
