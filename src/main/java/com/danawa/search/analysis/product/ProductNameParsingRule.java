@@ -712,7 +712,11 @@ public class ProductNameParsingRule {
 						}
 						if (!flag && qinx > 1) {
 							e3 = queue.get(qinx - 2);
-							if (e1.start == e3.start + e3.length) {
+							/* 최초텀이거나 공백이후 최초문자부터 영숫자 이면 모델명으로 */
+							if (e1.start == 0 || (e1.start > 0 && 
+								getType(e1.buf[e1.start - 1]) == WHITESPACE)) {
+								flag = true;
+							} else if (e1.start == e3.start + e3.length) {
 								if (e3.type == ALPHA || e3.type == NUMBER || e3.type == NUMBER_TRANS || 
 									(e3.type == SYMBOL && containsChar(AVAIL_SYMBOLS_CONNECTOR, e3.buf[e3.start]))) {
 									flag = true;
