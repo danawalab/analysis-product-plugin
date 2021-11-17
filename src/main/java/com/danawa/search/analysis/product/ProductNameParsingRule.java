@@ -1618,8 +1618,10 @@ public class ProductNameParsingRule {
 		entry.length = 0;
 		entry.endOffset = entry.startOffset;
 		String type = entry.type;
+		RuleEntry subEntry = null;
+		RuleEntry nextEntry = null;
 		for (; typeContinuous > 0; typeContinuous--) {
-			RuleEntry subEntry = queue.remove(removeInx);
+			subEntry = queue.remove(removeInx);
 			logger.trace("pop entry:{}/{}:{}[{}~{}] / {}", subEntry, subEntry.start, subEntry.length, subEntry.startOffset, subEntry.endOffset, subEntry.synonym);
 			if (type != subEntry.type) { type = null; }
 			int start = subEntry.start;
@@ -1637,6 +1639,15 @@ public class ProductNameParsingRule {
 						subEntry.length -= number.length;
 						subEntry.startOffset += number.length;
 						subEntry.type = ALPHA;
+						// 단위명 뒤 엔트리가 영문이라면 단위명과 합치도록 한다. (118X71WXU3 -> 71W + XU -> 71 + WXU)
+						if (removeInx < queue.size() && 
+							(nextEntry = queue.get(removeInx)).type == ALPHA &&
+							nextEntry.startOffset == subEntry.endOffset) {
+							subEntry.length += nextEntry.length;
+							subEntry.endOffset += nextEntry.length;
+							queue.remove(removeInx);
+							typeContinuous--;
+						}
 					} else {
 						subEntry.type = ALPHANUM;
 					}
