@@ -90,7 +90,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 	private static final String ACTION_SYNONYM_LIST = "get-synonym-list";
 	private static final String ACTION_ANALYZE_MULTI_PARAMS = "multi-analyze";
 	private static final String ACTION_SEARCH_KEYWORD = "search-keyword";
-	private static final String ACTION_CHECK_ENABLE = "check-enable";
+	private static final String ACTION_CHECK_ENABLE = "check-dict";
 
 
 	private static final String ES_DICTIONARY_INDEX = ".dsearch_dict";
@@ -220,7 +220,7 @@ public class ProductNameAnalysisAction extends BaseRestHandler {
 		} else if (ACTION_SEARCH_KEYWORD.equals(action)) {
 			makeSearchKeyword(request, client, builder);
 		} else if (ACTION_CHECK_ENABLE.equals(action)) {
-			builder.object().key("enable").value(getDictionary() != null);
+			builder.object().key("loaded").value(getDictionary() != null);
 			builder.endObject();
 		}
 		return channel -> {
