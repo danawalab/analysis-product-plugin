@@ -3,7 +3,7 @@
 #   2021.12.28 김준우
 #
 #   ** 실제 CI/CD 사용하기 전 체크 항목 **
-#   1. Maven Project인지 확인
+#   1. Gradle Project인지 확인
 #   2. REGISTRY_IMAGE 뒤에 `-flow`는 제거
 #   3. DOCKER_FILE 파일명, ARG == --build-arg 명령어 체크
 #   4. 테스트 배포 확인 후 사용
@@ -21,7 +21,7 @@ on:
 
 env:
   CONTAINER_REGISTRY: ghcr.io
-  DOCKER_FILE: Dockerfile.flow
+  DOCKER_FILE: Dockerfile
   TAG_SUFFIX: -rc
 
 jobs:
@@ -70,7 +70,6 @@ jobs:
       with:
         registry: ${{ env.CONTAINER_REGISTRY }}
         dockerfile: ${{ env.DOCKER_FILE }}
-        buildArgs: VERSION=${{env.SOURCE_VERSION}}
         image: ${{ env.PROJECT_NAME }}
         tags: ${{ env.BRANCH_VERSION }}
     
