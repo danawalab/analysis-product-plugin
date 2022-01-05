@@ -41,7 +41,7 @@ jobs:
 
 #     소스 버전 추출
     - name: SOURCE_VERSION Exctract
-      run: echo "SOURCE_VERSION=$(./gradlew properties | grep '^version:' | sed 's/version: //')" >> $GITHUB_ENV
+      run: echo "SOURCE_VERSION=$(./gradlew properties | grep '^version:' | cut -f 2 -d ' ')" >> $GITHUB_ENV
 
 #     자바 활성화
     - name: Setup Java JDK
