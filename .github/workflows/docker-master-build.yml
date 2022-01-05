@@ -70,7 +70,6 @@ jobs:
       with:
         registry: ${{ env.CONTAINER_REGISTRY }}
         dockerfile: ${{ env.DOCKER_FILE }}
-        buildArgs: VERSION=${{env.SOURCE_VERSION}}
         image: ${{ env.PROJECT_NAME }}
         tags: ${{ env.SOURCE_VERSION }}
     
