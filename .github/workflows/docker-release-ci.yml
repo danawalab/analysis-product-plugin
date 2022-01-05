@@ -52,7 +52,7 @@ jobs:
 
 #     그래들 패키징
     - name: Gradle Package
-      run: sh gradlew build jar
+      run: sh gradlew task jar
       
 
 #     도커 로그인
